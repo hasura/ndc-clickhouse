@@ -1,0 +1,23 @@
+[package]
+name = "clickhouse_ndc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.27.0", features = [
+  "macros",
+  "rt-multi-thread",
+  "signal",
+] }
+ndc-hub = { git = "https://github.com/hasura/ndc-hub" }
+ndc-client = { git = "http://github.com/hasura/ndc-spec", rev = "f3a6759" }
+peg = "0.8.1"
+async-trait = "0.1.72"
+prometheus = "0.13.3"
+clap = "4.3.21"
+serde = "1.0.183"
+serde_json = "1.0.104"
+schemars = "0.8.12"
+indexmap = "1"
