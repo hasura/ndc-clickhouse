@@ -2,13 +2,13 @@ mod config;
 
 use async_trait::async_trait;
 use config::ServerConfig;
-use ndc_client::models;
-use ndc_hub::{
+use ndc_sdk::{
     connector::{
         Connector, ExplainError, FetchMetricsError, HealthError, InitializationError,
         MutationError, QueryError, SchemaError, UpdateConfigurationError, ValidateError,
     },
     default_main::default_main,
+    models,
 };
 use std::{error::Error, sync::Arc};
 
