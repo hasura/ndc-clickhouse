@@ -1,6 +1,3 @@
-// let database_url =
-//     "tcp://default:0Lm4GfA_AdJIC@hs1ydja0mh.us-west-2.aws.clickhouse.cloud:8443/chinook";
-
 use std::error::Error;
 
 use serde::{de::DeserializeOwned, Deserialize};
