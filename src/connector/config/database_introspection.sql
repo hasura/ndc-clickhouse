@@ -33,6 +33,6 @@ FROM INFORMATION_SCHEMA.TABLES AS t
             c.table_schema,
             c.table_name
     ) AS c USING (table_catalog, table_schema, table_name)
-WHERE t.table_schema = currentDatabase()
+WHERE t.table_catalog = currentDatabase()
     AND t.table_type IN (1, 2) -- table type is an enum, where tables and views are 1 and 2 respectively
 FORMAT JSON;

@@ -12,14 +12,10 @@ pub use error::QueryBuilderError;
 use typecasting::{AggregatesTypeString, RowsTypeString};
 
 use super::ast::*;
-// use crate::ast::*;
 use crate::{
     connector::config::ServerConfig,
     schema::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction},
 };
-// use crate::schema::binary_comparison_operator::ClickHouseBinaryComparisonOperator;
-// use crate::schema::single_column_aggregate_function::ClickHouseSingleColumnAggregateFunction;
-// use crate::typecasting::{AggregatesTypeString, RowsTypeString};
 
 pub struct QueryBuilder<'r, 'c> {
     request: &'r models::QueryRequest,
@@ -36,68 +32,76 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     pub fn build(&self) -> Result<UnsafeInlinedStatement, QueryBuilderError> {
         self.root_query()
     }
+    fn rows_typecast_string(
+        &self,
+        fields: &IndexMap<String, models::Field>,
+        collection_alias: &str,
+    ) -> Result<String, QueryBuilderError> {
+        Ok(RowsTypeString::new(
+            collection_alias,
+            fields,
+            &self.request.collection_relationships,
+            self.configuration,
+        )
+        .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?
+        .to_string())
+    }
+    fn agregates_typecast_string(
+        &self,
+        aggregates: &IndexMap<String, models::Aggregate>,
+        collection_alias: &str,
+    ) -> Result<String, QueryBuilderError> {
+        Ok(
+            AggregatesTypeString::new(collection_alias, aggregates, self.configuration)
+                .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?
+                .to_string(),
+        )
+    }
     fn root_query(&self) -> Result<UnsafeInlinedStatement, QueryBuilderError> {
         let collection = &self.request.collection;
         let query = &self.request.query;
 
-        let mut select = vec![];
-
-        if let Some(fields) = &self.request.query.fields {
-            let typecast_string = RowsTypeString::new(
-                collection,
-                fields,
-                &self.request.collection_relationships,
-                self.configuration,
-            )
-            .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?;
-
-            select.push(
-                Function::new_unquoted("cast")
-                    .args(vec![
-                        Function::new_unquoted("tupleElement")
-                            .args(vec![
-                                Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_rowset"),
-                                    Ident::new_quoted("_rowset"),
-                                ])
-                                .into_arg(),
-                                Expr::Value(Value::Number("1".to_string())).into_arg(),
+        let get_typecasting_wrapper = |index: usize, alias: &str, typecast_string: String| {
+            Function::new_unquoted("cast")
+                .args(vec![
+                    Function::new_unquoted("tupleElement")
+                        .args(vec![
+                            Expr::CompoundIdentifier(vec![
+                                Ident::new_quoted("_rowset"),
+                                Ident::new_quoted("_rowset"),
                             ])
-                            .into_expr()
                             .into_arg(),
-                        Expr::Value(Value::SingleQuotedString(typecast_string.to_string()))
-                            .into_arg(),
-                    ])
-                    .into_expr()
-                    .into_select(Some("rows")),
-            )
-        }
+                            Expr::Value(Value::Number(index.to_string())).into_arg(),
+                        ])
+                        .into_expr()
+                        .into_arg(),
+                    Expr::Value(Value::SingleQuotedString(typecast_string)).into_arg(),
+                ])
+                .into_expr()
+                .into_select(Some(alias))
+        };
 
-        if let Some(aggregates) = &self.request.query.aggregates {
-            let typecast_string =
-                AggregatesTypeString::new(collection, aggregates, self.configuration)
-                    .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?;
-            select.push(
-                Function::new_unquoted("cast")
-                    .args(vec![
-                        Function::new_unquoted("tupleElement")
-                            .args(vec![
-                                Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_rowset"),
-                                    Ident::new_quoted("_rowset"),
-                                ])
-                                .into_arg(),
-                                Expr::Value(Value::Number("2".to_string())).into_arg(),
-                            ])
-                            .into_expr()
-                            .into_arg(),
-                        Expr::Value(Value::SingleQuotedString(typecast_string.to_string()))
-                            .into_arg(),
-                    ])
-                    .into_expr()
-                    .into_select(Some("aggregates")),
-            )
-        }
+        let select = match (&self.request.query.fields, &self.request.query.aggregates) {
+            (None, None) => vec![Expr::Value(Value::Null).into_select::<String>(None)],
+            (None, Some(aggregates)) => vec![get_typecasting_wrapper(
+                1,
+                "aggregates",
+                self.agregates_typecast_string(aggregates, collection)?,
+            )],
+            (Some(fields), None) => vec![get_typecasting_wrapper(
+                1,
+                "rows",
+                self.rows_typecast_string(fields, collection)?,
+            )],
+            (Some(fields), Some(aggregates)) => vec![
+                get_typecasting_wrapper(1, "rows", self.rows_typecast_string(fields, collection)?),
+                get_typecasting_wrapper(
+                    2,
+                    "aggregates",
+                    self.agregates_typecast_string(aggregates, collection)?,
+                ),
+            ],
+        };
 
         let with = if let Some(variables) = &self.request.variables {
             let mut variable_values: IndexMap<String, Vec<serde_json::Value>> = IndexMap::new();
