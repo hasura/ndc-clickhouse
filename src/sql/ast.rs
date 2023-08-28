@@ -752,7 +752,6 @@ pub enum Value {
     SingleQuotedString(String),
     Boolean(bool),
     Null,
-    Placeholder(String),
 }
 
 impl From<serde_json::Value> for Value {
@@ -800,7 +799,6 @@ impl fmt::Display for Value {
                 }
             }
             Value::Null => write!(f, "NULL"),
-            Value::Placeholder(s) => write!(f, "{}", s),
         }
     }
 }

@@ -154,6 +154,12 @@ impl ParameterExtractor {
         match parameter {
             Parameter::Placeholder { .. } => panic!("Attempted to extract parameter that had already been replaced with a placeholder. This is likely a bug"),
             Parameter::Value { data_type, value } => {
+                // for single quoted string, we want the underlying string,
+                // not the escaped, quoted version we get by calling to_string()
+                let value = match value {
+                    Value::SingleQuotedString(s) => s.to_owned(),
+                    _ => value.to_string()
+                };
                 self.parameters.push((
                     format!("param_p{}", self.parameter_index),
                     value.to_string()
