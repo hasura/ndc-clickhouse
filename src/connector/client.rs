@@ -27,9 +27,7 @@ pub async fn execute_query<T: DeserializeOwned>(
         .send()
         .await?;
 
-    let response = request.text().await?;
-
-    let payload = serde_json::from_str::<ClickHouseResponse<T>>(&response)?;
+    let payload: ClickHouseResponse<T> = request.json().await?;
 
     Ok(payload.data)
 }
