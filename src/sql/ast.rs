@@ -87,7 +87,7 @@ impl fmt::Display for Statement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Query {
     with: Vec<WithItem>,
     select: Vec<SelectItem>,
@@ -102,17 +102,7 @@ pub struct Query {
 
 impl Query {
     pub fn new() -> Self {
-        Self {
-            with: vec![],
-            select: vec![],
-            from: vec![],
-            predicate: None,
-            group_by: vec![],
-            order_by: vec![],
-            limit_by: None,
-            limit: None,
-            offset: None,
-        }
+        Self::default()
     }
     pub fn with(self, with: Vec<WithItem>) -> Self {
         Self { with, ..self }

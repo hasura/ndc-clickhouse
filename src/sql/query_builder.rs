@@ -132,7 +132,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 )
                 .into_expr();
 
-            vec![Query::new()
+            vec![Query::default()
                 .select(vec![SelectItem::Wildcard])
                 .from(vec![Function::new_unquoted("format")
                     .args(vec![
