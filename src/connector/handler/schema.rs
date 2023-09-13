@@ -52,7 +52,6 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
                 column.alias.to_owned(),
                 models::ObjectField {
                     description: None,
-                    arguments: BTreeMap::new(),
                     r#type: column_type,
                 },
             ));
@@ -187,7 +186,6 @@ fn get_field_type(
                     field_name.to_owned(),
                     models::ObjectField {
                         description: None,
-                        arguments: BTreeMap::new(),
                         r#type: field_type,
                     },
                 ));
@@ -245,7 +243,6 @@ fn get_field_type(
                     field_name.to_owned(),
                     models::ObjectField {
                         description: None,
-                        arguments: BTreeMap::new(),
                         r#type: field_type,
                     },
                 ));
