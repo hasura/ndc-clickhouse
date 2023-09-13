@@ -108,7 +108,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
             variable_values.insert(
                 "_varset_id".to_string(),
-                vec![(1..=variables.len()).map(serde_json::Value::from).collect()],
+                (1..=variables.len()).map(serde_json::Value::from).collect(),
             );
 
             for varset in variables {
@@ -907,7 +907,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 )?;
                 let not_expression = Expr::UnaryOp {
                     op: UnaryOperator::Not,
-                    expr: Box::new(expression),
+                    expr: expression.into_nested().into_box(),
                 };
                 Ok((not_expression, joins))
             }
@@ -921,9 +921,9 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 )?;
 
                 let (expression, joins) = left_col.apply(|left_col| {
-                    let expr = match &**operator {
+                    let expr = match operator {
                         models::UnaryComparisonOperator::IsNull => {
-                            Expr::IsNull(left_col.into_box())
+                            Expr::IsNull(left_col.into_nested().into_box())
                         }
                     };
                     (expr, vec![])
@@ -936,15 +936,27 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 operator,
                 value,
             } => {
-                let operator = match &**operator {
-                    models::BinaryComparisonOperator::Equal => BinaryOperator::Eq,
+                let custom_operator = match operator {
+                    models::BinaryComparisonOperator::Equal => None,
                     models::BinaryComparisonOperator::Other { name } => {
                         let operator =
                             ClickHouseBinaryComparisonOperator::from_str(name).map_err(|_err| {
                                 QueryBuilderError::UnknownBinaryComparisonOperator(name.to_owned())
                             })?;
 
-                        operator.to_sql_operator()
+                        Some(operator)
+                    }
+                };
+
+                let apply_operator = |left: Expr, right: Expr| {
+                    if let Some(custom_operator) = custom_operator {
+                        custom_operator.apply(left, right)
+                    } else {
+                        Expr::BinaryOp {
+                            left: left.into_box(),
+                            op: BinaryOperator::Eq,
+                            right: right.into_box(),
+                        }
                     }
                 };
 
@@ -956,7 +968,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     name_index,
                 )?;
 
-                let right_col = match &**value {
+                let right_col = match value {
                     models::ComparisonValue::Column { column } => self.comparison_column(
                         column,
                         current_join_alias,
@@ -980,12 +992,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                 let (expression, expression_joins) = right_col.apply(|right_col| {
                     left_col.apply(|left_col| {
-                        let expression = Expr::BinaryOp {
-                            left: left_col.into_box(),
-                            op: operator.clone(),
-                            right: right_col.into_box(),
-                        };
-
+                        let expression = apply_operator(left_col, right_col);
                         (expression, vec![])
                     })
                 });
@@ -1045,7 +1052,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                     for right_col in right_cols {
                         let (expression, expression_joins) = left_col.apply(|left_col| {
-                            right_col.apply(|right_col| match &**operator {
+                            right_col.apply(|right_col| match operator {
                                 models::BinaryArrayComparisonOperator::In => (
                                     Expr::BinaryOp {
                                         left: left_col.into_box(),
@@ -1100,7 +1107,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         .collect::<Result<Vec<_>, _>>()?;
 
                     let (expression, expression_joins) = left_col.apply(|left_col| {
-                        let expression = match &**operator {
+                        let expression = match operator {
                             models::BinaryArrayComparisonOperator::In => Expr::InList {
                                 expr: left_col.into_box(),
                                 list,
