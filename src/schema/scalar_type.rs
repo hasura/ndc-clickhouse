@@ -266,7 +266,6 @@ impl ClickHouseScalarType {
             (BC::Lt, self.to_owned()),
             (BC::GtEq, self.to_owned()),
             (BC::LtEq, self.to_owned()),
-            (BC::Eq, self.to_owned()),
             (BC::NotEq, self.to_owned()),
         ];
 

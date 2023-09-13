@@ -716,6 +716,9 @@ pub enum BinaryOperator {
     Eq,
     NotEq,
     Like,
+    NotLike,
+    ILike,
+    NotILike,
     And,
     Or,
 }
@@ -730,6 +733,9 @@ impl fmt::Display for BinaryOperator {
             BinaryOperator::Eq => write!(f, "="),
             BinaryOperator::NotEq => write!(f, "!="),
             BinaryOperator::Like => write!(f, "LIKE"),
+            BinaryOperator::NotLike => write!(f, "NOT LIKE"),
+            BinaryOperator::ILike => write!(f, "ILIKE"),
+            BinaryOperator::NotILike => write!(f, "NOT ILIKE"),
             BinaryOperator::And => write!(f, "AND"),
             BinaryOperator::Or => write!(f, "OR"),
         }

@@ -148,41 +148,41 @@ pub enum ClickhouseDataType {
 
 impl Display for ClickhouseDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ClickhouseDataType::*;
+        use ClickhouseDataType as DT;
         match self {
-            Nullable(inner) => write!(f, "Nullable({inner})"),
-            Bool => write!(f, "Bool"),
-            String => write!(f, "String"),
-            FixedString(n) => write!(f, "FixedString({n})"),
-            UInt8 => write!(f, "UInt8"),
-            UInt16 => write!(f, "UInt16"),
-            UInt32 => write!(f, "UInt32"),
-            UInt64 => write!(f, "UInt64"),
-            UInt128 => write!(f, "UInt128"),
-            UInt256 => write!(f, "UInt256"),
-            Int8 => write!(f, "Int8"),
-            Int16 => write!(f, "Int16"),
-            Int32 => write!(f, "Int32"),
-            Int64 => write!(f, "Int64"),
-            Int128 => write!(f, "Int128"),
-            Int256 => write!(f, "Int256"),
-            Float32 => write!(f, "Float32"),
-            Float64 => write!(f, "Float64"),
-            Decimal { precision, scale } => write!(f, "Decimal({precision}, {scale})"),
-            Decimal32 { scale } => write!(f, "Decimal32({scale})"),
-            Decimal64 { scale } => write!(f, "Decimal64({scale})"),
-            Decimal128 { scale } => write!(f, "Decimal128({scale})"),
-            Decimal256 { scale } => write!(f, "Decimal256({scale})"),
-            Date => write!(f, "Date"),
-            Date32 => write!(f, "Date32"),
-            DateTime { timezone } => {
+            DT::Nullable(inner) => write!(f, "Nullable({inner})"),
+            DT::Bool => write!(f, "Bool"),
+            DT::String => write!(f, "String"),
+            DT::FixedString(n) => write!(f, "FixedString({n})"),
+            DT::UInt8 => write!(f, "UInt8"),
+            DT::UInt16 => write!(f, "UInt16"),
+            DT::UInt32 => write!(f, "UInt32"),
+            DT::UInt64 => write!(f, "UInt64"),
+            DT::UInt128 => write!(f, "UInt128"),
+            DT::UInt256 => write!(f, "UInt256"),
+            DT::Int8 => write!(f, "Int8"),
+            DT::Int16 => write!(f, "Int16"),
+            DT::Int32 => write!(f, "Int32"),
+            DT::Int64 => write!(f, "Int64"),
+            DT::Int128 => write!(f, "Int128"),
+            DT::Int256 => write!(f, "Int256"),
+            DT::Float32 => write!(f, "Float32"),
+            DT::Float64 => write!(f, "Float64"),
+            DT::Decimal { precision, scale } => write!(f, "Decimal({precision}, {scale})"),
+            DT::Decimal32 { scale } => write!(f, "Decimal32({scale})"),
+            DT::Decimal64 { scale } => write!(f, "Decimal64({scale})"),
+            DT::Decimal128 { scale } => write!(f, "Decimal128({scale})"),
+            DT::Decimal256 { scale } => write!(f, "Decimal256({scale})"),
+            DT::Date => write!(f, "Date"),
+            DT::Date32 => write!(f, "Date32"),
+            DT::DateTime { timezone } => {
                 write!(f, "DateTime")?;
                 if let Some(tz) = timezone {
                     write!(f, "({tz})")?;
                 }
                 Ok(())
             }
-            DateTime64 {
+            DT::DateTime64 {
                 precision,
                 timezone,
             } => {
@@ -192,12 +192,12 @@ impl Display for ClickhouseDataType {
                 }
                 write!(f, ")")
             }
-            Json => write!(f, "JSON"),
-            Uuid => write!(f, "UUID"),
-            IPv4 => write!(f, "IPv4"),
-            IPv6 => write!(f, "IPv6"),
-            LowCardinality(inner) => write!(f, "LowCardinality({inner})"),
-            Nested(elements) => {
+            DT::Json => write!(f, "JSON"),
+            DT::Uuid => write!(f, "UUID"),
+            DT::IPv4 => write!(f, "IPv4"),
+            DT::IPv6 => write!(f, "IPv6"),
+            DT::LowCardinality(inner) => write!(f, "LowCardinality({inner})"),
+            DT::Nested(elements) => {
                 write!(f, "Nested(")?;
                 let mut first = true;
                 for (name, value) in elements {
@@ -210,9 +210,9 @@ impl Display for ClickhouseDataType {
                 }
                 write!(f, ")")
             }
-            Array(inner) => write!(f, "Array({inner})"),
-            Map { key, value } => write!(f, "Map({key}, {value})"),
-            Tuple(elements) => {
+            DT::Array(inner) => write!(f, "Array({inner})"),
+            DT::Map { key, value } => write!(f, "Map({key}, {value})"),
+            DT::Tuple(elements) => {
                 write!(f, "Tuple(")?;
                 let mut first = true;
                 for (name, t) in elements {
@@ -228,7 +228,7 @@ impl Display for ClickhouseDataType {
                 }
                 write!(f, ")")
             }
-            Enum(variants) => {
+            DT::Enum(variants) => {
                 write!(f, "Enum(")?;
                 let mut first = true;
                 for (variant, id) in variants {
@@ -246,7 +246,7 @@ impl Display for ClickhouseDataType {
                 }
                 write!(f, ")")
             }
-            SimpleAggregateFunction {
+            DT::SimpleAggregateFunction {
                 function,
                 arguments,
             } => {
@@ -256,7 +256,7 @@ impl Display for ClickhouseDataType {
                 }
                 write!(f, ")")
             }
-            AggregateFunction {
+            DT::AggregateFunction {
                 function,
                 arguments,
             } => {
@@ -266,7 +266,7 @@ impl Display for ClickhouseDataType {
                 }
                 write!(f, ")")
             }
-            Nothing => write!(f, "Nothing"),
+            DT::Nothing => write!(f, "Nothing"),
         }
     }
 }
@@ -283,7 +283,7 @@ impl FromStr for ClickhouseDataType {
 
 peg::parser! {
   grammar clickhouse_parser() for str {
-    use ClickhouseDataType::*;
+    use ClickhouseDataType as CDT;
     pub rule data_type() -> ClickhouseDataType = nullable()
         / uint256()
         / uint128()
@@ -322,46 +322,46 @@ peg::parser! {
         / tuple()
         / r#enum()
         / nothing()
-    rule nullable() -> ClickhouseDataType = "Nullable(" t:data_type() ")" { Nullable(Box::new(t)) }
-    rule uint8() -> ClickhouseDataType = "UInt8" { UInt8 }
-    rule uint16() -> ClickhouseDataType = "UInt16" { UInt16 }
-    rule uint32() -> ClickhouseDataType = "UInt32" { UInt32 }
-    rule uint64() -> ClickhouseDataType = "UInt64" { UInt64 }
-    rule uint128() -> ClickhouseDataType = "UInt128" { UInt128 }
-    rule uint256() -> ClickhouseDataType = "UInt256" { UInt256 }
-    rule int8() -> ClickhouseDataType = "Int8" { Int8 }
-    rule int16() -> ClickhouseDataType = "Int16" { Int16 }
-    rule int32() -> ClickhouseDataType = "Int32" { Int32 }
-    rule int64() -> ClickhouseDataType = "Int64" { Int64 }
-    rule int128() -> ClickhouseDataType = "Int128" { Int128 }
-    rule int256() -> ClickhouseDataType = "Int256" { Int256 }
-    rule float32() -> ClickhouseDataType = "Float32" { Float32 }
-    rule float64() -> ClickhouseDataType = "Float64" { Float64 }
-    rule decimal() -> ClickhouseDataType = "Decimal(" precision:integer_value() ", " scale:integer_value() ")" { Decimal { precision, scale }  }
-    rule decimal32() -> ClickhouseDataType = "Decimal32(" scale:integer_value() ")" { Decimal32 { scale } }
-    rule decimal64() -> ClickhouseDataType = "Decimal64(" scale:integer_value() ")" { Decimal64 { scale } }
-    rule decimal128() -> ClickhouseDataType = "Decimal128(" scale:integer_value() ")" { Decimal128 { scale } }
-    rule decimal256() -> ClickhouseDataType = "Decimal256(" scale:integer_value() ")" { Decimal256 { scale } }
-    rule bool() -> ClickhouseDataType = "Bool" { Bool }
-    rule string() -> ClickhouseDataType = "String" { String }
-    rule fixed_string() -> ClickhouseDataType = "FixedString(" n:integer_value() ")" { FixedString(n) }
-    rule date() -> ClickhouseDataType = "Date" { Date }
-    rule date32() -> ClickhouseDataType = "Date32" { Date32 }
-    rule date_time() -> ClickhouseDataType = "DateTime" tz:("(" tz:single_quoted_string_value()? ")" { tz })? { DateTime { timezone: tz.flatten().map(|s| s.to_owned()) } }
-    rule date_time64() -> ClickhouseDataType = "DateTime64(" precision:integer_value() tz:(", " tz:single_quoted_string_value()? { tz })? ")" { DateTime64{ precision, timezone: tz.flatten().map(|s| s.to_owned())} }
-    rule json() -> ClickhouseDataType = "JSON" { Json }
-    rule uuid() -> ClickhouseDataType = "UUID" { Uuid }
-    rule ipv4() -> ClickhouseDataType = "IPv4" { IPv4 }
-    rule ipv6() -> ClickhouseDataType = "IPv6" { IPv6 }
-    rule low_cardinality() -> ClickhouseDataType = "LowCardinality(" t:data_type() ")" { LowCardinality(Box::new(t)) }
-    rule nested() -> ClickhouseDataType =  "Nested(" e:(("\""? n:identifier() "\""? " " t:data_type() { (n, t)}) ** ", ") ")" { Nested(e) }
-    rule array() -> ClickhouseDataType =  "Array(" t:data_type() ")" { Array(Box::new(t)) }
-    rule map() -> ClickhouseDataType =  "Map(" k:data_type() ", " v:data_type() ")" { Map { key: Box::new(k), value: Box::new(v) } }
-    rule tuple() -> ClickhouseDataType =  "Tuple(" e:((n:(n:identifier() " " { n })? t:data_type() { (n, t) }) ** ", ")  ")" { Tuple(e) }
-    rule r#enum() -> ClickhouseDataType = "Enum" ("8" / "16")?  "(" e:((n:single_quoted_string_value() i:(" = " i:integer_value() { i })? { (n, i) }) ** ", ") ")" { Enum(e)}
-    rule aggregate_function() -> ClickhouseDataType = "AggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { AggregateFunction { function: f, arguments:  a }}
-    rule simple_aggregate_function() -> ClickhouseDataType =  "SimpleAggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { SimpleAggregateFunction { function: f, arguments:  a }}
-    rule nothing() -> ClickhouseDataType = "Nothing" { Nothing }
+    rule nullable() -> ClickhouseDataType = "Nullable(" t:data_type() ")" { CDT::Nullable(Box::new(t)) }
+    rule uint8() -> ClickhouseDataType = "UInt8" { CDT::UInt8 }
+    rule uint16() -> ClickhouseDataType = "UInt16" { CDT::UInt16 }
+    rule uint32() -> ClickhouseDataType = "UInt32" { CDT::UInt32 }
+    rule uint64() -> ClickhouseDataType = "UInt64" { CDT::UInt64 }
+    rule uint128() -> ClickhouseDataType = "UInt128" { CDT::UInt128 }
+    rule uint256() -> ClickhouseDataType = "UInt256" { CDT::UInt256 }
+    rule int8() -> ClickhouseDataType = "Int8" { CDT::Int8 }
+    rule int16() -> ClickhouseDataType = "Int16" { CDT::Int16 }
+    rule int32() -> ClickhouseDataType = "Int32" { CDT::Int32 }
+    rule int64() -> ClickhouseDataType = "Int64" { CDT::Int64 }
+    rule int128() -> ClickhouseDataType = "Int128" { CDT::Int128 }
+    rule int256() -> ClickhouseDataType = "Int256" { CDT::Int256 }
+    rule float32() -> ClickhouseDataType = "Float32" { CDT::Float32 }
+    rule float64() -> ClickhouseDataType = "Float64" { CDT::Float64 }
+    rule decimal() -> ClickhouseDataType = "Decimal(" precision:integer_value() ", " scale:integer_value() ")" { CDT::Decimal { precision, scale }  }
+    rule decimal32() -> ClickhouseDataType = "Decimal32(" scale:integer_value() ")" { CDT::Decimal32 { scale } }
+    rule decimal64() -> ClickhouseDataType = "Decimal64(" scale:integer_value() ")" { CDT::Decimal64 { scale } }
+    rule decimal128() -> ClickhouseDataType = "Decimal128(" scale:integer_value() ")" { CDT::Decimal128 { scale } }
+    rule decimal256() -> ClickhouseDataType = "Decimal256(" scale:integer_value() ")" { CDT::Decimal256 { scale } }
+    rule bool() -> ClickhouseDataType = "Bool" { CDT::Bool }
+    rule string() -> ClickhouseDataType = "String" { CDT::String }
+    rule fixed_string() -> ClickhouseDataType = "FixedString(" n:integer_value() ")" { CDT::FixedString(n) }
+    rule date() -> ClickhouseDataType = "Date" { CDT::Date }
+    rule date32() -> ClickhouseDataType = "Date32" { CDT::Date32 }
+    rule date_time() -> ClickhouseDataType = "DateTime" tz:("(" tz:single_quoted_string_value()? ")" { tz })? { CDT::DateTime { timezone: tz.flatten().map(|s| s.to_owned()) } }
+    rule date_time64() -> ClickhouseDataType = "DateTime64(" precision:integer_value() tz:(", " tz:single_quoted_string_value()? { tz })? ")" { CDT::DateTime64{ precision, timezone: tz.flatten().map(|s| s.to_owned())} }
+    rule json() -> ClickhouseDataType = "JSON" { CDT::Json }
+    rule uuid() -> ClickhouseDataType = "UUID" { CDT::Uuid }
+    rule ipv4() -> ClickhouseDataType = "IPv4" { CDT::IPv4 }
+    rule ipv6() -> ClickhouseDataType = "IPv6" { CDT::IPv6 }
+    rule low_cardinality() -> ClickhouseDataType = "LowCardinality(" t:data_type() ")" { CDT::LowCardinality(Box::new(t)) }
+    rule nested() -> ClickhouseDataType =  "Nested(" e:(("\""? n:identifier() "\""? " " t:data_type() { (n, t)}) ** ", ") ")" { CDT::Nested(e) }
+    rule array() -> ClickhouseDataType =  "Array(" t:data_type() ")" { CDT::Array(Box::new(t)) }
+    rule map() -> ClickhouseDataType =  "Map(" k:data_type() ", " v:data_type() ")" { CDT::Map { key: Box::new(k), value: Box::new(v) } }
+    rule tuple() -> ClickhouseDataType =  "Tuple(" e:((n:(n:identifier() " " { n })? t:data_type() { (n, t) }) ** ", ")  ")" { CDT::Tuple(e) }
+    rule r#enum() -> ClickhouseDataType = "Enum" ("8" / "16")?  "(" e:((n:single_quoted_string_value() i:(" = " i:integer_value() { i })? { (n, i) }) ** ", ") ")" { CDT::Enum(e)}
+    rule aggregate_function() -> ClickhouseDataType = "AggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::AggregateFunction { function: f, arguments:  a }}
+    rule simple_aggregate_function() -> ClickhouseDataType =  "SimpleAggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::SimpleAggregateFunction { function: f, arguments:  a }}
+    rule nothing() -> ClickhouseDataType = "Nothing" { CDT::Nothing }
 
 
 
@@ -385,58 +385,64 @@ peg::parser! {
 
 #[test]
 fn can_parse_clickhouse_data_type() {
-    use ClickhouseDataType::*;
+    use ClickhouseDataType as CDT;
     let data_types = vec![
-        ("Int32", Int32),
-        ("Nullable(Int32)", Nullable(Box::new(Int32))),
-        ("Nullable(Date32)", Nullable(Box::new(Date32))),
+        ("Int32", CDT::Int32),
+        ("Nullable(Int32)", CDT::Nullable(Box::new(CDT::Int32))),
+        ("Nullable(Date32)", CDT::Nullable(Box::new(CDT::Date32))),
         (
             "DateTime64(9)",
-            DateTime64 {
+            CDT::DateTime64 {
                 precision: 9,
                 timezone: None,
             },
         ),
-        ("Float64", Float64),
-        ("Date", Date),
+        ("Float64", CDT::Float64),
+        ("Date", CDT::Date),
         (
             "DateTime('Asia/Istanbul\\\\')",
-            DateTime {
+            CDT::DateTime {
                 timezone: Some(SingleQuotedString("Asia/Istanbul\\\\".to_string())),
             },
         ),
-        ("LowCardinality(String)", LowCardinality(Box::new(String))),
+        (
+            "LowCardinality(String)",
+            CDT::LowCardinality(Box::new(CDT::String)),
+        ),
         (
             "Map(LowCardinality(String), String)",
-            Map {
-                key: Box::new(LowCardinality(Box::new(String))),
-                value: Box::new(String),
+            CDT::Map {
+                key: Box::new(CDT::LowCardinality(Box::new(CDT::String))),
+                value: Box::new(CDT::String),
             },
         ),
         (
             "Array(DateTime64(9))",
-            Array(Box::new(DateTime64 {
+            CDT::Array(Box::new(CDT::DateTime64 {
                 precision: 9,
                 timezone: None,
             })),
         ),
         (
             "Array(Map(LowCardinality(String), String))",
-            Array(Box::new(Map {
-                key: Box::new(LowCardinality(Box::new(String))),
-                value: Box::new(String),
+            CDT::Array(Box::new(CDT::Map {
+                key: Box::new(CDT::LowCardinality(Box::new(CDT::String))),
+                value: Box::new(CDT::String),
             })),
         ),
         (
             "Tuple(String, Int32)",
-            Tuple(vec![(None, String), (None, Int32)]),
+            CDT::Tuple(vec![(None, CDT::String), (None, CDT::Int32)]),
         ),
         (
             "Tuple(n String, \"i\" Int32, `u` UInt8)",
-            Tuple(vec![
-                (Some(Identifier::Unquoted("n".to_string())), String),
-                (Some(Identifier::DoubleQuoted("i".to_string())), Int32),
-                (Some(Identifier::BacktickQuoted("u".to_string())), UInt8),
+            CDT::Tuple(vec![
+                (Some(Identifier::Unquoted("n".to_string())), CDT::String),
+                (Some(Identifier::DoubleQuoted("i".to_string())), CDT::Int32),
+                (
+                    Some(Identifier::BacktickQuoted("u".to_string())),
+                    CDT::UInt8,
+                ),
             ]),
         ),
     ];
