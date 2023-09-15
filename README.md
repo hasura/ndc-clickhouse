@@ -28,12 +28,10 @@ The following steps will allow you to deploy the connector and use it in a Hasur
      `clickhouse.connector.configuration.json`
      You have 2 options for the config:
      1. The easiest option is to is to run the connector locally in config mode:
-        * ```
-          cargo run -- configuration serve --port 5000
-          ```
-        * ```
-          curl -X POST -d '{"connection": {"username": "your_username", "password": "your_password", "url": "your_clickhouse_url"}, "tables": []}' http://localhost:5000 > clickhouse.connector.configuration.json
-          ```
+     ```
+     cargo run -- configuration serve --port 5000
+     curl -X POST -d '{"connection": {"username": "your_username", "password": "your_password", "url": "your_clickhouse_url"}, "tables": []}' http://localhost:5000 > clickhouse.connector.configuration.json
+     ```
      2. The other option is to manually write your config that follows this pattern:
      ```
      {
