@@ -60,7 +60,7 @@ The following steps will allow you to deploy the connector and use it in a Hasur
      ```
 * Deploy the connector
      ```
-     hasura3 connector create sendgrid:v1 \
+     hasura3 connector create clickhouse:v1 \
      --github-repo-url https://github.com/hasura/clickhouse_ndc/tree/main \
      --config-file ./clickhouse.connector.configuration.json
      ```
