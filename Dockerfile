@@ -10,4 +10,5 @@ RUN cargo build --locked --profile release --package clickhouse_ndc
 # unable to determine where the dependency comes from,
 # this may be somewhere upstream?
 
-ENTRYPOINT [ "/tmp/target/release/clickhouse_ndc", "serve", "--configuration", "/config.json"]
+ENTRYPOINT ["/tmp/target/release/clickhouse_ndc"]
+CMD ["serve", "--configuration", "/etc/connector/config.json"]
