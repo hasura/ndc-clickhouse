@@ -28,6 +28,14 @@ impl Connector for ClickhouseConnector {
     /// The type of unserializable state
     type State = ServerState;
 
+    fn get_read_regions(_conf: &Self::Configuration) -> std::vec::Vec<std::string::String> {
+        vec!()
+    }
+
+    fn get_write_regions(_conf: &Self::Configuration) -> std::vec::Vec<std::string::String> {
+        vec!()
+    }
+
     fn make_empty_configuration() -> Self::RawConfiguration {
         ServerConfig::default()
     }
@@ -42,6 +50,7 @@ impl Connector for ClickhouseConnector {
     /// returning a configuration error or a validated [`Connector::Configuration`].
     async fn validate_raw_configuration(
         configuration: &Self::RawConfiguration,
+        _regions: &std::collections::BTreeMap<std::string::String,std::vec::Vec<std::string::String>>
     ) -> Result<Self::Configuration, ValidateError> {
         // todo: validate config.
         // todo: we should take an owned configuration here.
