@@ -886,7 +886,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                 let or_expression = or_expressions
                     .into_iter()
-                    .reduce(and_reducer)
+                    .reduce(or_reducer)
                     .unwrap_or_else(|| Expr::Value(Value::Boolean(false)));
 
                 let or_expression = if expressions.len() > 1 {
@@ -1349,8 +1349,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         let join_alias = Ident::new_quoted(format!("_exists_{}", name_index));
         *name_index += 1;
 
-        let (predicate_expr, predicate_joins) =
-            self.filter_expression(expression, &join_alias, target_collection, false, &mut 1)?;
+        let (predicate_expr, predicate_joins) = self.filter_expression(
+            expression,
+            &join_alias,
+            target_collection,
+            false,
+            name_index,
+        )?;
 
         let table = self
             .collection_ident(target_collection)?
@@ -1599,10 +1604,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         .into_select(Some("_values")),
                                 );
 
-                                let joins = base_joins
-                                    .into_iter()
-                                    .chain(additional_joins.into_iter())
-                                    .collect();
+                                let joins =
+                                    base_joins.into_iter().chain(additional_joins).collect();
 
                                 let from = vec![table.into_table_with_joins(joins)];
 
