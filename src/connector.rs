@@ -29,11 +29,11 @@ impl Connector for ClickhouseConnector {
     type State = ServerState;
 
     fn get_read_regions(_conf: &Self::Configuration) -> std::vec::Vec<std::string::String> {
-        vec!()
+        vec![]
     }
 
     fn get_write_regions(_conf: &Self::Configuration) -> std::vec::Vec<std::string::String> {
-        vec!()
+        vec![]
     }
 
     fn make_empty_configuration() -> Self::RawConfiguration {
