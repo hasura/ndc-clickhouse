@@ -4,25 +4,25 @@ use crate::sql::ast::{BinaryOperator, Expr, Function};
 
 #[derive(Debug, Clone, EnumString, Display, EnumIter)]
 pub enum ClickHouseBinaryComparisonOperator {
-    #[strum(serialize = "_gt")]
+    #[strum(to_string = "_gt", serialize = "greater_than")]
     Gt,
-    #[strum(serialize = "_lt")]
+    #[strum(to_string = "_lt", serialize = "less_than")]
     Lt,
-    #[strum(serialize = "_gte")]
+    #[strum(to_string = "_gte", serialize = "greater_than_or_equal")]
     GtEq,
-    #[strum(serialize = "_lte")]
+    #[strum(to_string = "_lte", serialize = "less_than_or_equal")]
     LtEq,
-    #[strum(serialize = "_neq")]
+    #[strum(to_string = "_neq")]
     NotEq,
-    #[strum(serialize = "_like")]
+    #[strum(to_string = "_like")]
     Like,
-    #[strum(serialize = "_nlike")]
+    #[strum(to_string = "_nlike")]
     NotLike,
-    #[strum(serialize = "_ilike")]
+    #[strum(to_string = "_ilike")]
     ILike,
-    #[strum(serialize = "_nilike")]
+    #[strum(to_string = "_nilike")]
     NotILike,
-    #[strum(serialize = "_match")]
+    #[strum(to_string = "_match")]
     Match,
 }
 
