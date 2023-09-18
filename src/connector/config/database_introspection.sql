@@ -2,7 +2,7 @@ SELECT
     t.table_name AS "table_name",
     t.table_schema AS "table_schema",
     t.table_catalog AS "table_catalog",
-    st.primary_key AS "primary_key",
+    if(empty(st.primary_key), null, st.primary_key)  AS "primary_key",
     toString(
         cast(
             t.table_type,
