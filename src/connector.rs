@@ -11,7 +11,6 @@ use ndc_sdk::{
     },
     models,
 };
-use std::collections::BTreeMap;
 
 use self::{config::ServerConfig, state::ServerState};
 
@@ -51,7 +50,6 @@ impl Connector for ClickhouseConnector {
     /// returning a configuration error or a validated [`Connector::Configuration`].
     async fn validate_raw_configuration(
         configuration: &Self::RawConfiguration,
-        _region_routing: &BTreeMap<String, Vec<String>>,
     ) -> Result<Self::Configuration, ValidateError> {
         // todo: validate config.
         // todo: we should take an owned configuration here.

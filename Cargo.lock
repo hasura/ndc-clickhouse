@@ -314,23 +314,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
 
 [[package]]
-name = "clickhouse_ndc"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "indexmap 1.9.3",
- "ndc-sdk",
- "peg",
- "prometheus",
- "reqwest",
- "schemars",
- "serde",
- "serde_json",
- "strum",
- "tokio",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1002,9 +985,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ndc-clickhouse"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "indexmap 1.9.3",
+ "ndc-sdk",
+ "peg",
+ "prometheus",
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "strum",
+ "tokio",
+]
+
+[[package]]
 name = "ndc-client"
 version = "0.1.0"
-source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.0-rc.5#0842f61fc5e29d19994ff3439abb8d7eabc28449"
+source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.0-rc.6#af2a6fa447617850ac0600f81dbe29b664f010cf"
 dependencies = [
  "async-trait",
  "indexmap 1.9.3",
@@ -1021,7 +1021,7 @@ dependencies = [
 [[package]]
 name = "ndc-sdk"
 version = "0.1.0"
-source = "git+https://github.com/hasura/ndc-hub.git?rev=7603f34#7603f34fe9a2d0544747ca43695c913d10ea0722"
+source = "git+https://github.com/hasura/ndc-hub.git?rev=4d14c4e#4d14c4e37217edfc6c5c64915a955e9d46b3a946"
 dependencies = [
  "async-trait",
  "axum",
@@ -1054,7 +1054,7 @@ dependencies = [
 [[package]]
 name = "ndc-test"
 version = "0.1.0"
-source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.0-rc.5#0842f61fc5e29d19994ff3439abb8d7eabc28449"
+source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.0-rc.6#af2a6fa447617850ac0600f81dbe29b664f010cf"
 dependencies = [
  "async-trait",
  "clap",
