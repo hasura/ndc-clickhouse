@@ -32,7 +32,7 @@ FROM INFORMATION_SCHEMA.TABLES AS t
         GROUP BY c .table_catalog,
             c.table_schema,
             c.table_name
-    ) AS c USING (table_catalog, table_schema, table_name)
+    ) AS c ON t.table_catalog = c.table_catalog AND t.table_schema = c.table_schema AND t.table_name = c.table_name
 WHERE t.table_catalog = currentDatabase()
     AND t.table_type IN (1, 2) -- table type is an enum, where tables and views are 1 and 2 respectively
 FORMAT JSON;
