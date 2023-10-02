@@ -18,7 +18,7 @@ pub async fn execute_query<T: DeserializeOwned>(
     statement: &str,
     parameters: &Vec<(String, String)>,
 ) -> Result<Vec<T>, Box<dyn Error>> {
-    let request = client
+    let response = client
         .post(&connection_config.url)
         .header("X-ClickHouse-User", &connection_config.username)
         .header("X-ClickHouse-Key", &connection_config.password)
@@ -27,7 +27,11 @@ pub async fn execute_query<T: DeserializeOwned>(
         .send()
         .await?;
 
-    let payload: ClickHouseResponse<T> = request.json().await?;
+    if response.error_for_status_ref().is_err() {
+        return Err(response.text().await?.into());
+    }
+
+    let payload: ClickHouseResponse<T> = response.json().await?;
 
     Ok(payload.data)
 }
