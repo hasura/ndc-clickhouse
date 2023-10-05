@@ -25,9 +25,10 @@ pub struct ColumnInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum TableType {
+    #[serde(rename = "BASE TABLE")]
     Table,
+    #[serde(rename = "VIEW")]
     View,
 }
 

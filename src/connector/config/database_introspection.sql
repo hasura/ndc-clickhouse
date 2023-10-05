@@ -3,12 +3,7 @@ SELECT
     t.table_schema AS "table_schema",
     t.table_catalog AS "table_catalog",
     if(empty(st.primary_key), null, st.primary_key)  AS "primary_key",
-    toString(
-        cast(
-            t.table_type,
-            'Enum(\'table\' = 1, \'view\' = 2)'
-        )
-    ) AS "table_type",
+    toString(t.table_type) as "table_type",
     cast(
       c.columns,
       'Array(Tuple(column_name String, data_type String, is_nullable Bool, is_in_primary_key Bool))'
@@ -34,5 +29,4 @@ FROM INFORMATION_SCHEMA.TABLES AS t
             c.table_name
     ) AS c ON t.table_catalog = c.table_catalog AND t.table_schema = c.table_schema AND t.table_name = c.table_name
 WHERE t.table_catalog = currentDatabase()
-    AND t.table_type IN (1, 2) -- table type is an enum, where tables and views are 1 and 2 respectively
 FORMAT JSON;
