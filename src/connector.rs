@@ -28,14 +28,6 @@ impl Connector for ClickhouseConnector {
     /// The type of unserializable state
     type State = ServerState;
 
-    fn get_read_regions(_conf: &Self::Configuration) -> std::vec::Vec<std::string::String> {
-        vec![]
-    }
-
-    fn get_write_regions(_conf: &Self::Configuration) -> std::vec::Vec<std::string::String> {
-        vec![]
-    }
-
     fn make_empty_configuration() -> Self::RawConfiguration {
         ServerConfig::default()
     }

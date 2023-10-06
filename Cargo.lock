@@ -1021,17 +1021,19 @@ dependencies = [
 [[package]]
 name = "ndc-sdk"
 version = "0.1.0"
-source = "git+https://github.com/hasura/ndc-hub.git?rev=4d14c4e#4d14c4e37217edfc6c5c64915a955e9d46b3a946"
+source = "git+https://github.com/hasura/ndc-hub.git?rev=6e2b084#6e2b0843b55775efc9d3d534f662b274bcef071c"
 dependencies = [
  "async-trait",
  "axum",
  "axum-macros",
  "clap",
  "gdc_rust_types",
+ "http",
  "indexmap 1.9.3",
  "ndc-client",
  "ndc-test",
  "opentelemetry",
+ "opentelemetry-http",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
  "opentelemetry_api",

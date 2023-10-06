@@ -11,7 +11,7 @@ tokio = { version = "1.27.0", features = [
   "rt-multi-thread",
   "signal",
 ] }
-ndc-sdk = { git = "https://github.com/hasura/ndc-hub.git", rev = "4d14c4e", package = "ndc-sdk" }
+ndc-sdk = { git = "https://github.com/hasura/ndc-hub.git", rev = "6e2b084", package = "ndc-sdk" }
 peg = "0.8.1"
 async-trait = "0.1.72"
 prometheus = "0.13.3"
