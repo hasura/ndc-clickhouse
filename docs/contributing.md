@@ -21,7 +21,7 @@ For all contributions, a CLA (Contributor License Agreement) needs to be signed
 - Make sure you test against the latest released cloud version. It is possible that we may have already fixed the bug you're experiencing.
 - Provide steps to reproduce the issue, including Database (e.g. Postgres) version and Hasura DDN version.
 - Please include logs, if relevant.
-- Create a [issue](https://github.com/hasura/<repo>/issues/new/choose).
+- Create a [issue](https://github.com/hasura/ndc-clickhouse/issues/new/choose).
 
 ### Working on an issue
 
