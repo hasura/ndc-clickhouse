@@ -1,15 +1,17 @@
 # Clickhouse Connector
 
-The Clickhouse Native Data Connector allows for connecting to a Clickhouse instance giving you an instant GraphQL API on top of your Clickhouse data.
+The [Clickhouse](https://clickhouse.com/) Native Data Connector allows for connecting to a Clickhouse instance giving 
+you an instant GraphQL API on top of your Clickhouse data.
+
 This uses the [Rust Data Connector SDK](https://github.com/hasura/ndc-hub#rusk-sdk) from the [Data connector Hub](https://github.com/hasura/ndc-hub) and implements the [Data Connector Spec](https://github.com/hasura/ndc-spec).
 
 - [Clickhouse Connector information in the Hasura Connectors directory](https://hasura.io/connectors/clickhouse)
-- TODO: Docs Link
+- [Hasura V3 Documentation](https://hasura.io/docs/3.0)
 
 In order to use this connector you will need to:
 
 - Create a [Clickhouse account](https://clickhouse.cloud/signUp?loc=nav-get-started)
-- Log in to A Hasura CLI Session
+- Log in to a [Hasura CLI](https://hasura.io/docs/3.0/cli/overview/) Session
 - Create a Pre-Shared Token for service authentication between the Hasura V3 Engine and your connector
 
 ## Features
@@ -18,7 +20,8 @@ TODO
 
 ## For Hasura Users
 
-If you wish to use this connector with your Hasura projects, the best instructions can be found on the Hasura Hub (TODO: Link to hub page for Clickhouse Connector).
+If you wish to use this connector with your Hasura projects, the best instructions can be found on the Hasura Hub 
+(TODO: Link to hub page for Clickhouse Connector).
 
 The following steps will allow you to deploy the connector and use it in a Hasura V3 project:
 
@@ -100,3 +103,19 @@ The `Dockerfile` is used by the `connector create` command and can be tested as 
 docker build . --tag ndc-clickhouse
 docker run -it --v ./clickhouse.connector.configuration.json:/config.json ndc-clickhouse
 ```
+
+## Documentation
+
+View other documentation for the ClickHouse connector [here](./docs/index.md).
+
+## Contributing
+
+Check out our [contributing guide](./docs/contributing.md) for more details.
+
+## Support
+
+Checkout out the [support section in docs](./docs/support.md).
+
+## License
+
+The ClickHouse connector is available under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
