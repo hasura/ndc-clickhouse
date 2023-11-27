@@ -9,6 +9,7 @@ use ndc_sdk::{
         Connector, ExplainError, FetchMetricsError, HealthError, InitializationError,
         MutationError, QueryError, SchemaError, UpdateConfigurationError, ValidateError,
     },
+    json_response::JsonResponse,
     models,
 };
 
@@ -33,7 +34,7 @@ impl Connector for ClickhouseConnector {
     }
 
     async fn update_configuration(
-        config: &Self::RawConfiguration,
+        config: Self::RawConfiguration,
     ) -> Result<Self::RawConfiguration, UpdateConfigurationError> {
         handler::update_configuration(config).await
     }
@@ -41,7 +42,7 @@ impl Connector for ClickhouseConnector {
     /// Validate the raw configuration provided by the user,
     /// returning a configuration error or a validated [`Connector::Configuration`].
     async fn validate_raw_configuration(
-        configuration: &Self::RawConfiguration,
+        configuration: Self::RawConfiguration,
     ) -> Result<Self::Configuration, ValidateError> {
         // todo: validate config.
         // todo: we should take an owned configuration here.
@@ -87,11 +88,11 @@ impl Connector for ClickhouseConnector {
         let client = state
             .client(configuration)
             .await
-            .map_err(|err| HealthError::Other(err))?;
+            .map_err(|err| HealthError::Other(err.to_string().into()))?;
 
         client::ping(&client, &configuration.connection)
             .await
-            .map_err(|err| HealthError::Other(err))?;
+            .map_err(|err| HealthError::Other(err.to_string().into()))?;
 
         Ok(())
     }
@@ -100,8 +101,8 @@ impl Connector for ClickhouseConnector {
     ///
     /// This function implements the [capabilities endpoint](https://hasura.github.io/ndc-spec/specification/capabilities.html)
     /// from the NDC specification.
-    async fn get_capabilities() -> models::CapabilitiesResponse {
-        handler::capabilities()
+    async fn get_capabilities() -> JsonResponse<models::CapabilitiesResponse> {
+        JsonResponse::Value(handler::capabilities())
     }
 
     /// Get the connector's schema.
@@ -110,8 +111,10 @@ impl Connector for ClickhouseConnector {
     /// from the NDC specification.
     async fn get_schema(
         configuration: &Self::Configuration,
-    ) -> Result<models::SchemaResponse, SchemaError> {
-        handler::schema(configuration).await
+    ) -> Result<JsonResponse<models::SchemaResponse>, SchemaError> {
+        handler::schema(configuration)
+            .await
+            .map(|config| JsonResponse::Value(config))
     }
 
     /// Explain a query by creating an execution plan
@@ -122,13 +125,11 @@ impl Connector for ClickhouseConnector {
         configuration: &Self::Configuration,
         state: &Self::State,
         request: models::QueryRequest,
-    ) -> Result<models::ExplainResponse, ExplainError> {
+    ) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
         handler::explain(configuration, state, request)
             .await
-            .map_err(|err| {
-                println!("Err: {err}");
-                err
-            })
+            .map(|explain| JsonResponse::Value(explain))
+            .map_err(|err| ExplainError::Other(err.to_string().into()))
     }
 
     /// Execute a mutation
@@ -139,7 +140,7 @@ impl Connector for ClickhouseConnector {
         _configuration: &Self::Configuration,
         _state: &Self::State,
         _request: models::MutationRequest,
-    ) -> Result<models::MutationResponse, MutationError> {
+    ) -> Result<JsonResponse<models::MutationResponse>, MutationError> {
         Err(MutationError::UnsupportedOperation(
             "mutation not supported".to_string(),
         ))
@@ -153,12 +154,10 @@ impl Connector for ClickhouseConnector {
         configuration: &Self::Configuration,
         state: &Self::State,
         request: models::QueryRequest,
-    ) -> Result<models::QueryResponse, QueryError> {
+    ) -> Result<JsonResponse<models::QueryResponse>, QueryError> {
         handler::query(configuration, state, request)
             .await
-            .map_err(|err| {
-                println!("Err: {err}");
-                err
-            })
+            .map(|res| JsonResponse::Value(res))
+            .map_err(|err| QueryError::Other(err.to_string().into()))
     }
 }

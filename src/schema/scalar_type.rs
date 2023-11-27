@@ -288,7 +288,4 @@ impl ClickHouseScalarType {
             }),
         )
     }
-    pub fn update_operators(&self) -> BTreeMap<String, models::UpdateOperatorDefinition> {
-        BTreeMap::from_iter(vec![])
-    }
 }

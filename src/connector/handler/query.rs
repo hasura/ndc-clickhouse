@@ -21,7 +21,7 @@ pub async fn query(
     let client = state
         .client(configuration)
         .await
-        .map_err(|err| QueryError::Other(err))?;
+        .map_err(|err| QueryError::Other(err.to_string().into()))?;
 
     let rowsets = execute_query::<models::RowSet>(
         &client,
@@ -30,7 +30,7 @@ pub async fn query(
         &parameters,
     )
     .await
-    .map_err(|err| QueryError::Other(err))?;
+    .map_err(|err| QueryError::Other(err.to_string().into()))?;
 
     Ok(models::QueryResponse(rowsets))
 }

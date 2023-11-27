@@ -31,7 +31,7 @@ pub async fn explain(
     let client = state
         .client(configuration)
         .await
-        .map_err(|err| ExplainError::Other(err))?;
+        .map_err(|err| ExplainError::Other(err.to_string().into()))?;
 
     let explain = execute_query::<ExplainRow>(
         &client,
