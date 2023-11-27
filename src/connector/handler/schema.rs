@@ -25,7 +25,6 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
             models::ScalarType {
                 aggregate_functions,
                 comparison_operators: scalar_type.comparison_operators(),
-                update_operators: scalar_type.update_operators(),
             },
         )
     }));
@@ -76,9 +75,6 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
             description: None,
             arguments: BTreeMap::new(),
             collection_type: table.alias.to_owned(),
-            insertable_columns: None,
-            updatable_columns: None,
-            deletable: false,
             uniqueness_constraints: table.primary_key.as_ref().map_or(
                 BTreeMap::new(),
                 |PrimaryKey { name, columns }| {
@@ -95,16 +91,10 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
         .collect();
 
     Ok(models::SchemaResponse {
-        /// A list of scalar types which will be used as the types of collection columns
         scalar_types,
-        /// A list of object types which can be used as the types of arguments, or return types of procedures.
-        /// Names should not overlap with collection names or scalar type names.
         object_types,
-        /// Collections which are available for queries and/or mutations
         collections,
-        /// Functions (i.e. collections which return a single column and row)
         functions: vec![],
-        /// Procedures which are available for execution as part of mutations
         procedures: vec![],
     })
 }

@@ -702,10 +702,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     Ok(Expr::BinaryOp {
                                         left: Expr::CompoundIdentifier(vec![
                                             Ident::new_quoted("_origin"),
-                                            self.column_ident(
-                                                source_col,
-                                                &relationship.source_collection_or_type,
-                                            )?,
+                                            self.column_ident(source_col, &current_collection)?,
                                         ])
                                         .into_box(),
                                         op: BinaryOperator::Eq,
@@ -1629,10 +1626,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     Ok(Expr::BinaryOp {
                                         left: Expr::CompoundIdentifier(vec![
                                             previous_join_alias.clone(),
-                                            self.column_ident(
-                                                source_col,
-                                                &relationship.source_collection_or_type,
-                                            )?,
+                                            self.column_ident(source_col, &current_collection)?,
                                         ])
                                         .into_box(),
                                         op: BinaryOperator::Eq,
