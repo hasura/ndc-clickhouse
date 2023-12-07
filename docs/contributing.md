@@ -12,16 +12,17 @@ Please follow our [Code of conduct](./code-of-conduct.md) in the context of any 
 ## 2. CLA
 
 For all contributions, a CLA (Contributor License Agreement) needs to be signed
-[here](https://cla-assistant.io/hasura/<repo>) before (or after) the pull request has been submitted. A bot will prompt contributors to sign the CLA via a pull request comment, if necessary.
+[here](https://cla-assistant.io/hasura/ndc-clickhouse) before (or after) the pull request has been submitted. A bot will prompt contributors to sign the CLA via a pull request comment, if necessary.
 
 ## 3. Ways of contributing
 
 ### Reporting an Issue
 
+- We recommend to open issues in the [graphql-engine](https://github.com/hasura/graphql-engine)
 - Make sure you test against the latest released cloud version. It is possible that we may have already fixed the bug you're experiencing.
 - Provide steps to reproduce the issue, including Database (e.g. Postgres) version and Hasura DDN version.
 - Please include logs, if relevant.
-- Create a [issue](https://github.com/hasura/ndc-clickhouse/issues/new/choose).
+- Create a [issue](https://github.com/hasura/graphql-engine/issues/new/choose).
 
 ### Working on an issue
 
