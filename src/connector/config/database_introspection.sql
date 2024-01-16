@@ -28,5 +28,5 @@ FROM INFORMATION_SCHEMA.TABLES AS t
             c.table_schema,
             c.table_name
     ) AS c ON t.table_catalog = c.table_catalog AND t.table_schema = c.table_schema AND t.table_name = c.table_name
-WHERE t.table_catalog = currentDatabase()
+WHERE t.table_catalog NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
 FORMAT JSON;
