@@ -484,11 +484,11 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn into_select<S: Into<String>>(self, alias: Option<S>) -> SelectItem {
+    pub fn into_select<S: Into<Ident>>(self, alias: Option<S>) -> SelectItem {
         match alias {
             Some(alias) => SelectItem::ExprWithAlias {
                 expr: self,
-                alias: Ident::new_quoted(alias),
+                alias: alias.into(),
             },
             None => SelectItem::UnnamedExpr(self),
         }
@@ -837,6 +837,11 @@ impl From<&str> for Ident {
 }
 impl From<String> for Ident {
     fn from(value: String) -> Self {
+        Ident::new_quoted(value)
+    }
+}
+impl From<&String> for Ident {
+    fn from(value: &String) -> Self {
         Ident::new_quoted(value)
     }
 }

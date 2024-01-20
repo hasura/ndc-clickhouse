@@ -1120,28 +1120,16 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             models::Expression::Exists {
                 in_collection,
                 predicate,
-            } => {
-                if current_is_origin {
-                    self.filter_origin_exists_expression(
-                        in_collection,
-                        predicate,
-                        current_join_alias,
-                        current_collection,
-                        name_index,
-                    )
-                } else {
-                    self.filter_exists_expression(
-                        in_collection,
-                        predicate,
-                        current_join_alias,
-                        current_collection,
-                        name_index,
-                    )
-                }
-            }
+            } => self.filter_exists_expression(
+                in_collection,
+                predicate,
+                current_join_alias,
+                current_collection,
+                name_index,
+            ),
         }
     }
-    fn filter_origin_exists_expression(
+    fn filter_exists_expression(
         &self,
         in_collection: &models::ExistsInCollection,
         expression: &models::Expression,
@@ -1149,6 +1137,9 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         previous_collection: &str,
         name_index: &mut u32,
     ) -> Result<(Expr, Vec<Join>), QueryBuilderError> {
+        let exists_join_ident = Ident::new_quoted(format!("_exists_{}", name_index));
+        *name_index += 1;
+
         let join_subquery = {
             let target_collection = match in_collection {
                 models::ExistsInCollection::Related {
@@ -1164,14 +1155,15 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 } => collection,
             };
 
-            let subquery_origin_alias = Ident::new_quoted("_exists_0");
+            let subquery_origin_alias = Ident::new_quoted(format!("_exists_{}", name_index));
+            *name_index += 1;
 
             let (predicate, predicate_joins) = self.filter_expression(
                 expression,
                 &subquery_origin_alias,
                 target_collection,
                 false,
-                &mut 1,
+                name_index,
             )?;
 
             let table = self
@@ -1195,8 +1187,9 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
             let from = vec![table.into_table_with_joins(joins)];
 
-            let mut select = vec![Expr::Value(Value::Boolean(true)).into_select(Some("_exists"))];
-            let mut group_by = vec![];
+            let mut select =
+                vec![Expr::Value(Value::Boolean(true)).into_select(Some(&exists_join_ident))];
+            let mut limit_by = vec![];
 
             if let models::ExistsInCollection::Related {
                 relationship,
@@ -1213,7 +1206,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         ])
                         .into_select(Some(format!("_relkey_{target_col}"))),
                     );
-                    group_by.push(Expr::CompoundIdentifier(vec![
+                    limit_by.push(Expr::CompoundIdentifier(vec![
                         subquery_origin_alias.clone(),
                         self.column_ident(target_col, target_collection)?,
                     ]));
@@ -1228,21 +1221,26 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     ])
                     .into_select(Some("_varset_id")),
                 );
-                group_by.push(Expr::CompoundIdentifier(vec![
+                limit_by.push(Expr::CompoundIdentifier(vec![
                     Ident::new_quoted("_vars"),
                     Ident::new_quoted("_varset_id"),
                 ]));
             }
 
+            let limit = if limit_by.is_empty() { Some(1) } else { None };
+            let limit_by = if !limit_by.is_empty() {
+                Some(LimitByExpr::new(Some(1), None, limit_by))
+            } else {
+                None
+            };
+
             Query::new()
                 .select(select)
                 .from(from)
                 .predicate(Some(predicate))
-                .group_by(group_by)
+                .limit(limit)
+                .limit_by(limit_by)
         };
-
-        let exists_join_ident = Ident::new_quoted(format!("_exists_{}", name_index));
-        *name_index += 1;
 
         let mut join_exprs = match in_collection {
             models::ExistsInCollection::Related {
@@ -1313,110 +1311,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         };
 
         let expr = Expr::BinaryOp {
-            left: Expr::CompoundIdentifier(vec![exists_join_ident, Ident::new_quoted("_exists")])
+            left: Expr::CompoundIdentifier(vec![exists_join_ident.clone(), exists_join_ident])
                 .into_box(),
             op: BinaryOperator::Eq,
             right: Expr::Value(Value::Boolean(true)).into_box(),
         };
 
         Ok((expr, vec![join]))
-    }
-    fn filter_exists_expression(
-        &self,
-        in_collection: &models::ExistsInCollection,
-        expression: &models::Expression,
-        previous_join_alias: &Ident,
-        previous_collection: &str,
-        name_index: &mut u32,
-    ) -> Result<(Expr, Vec<Join>), QueryBuilderError> {
-        let target_collection = match in_collection {
-            models::ExistsInCollection::Related {
-                relationship,
-                arguments: _,
-            } => {
-                let relationship = self.collection_relationship(relationship)?;
-                &relationship.target_collection
-            }
-            models::ExistsInCollection::Unrelated {
-                collection,
-                arguments: _,
-            } => collection,
-        };
-
-        let join_alias = Ident::new_quoted(format!("_exists_{}", name_index));
-        *name_index += 1;
-
-        let (predicate_expr, predicate_joins) = self.filter_expression(
-            expression,
-            &join_alias,
-            target_collection,
-            false,
-            name_index,
-        )?;
-
-        let table = self
-            .collection_ident(target_collection)?
-            .into_table_factor()
-            .alias(&join_alias);
-
-        let join_exprs = match in_collection {
-            models::ExistsInCollection::Related {
-                relationship,
-                arguments: _,
-            } => {
-                let relationship = self.collection_relationship(relationship)?;
-
-                relationship
-                    .column_mapping
-                    .iter()
-                    .map(|(source_col, target_col)| {
-                        let left = Expr::CompoundIdentifier(vec![
-                            previous_join_alias.clone(),
-                            self.column_ident(source_col, previous_collection)?,
-                        ])
-                        .into_box();
-                        let right = Expr::CompoundIdentifier(vec![
-                            join_alias.clone(),
-                            self.column_ident(target_col, target_collection)?,
-                        ])
-                        .into_box();
-                        Ok(Expr::BinaryOp {
-                            left,
-                            op: BinaryOperator::Eq,
-                            right,
-                        })
-                    })
-                    .collect::<Result<_, _>>()?
-            }
-            models::ExistsInCollection::Unrelated {
-                collection: _,
-                arguments: _,
-            } => vec![],
-        };
-
-        let join_operator = join_exprs
-            .into_iter()
-            .reduce(and_reducer)
-            .map(JoinConstraint::On)
-            .map(JoinOperator::LeftOuter)
-            .unwrap_or(JoinOperator::CrossJoin);
-
-        let join = Join {
-            relation: table,
-            join_operator,
-        };
-
-        let exists_expr = Expr::BinaryOp {
-            left: Expr::CompoundIdentifier(vec![join_alias, Ident::new_quoted("_exists")])
-                .into_box(),
-            op: BinaryOperator::Eq,
-            right: Expr::Value(Value::Boolean(true)).into_box(),
-        };
-
-        let expr = and_reducer(exists_expr, predicate_expr);
-        let joins = vec![join].into_iter().chain(predicate_joins).collect();
-
-        Ok((expr, joins))
     }
     fn comparison_column(
         &self,
