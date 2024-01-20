@@ -1,9 +1,8 @@
 use ndc_sdk::models::{self, LeafCapability, RelationshipCapabilities};
 
 pub fn capabilities() -> models::CapabilitiesResponse {
-    let package_version: &'static str = env!("CARGO_PKG_VERSION");
     models::CapabilitiesResponse {
-        versions: package_version.to_string(),
+        versions: "^0.1.1".to_string(),
         capabilities: models::Capabilities {
             query: models::QueryCapabilities {
                 aggregates: Some(LeafCapability {}),
