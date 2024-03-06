@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use ndc_sdk::connector::{InitializationError, KeyOrIndex, LocatedError, ParseError};
+use ndc_sdk::connector::{LocatedError, ParseError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -54,7 +54,7 @@ pub struct ColumnConfig {
     pub data_type: String,
 }
 
-const CONFIG_FILE_NAME: &str = "config.json";
+const CONFIG_FILE_NAME: &str = "configuration.json";
 
 /// read server configuration from env var
 pub async fn read_server_config(
