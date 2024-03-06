@@ -17,9 +17,8 @@ COPY Cargo.lock ./
 COPY src src 
 RUN cargo build --locked --profile release --package ndc-clickhouse --bin server
 
-# TODO: we have SSL related issues when we don't use the rust image, figure this out later
-# FROM ubuntu:latest AS runtime
-FROM rust:1.75 AS runtime
+FROM ubuntu:latest AS runtime
+RUN apt-get update && apt-get install -y ca-certificates
 WORKDIR /app
 COPY --from=builder /app/target/release/server /usr/local/bin
 ENTRYPOINT [ "/usr/local/bin/server" ]
