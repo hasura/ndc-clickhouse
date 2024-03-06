@@ -4,13 +4,15 @@ use crate::sql::ast::{BinaryOperator, Expr, Function};
 
 #[derive(Debug, Clone, EnumString, Display, EnumIter)]
 pub enum ClickHouseBinaryComparisonOperator {
-    #[strum(to_string = "_gt", serialize = "greater_than")]
+    #[strum(to_string = "_eq")]
+    Eq,
+    #[strum(to_string = "_gt")]
     Gt,
-    #[strum(to_string = "_lt", serialize = "less_than")]
+    #[strum(to_string = "_lt")]
     Lt,
-    #[strum(to_string = "_gte", serialize = "greater_than_or_equal")]
+    #[strum(to_string = "_gte")]
     GtEq,
-    #[strum(to_string = "_lte", serialize = "less_than_or_equal")]
+    #[strum(to_string = "_lte")]
     LtEq,
     #[strum(to_string = "_neq")]
     NotEq,
@@ -22,6 +24,10 @@ pub enum ClickHouseBinaryComparisonOperator {
     ILike,
     #[strum(to_string = "_nilike")]
     NotILike,
+    #[strum(to_string = "_in")]
+    In,
+    #[strum(to_string = "_nin")]
+    NotIn,
     #[strum(to_string = "_match")]
     Match,
 }
@@ -43,6 +49,7 @@ impl ClickHouseBinaryComparisonOperator {
         use ClickHouseBinaryComparisonOperator as CBO;
 
         match self {
+            CBO::Eq => apply_operator(BinaryOperator::Eq, left, right),
             CBO::Gt => apply_operator(BinaryOperator::Gt, left, right),
             CBO::Lt => apply_operator(BinaryOperator::Lt, left, right),
             CBO::GtEq => apply_operator(BinaryOperator::GtEq, left, right),
@@ -52,6 +59,8 @@ impl ClickHouseBinaryComparisonOperator {
             CBO::NotLike => apply_operator(BinaryOperator::NotLike, left, right),
             CBO::ILike => apply_operator(BinaryOperator::ILike, left, right),
             CBO::NotILike => apply_operator(BinaryOperator::NotILike, left, right),
+            CBO::In => apply_operator(BinaryOperator::In, left, right),
+            CBO::NotIn => apply_operator(BinaryOperator::NotIn, left, right),
             CBO::Match => apply_function("match", left, right),
         }
     }

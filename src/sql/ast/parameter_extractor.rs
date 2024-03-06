@@ -72,29 +72,16 @@ impl ParameterExtractor {
             Expr::BinaryOp { left, op: _, right } => {
                 self.visit_expr(left);
                 self.visit_expr(right);
-            }
-            Expr::UnaryOp { op: _, expr } => self.visit_expr(expr),
+            },
+            Expr::Not(expr) => self.visit_expr(expr),
             Expr::Nested(expr) => self.visit_expr(expr),
             Expr::Value(_) => {}
             Expr::Parameter(parameter) => self.visit_parameter(parameter),
             Expr::Function(function) => self.visit_function(function),
             Expr::Lambda(lambda) => self.visit_expr(&mut lambda.expr),
-            Expr::IsFalse(expr) => self.visit_expr(expr),
-            Expr::IsNotFalse(expr) => self.visit_expr(expr),
-            Expr::IsTrue(expr) => self.visit_expr(expr),
-            Expr::IsNotTrue(expr) => self.visit_expr(expr),
-            Expr::IsNull(expr) => self.visit_expr(expr),
-            Expr::IsNotNull(expr) => self.visit_expr(expr),
-            Expr::InList { expr, list } => {
-                self.visit_expr(expr);
-                for element in list.iter_mut() {
-                    self.visit_expr(element)
-                }
-            }
-            Expr::NotInList { expr, list } => {
-                self.visit_expr(expr);
-                for element in list.iter_mut() {
-                    self.visit_expr(element)
+            Expr::List(list) => {
+                for expr in list.iter_mut() {
+                    self.visit_expr(expr)
                 }
             }
         }

@@ -458,29 +458,13 @@ pub enum Expr {
         op: BinaryOperator,
         right: Box<Expr>,
     },
-    UnaryOp {
-        op: UnaryOperator,
-        expr: Box<Expr>,
-    },
+    Not(Box<Expr>),
     Nested(Box<Expr>),
     Value(Value),
     Parameter(Parameter),
     Function(Function),
     Lambda(Lambda),
-    IsFalse(Box<Expr>),
-    IsNotFalse(Box<Expr>),
-    IsTrue(Box<Expr>),
-    IsNotTrue(Box<Expr>),
-    IsNull(Box<Expr>),
-    IsNotNull(Box<Expr>),
-    InList {
-        expr: Box<Expr>,
-        list: Vec<Expr>,
-    },
-    NotInList {
-        expr: Box<Expr>,
-        list: Vec<Expr>,
-    },
+    List(Vec<Expr>),
 }
 
 impl Expr {
@@ -516,7 +500,7 @@ impl fmt::Display for Expr {
             Expr::Identifier(ident) => write!(f, "{}", ident),
             Expr::CompoundIdentifier(idents) => write!(f, "{}", display_separated(idents, ".")),
             Expr::BinaryOp { left, op, right } => write!(f, "{} {} {}", left, op, right),
-            Expr::UnaryOp { op, expr } => write!(f, "{} {}", op, expr),
+            Expr::Not(expr) => write!(f, "NOT {expr}"),
             Expr::Nested(expr) => write!(f, "({})", expr),
             Expr::Value(value) => write!(f, "{}", value),
             Expr::Parameter(p) => match p {
@@ -530,18 +514,7 @@ impl fmt::Display for Expr {
             },
             Expr::Function(function) => write!(f, "{}", function),
             Expr::Lambda(lambda) => write!(f, "{}", lambda),
-            Expr::IsTrue(expr) => write!(f, "{expr} IS TRUE"),
-            Expr::IsNotTrue(expr) => write!(f, "{expr} IS NOT TRUE"),
-            Expr::IsFalse(expr) => write!(f, "{expr} IS FALSE"),
-            Expr::IsNotFalse(expr) => write!(f, "{expr} IS NOT FALSE"),
-            Expr::IsNull(expr) => write!(f, "{expr} IS NULL"),
-            Expr::IsNotNull(expr) => write!(f, "{expr} IS NOT NULL"),
-            Expr::InList { expr, list } => {
-                write!(f, "{} IN ({})", expr, display_separated(list, ", "),)
-            }
-            Expr::NotInList { expr, list } => {
-                write!(f, "{} NOT IN ({})", expr, display_separated(list, ", "),)
-            }
+            Expr::List(list) => write!(f, "({})", display_separated(list, ", ")),
         }
     }
 }
@@ -721,6 +694,10 @@ pub enum BinaryOperator {
     NotILike,
     And,
     Or,
+    In,
+    NotIn,
+    Is,
+    IsNot,
 }
 
 impl fmt::Display for BinaryOperator {
@@ -738,6 +715,10 @@ impl fmt::Display for BinaryOperator {
             BinaryOperator::NotILike => write!(f, "NOT ILIKE"),
             BinaryOperator::And => write!(f, "AND"),
             BinaryOperator::Or => write!(f, "OR"),
+            BinaryOperator::In => write!(f, "IN"),
+            BinaryOperator::NotIn => write!(f, "NOT IN"),
+            BinaryOperator::Is => write!(f, "IS"),
+            BinaryOperator::IsNot => write!(f, "IS NOT"),
         }
     }
 }
@@ -748,6 +729,12 @@ pub enum Value {
     SingleQuotedString(String),
     Boolean(bool),
     Null,
+}
+
+impl Value {
+    pub fn into_expr(self) -> Expr {
+        Expr::Value(self)
+    }
 }
 
 impl From<serde_json::Value> for Value {

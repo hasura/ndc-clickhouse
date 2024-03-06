@@ -303,10 +303,15 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         if let Some(fields) = &query.fields {
             for (alias, field) in fields {
                 let expr = match field {
-                    models::Field::Column { column } => Expr::CompoundIdentifier(vec![
-                        Ident::new_quoted("_origin"),
-                        self.column_ident(column, current_collection)?,
-                    ]),
+                    models::Field::Column { column, fields } => {
+                        if fields.is_some() {
+                            todo!("support nested field selection")
+                        }
+                        Expr::CompoundIdentifier(vec![
+                            Ident::new_quoted("_origin"),
+                            self.column_ident(column, current_collection)?,
+                        ])
+                    }
                     models::Field::Relationship { .. } => Expr::CompoundIdentifier(vec![
                         Ident::new_quoted(format!("_rel_{alias}")),
                         Ident::new_quoted("_rowset"),
@@ -557,16 +562,24 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                             let mut join_index = 1;
 
-                            let (predicate, predicate_joins) = self.filter_expression(
-                                &first_element.predicate,
-                                &join_alias,
-                                &relationship.target_collection,
-                                false,
-                                &mut join_index,
-                            )?;
+                            let mut additional_joins = vec![];
+                            let mut additional_predicate = vec![];
 
-                            let mut additional_joins = predicate_joins;
-                            let mut additional_predicate = vec![predicate];
+                            if let Some(expression) = &first_element.predicate {
+                                let (predicate, predicate_joins) = self.filter_expression(
+                                    expression,
+                                    &join_alias,
+                                    &relationship.target_collection,
+                                    false,
+                                    &mut join_index,
+                                )?;
+
+                                additional_predicate.push(predicate);
+
+                                for predicate_join in predicate_joins {
+                                    additional_joins.push(predicate_join);
+                                }
+                            }
 
                             let mut last_join_alias = join_alias;
                             let mut last_collection_name = &relationship.target_collection;
@@ -624,18 +637,20 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                                 additional_joins.push(join);
 
-                                let (predicate, predicate_joins) = self.filter_expression(
-                                    &path_element.predicate,
-                                    &join_alias,
-                                    &relationship.target_collection,
-                                    false,
-                                    &mut join_index,
-                                )?;
+                                if let Some(expression) = &path_element.predicate {
+                                    let (predicate, predicate_joins) = self.filter_expression(
+                                        expression,
+                                        &join_alias,
+                                        &relationship.target_collection,
+                                        false,
+                                        &mut join_index,
+                                    )?;
 
-                                additional_predicate.push(predicate);
+                                    additional_predicate.push(predicate);
 
-                                for predicate_join in predicate_joins {
-                                    additional_joins.push(predicate_join);
+                                    for predicate_join in predicate_joins {
+                                        additional_joins.push(predicate_join);
+                                    }
                                 }
 
                                 last_join_alias = join_alias;
@@ -902,10 +917,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     current_is_origin,
                     name_index,
                 )?;
-                let not_expression = Expr::UnaryOp {
-                    op: UnaryOperator::Not,
-                    expr: expression.into_nested().into_box(),
-                };
+                let not_expression = Expr::Not(expression.into_nested().into_box());
                 Ok((not_expression, joins))
             }
             models::Expression::UnaryComparisonOperator { column, operator } => {
@@ -919,9 +931,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                 let (expression, joins) = left_col.apply(|left_col| {
                     let expr = match operator {
-                        models::UnaryComparisonOperator::IsNull => {
-                            Expr::IsNull(left_col.into_nested().into_box())
-                        }
+                        models::UnaryComparisonOperator::IsNull => Expr::BinaryOp {
+                            left: left_col.into_nested().into_box(),
+                            op: BinaryOperator::Is,
+                            right: Value::Null.into_expr().into_box(),
+                        },
                     };
                     (expr, vec![])
                 });
@@ -933,29 +947,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 operator,
                 value,
             } => {
-                let custom_operator = match operator {
-                    models::BinaryComparisonOperator::Equal => None,
-                    models::BinaryComparisonOperator::Other { name } => {
-                        let operator =
-                            ClickHouseBinaryComparisonOperator::from_str(name).map_err(|_err| {
-                                QueryBuilderError::UnknownBinaryComparisonOperator(name.to_owned())
-                            })?;
-
-                        Some(operator)
-                    }
-                };
-
-                let apply_operator = |left: Expr, right: Expr| {
-                    if let Some(custom_operator) = custom_operator {
-                        custom_operator.apply(left, right)
-                    } else {
-                        Expr::BinaryOp {
-                            left: left.into_box(),
-                            op: BinaryOperator::Eq,
-                            right: right.into_box(),
-                        }
-                    }
-                };
+                let operator =
+                    ClickHouseBinaryComparisonOperator::from_str(operator).map_err(|_err| {
+                        QueryBuilderError::UnknownBinaryComparisonOperator(operator.to_owned())
+                    })?;
 
                 let left_col = self.comparison_column(
                     column,
@@ -964,6 +959,16 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     current_is_origin,
                     name_index,
                 )?;
+
+                // special case: right hand data types is assumed to always be the same type as left hand,
+                // except when the operator is IN/NOT IN, where the type is Array(<left hand data type>)
+                let right_col_type = match operator {
+                    ClickHouseBinaryComparisonOperator::In
+                    | ClickHouseBinaryComparisonOperator::NotIn => {
+                        format!("Array({})", left_col.data_type())
+                    }
+                    _ => left_col.data_type(),
+                };
 
                 let right_col = match value {
                     models::ComparisonValue::Column { column } => self.comparison_column(
@@ -974,8 +979,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         name_index,
                     )?,
                     models::ComparisonValue::Scalar { value } => ComparisonColumn::new_simple(
-                        Parameter::new(value.into(), left_col.data_type()).into_expr(),
-                        left_col.data_type(),
+                        Parameter::new(value.into(), right_col_type.clone()).into_expr(),
+                        right_col_type,
                     ),
 
                     models::ComparisonValue::Variable { name } => ComparisonColumn::new_simple(
@@ -983,139 +988,18 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             Ident::new_quoted("_vars"),
                             Ident::new_quoted(format!("_var_{name}")),
                         ]),
-                        left_col.data_type(),
+                        right_col_type,
                     ),
                 };
 
                 let (expression, expression_joins) = right_col.apply(|right_col| {
                     left_col.apply(|left_col| {
-                        let expression = apply_operator(left_col, right_col);
+                        let expression = operator.apply(left_col, right_col);
                         (expression, vec![])
                     })
                 });
 
                 Ok((expression, expression_joins))
-            }
-            models::Expression::BinaryArrayComparisonOperator {
-                column,
-                operator,
-                values,
-            } => {
-                let left_col = self.comparison_column(
-                    column,
-                    current_join_alias,
-                    current_collection,
-                    current_is_origin,
-                    name_index,
-                )?;
-
-                if values.iter().any(|value| match value {
-                    models::ComparisonValue::Column { .. } => true,
-                    models::ComparisonValue::Scalar { .. } => false,
-                    models::ComparisonValue::Variable { .. } => false,
-                }) {
-                    let right_cols = values
-                        .iter()
-                        .map(|value| match value {
-                            models::ComparisonValue::Column { column } => self.comparison_column(
-                                column,
-                                current_join_alias,
-                                current_collection,
-                                current_is_origin,
-                                name_index,
-                            ),
-                            models::ComparisonValue::Scalar { value } => {
-                                Ok(ComparisonColumn::new_simple(
-                                    Parameter::new(value.into(), left_col.data_type()).into_expr(),
-                                    left_col.data_type(),
-                                ))
-                            }
-                            models::ComparisonValue::Variable { name } => {
-                                Ok(ComparisonColumn::new_simple(
-                                    Expr::CompoundIdentifier(vec![
-                                        Ident::new_quoted("_vars"),
-                                        Ident::new_quoted(format!("_var_{name}")),
-                                    ]),
-                                    left_col.data_type(),
-                                ))
-                            }
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-
-                    let (left_col, base_joins) = left_col.extract_joins();
-
-                    let mut additional_joins = vec![];
-                    let mut expressions = vec![];
-
-                    for right_col in right_cols {
-                        let (expression, expression_joins) = left_col.apply(|left_col| {
-                            right_col.apply(|right_col| match operator {
-                                models::BinaryArrayComparisonOperator::In => (
-                                    Expr::BinaryOp {
-                                        left: left_col.into_box(),
-                                        op: BinaryOperator::Eq,
-                                        right: right_col.into_box(),
-                                    },
-                                    vec![],
-                                ),
-                            })
-                        });
-
-                        additional_joins.push(expression_joins);
-                        expressions.push(expression);
-                    }
-
-                    let joins = base_joins
-                        .into_iter()
-                        .chain(additional_joins.into_iter().flatten())
-                        .collect();
-                    let expression = expressions
-                        .into_iter()
-                        .reduce(or_reducer)
-                        .unwrap_or(Expr::Value(Value::Boolean(false)));
-
-                    let expression = if values.len() > 1 {
-                        expression.into_nested()
-                    } else {
-                        expression
-                    };
-
-                    Ok((expression, joins))
-                } else {
-                    let list = values
-                        .iter()
-                        .map(|value| {
-                            Ok(match value {
-                                models::ComparisonValue::Column { .. } => {
-                                    return Err(QueryBuilderError::Unexpected("binary array comparisons with column comparisons are handled earlier and should not show up here".to_string()))
-                                }
-                                models::ComparisonValue::Scalar { value } => {
-                                    Parameter::new(value.into(), left_col.data_type()).into_expr()
-                                },
-
-                                models::ComparisonValue::Variable { name } => {
-                                    Expr::CompoundIdentifier(vec![
-                                        Ident::new_quoted("_vars"),
-                                        Ident::new_quoted(format!("_var_{name}")),
-                                    ])
-                                }
-                            })
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-
-                    let (expression, expression_joins) = left_col.apply(|left_col| {
-                        let expression = match operator {
-                            models::BinaryArrayComparisonOperator::In => Expr::InList {
-                                expr: left_col.into_box(),
-                                list,
-                            },
-                        };
-
-                        (expression, vec![])
-                    });
-
-                    Ok((expression, expression_joins))
-                }
             }
             models::Expression::Exists {
                 in_collection,
@@ -1132,7 +1016,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     fn filter_exists_expression(
         &self,
         in_collection: &models::ExistsInCollection,
-        expression: &models::Expression,
+        expression: &Option<Box<models::Expression>>,
         previous_join_alias: &Ident,
         previous_collection: &str,
         name_index: &mut u32,
@@ -1158,13 +1042,19 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             let subquery_origin_alias = Ident::new_quoted(format!("_exists_{}", name_index));
             *name_index += 1;
 
-            let (predicate, predicate_joins) = self.filter_expression(
-                expression,
-                &subquery_origin_alias,
-                target_collection,
-                false,
-                name_index,
-            )?;
+            let (predicate, predicate_joins) = match expression {
+                Some(expression) => {
+                    let (predicate, predicate_joins) = self.filter_expression(
+                        expression,
+                        &subquery_origin_alias,
+                        target_collection,
+                        false,
+                        name_index,
+                    )?;
+                    (Some(predicate), predicate_joins)
+                }
+                None => (None, vec![]),
+            };
 
             let table = self
                 .collection_ident(target_collection)?
@@ -1237,7 +1127,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             Query::new()
                 .select(select)
                 .from(from)
-                .predicate(Some(predicate))
+                .predicate(predicate)
                 .limit(limit)
                 .limit_by(limit_by)
         };
@@ -1403,16 +1293,24 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                                 let mut join_index = 1;
 
-                                let (predicate, predicate_joins) = self.filter_expression(
-                                    &first_element.predicate,
-                                    &join_alias,
-                                    &relationship.target_collection,
-                                    false,
-                                    &mut join_index,
-                                )?;
+                                let mut additional_joins = vec![];
+                                let mut additional_predicate = vec![];
 
-                                let mut additional_joins = predicate_joins;
-                                let mut additional_predicate = vec![predicate];
+                                if let Some(expression) = &first_element.predicate {
+                                    let (predicate, predicate_joins) = self.filter_expression(
+                                        expression,
+                                        &join_alias,
+                                        &relationship.target_collection,
+                                        false,
+                                        &mut join_index,
+                                    )?;
+
+                                    additional_predicate.push(predicate);
+
+                                    for predicate_join in predicate_joins {
+                                        additional_joins.push(predicate_join);
+                                    }
+                                }
 
                                 let mut last_join_alias = join_alias;
                                 let mut last_collection_name = &relationship.target_collection;
@@ -1470,18 +1368,20 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                                     additional_joins.push(join);
 
-                                    let (predicate, predicate_joins) = self.filter_expression(
-                                        &path_element.predicate,
-                                        &join_alias,
-                                        &relationship.target_collection,
-                                        false,
-                                        &mut join_index,
-                                    )?;
+                                    if let Some(expression) = &path_element.predicate {
+                                        let (predicate, predicate_joins) = self.filter_expression(
+                                            expression,
+                                            &join_alias,
+                                            &relationship.target_collection,
+                                            false,
+                                            &mut join_index,
+                                        )?;
 
-                                    additional_predicate.push(predicate);
+                                        additional_predicate.push(predicate);
 
-                                    for predicate_join in predicate_joins {
-                                        additional_joins.push(predicate_join);
+                                        for predicate_join in predicate_joins {
+                                            additional_joins.push(predicate_join);
+                                        }
                                     }
 
                                     last_join_alias = join_alias;
@@ -1642,19 +1542,21 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                             additional_joins.push(join);
 
-                            let (predicate, predicate_joins) = self.filter_expression(
-                                &path_element.predicate,
-                                &join_alias,
-                                &relationship.target_collection,
-                                false,
-                                name_index,
-                            )?;
+                            if let Some(expression) = &path_element.predicate {
+                                let (predicate, predicate_joins) = self.filter_expression(
+                                    expression,
+                                    &join_alias,
+                                    &relationship.target_collection,
+                                    false,
+                                    name_index,
+                                )?;
 
-                            for join in predicate_joins {
-                                additional_joins.push(join)
+                                additional_predicates.push(predicate);
+
+                                for join in predicate_joins {
+                                    additional_joins.push(join)
+                                }
                             }
-
-                            additional_predicates.push(predicate);
 
                             last_join_alias = join_alias;
                             last_collection_name = &relationship.target_collection;

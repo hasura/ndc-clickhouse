@@ -1,6 +1,16 @@
 version: "3.8"
 services:
-  clickhouse_ndc:
+  postgres:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: metadata
+  ndc-clickhouse:
     build:
       context: .
     ports:
@@ -8,5 +18,40 @@ services:
     environment:
       PORT: 4000
     volumes:
-      - ./generated_config.json:/ndc-config.json
-    command: serve --port 4000 --configuration /ndc-config.json
+      - ./config:/etc/connector
+    command: serve --port 4000
+  graphql-engine:
+    restart: always
+    image: hasura/graphql-engine:v2.33.4
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      # https://ch-connector-sdbxf7vnbq-ue.a.run.app
+      # https://sqbb95veaz.us-central1.gcp.clickhouse.cloud:8443
+      #  {\"password\":{{$env?[$config.password] ?? $config.password}},\"url\": {{$env?[$config.url] ?? $config.url}},\"username\": {{$env?[$config.username] ?? $config.username}},\"tables\":{{$config?.tables}}}
+      CLICKHOUSE_USERNAME: default
+      CLICKHOUSE_PASSWORD: j~YTgXkDj8v1X
+      CLICKHOUSE_HOST: https://sqbb95veaz.us-central1.gcp.clickhouse.cloud:8443
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://${POSTGRES_USERNAME:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/metadata
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_LOG_LEVEL: debug
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log, data-connector-log
+  tests:
+    volumes:
+      - ./test_runs:/test_runs
+    image: "hasura/dc-agent-tests:v2.33.4"
+    command:
+      [
+        "tests-dc-api",
+        "test",
+        "--agent-base-url",
+        "http://host.docker.internal:5000/v2",
+        "--agent-config",
+        "{}",
+      ]
+    restart: on-failure
+volumes:
+  postgres-data:

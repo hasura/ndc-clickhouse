@@ -1,8 +1,4 @@
-mod connector;
-mod schema;
-mod sql;
-
-use connector::ClickhouseConnector;
+use ndc_clickhouse::connector::ClickhouseConnector;
 use ndc_sdk::default_main::default_main;
 
 use std::error::Error;

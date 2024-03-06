@@ -262,11 +262,14 @@ impl ClickHouseScalarType {
         use ClickHouseBinaryComparisonOperator as BC;
         use ClickHouseScalarType as ST;
         let base_operators = vec![
+            (BC::Eq, self.to_owned()),
             (BC::Gt, self.to_owned()),
             (BC::Lt, self.to_owned()),
             (BC::GtEq, self.to_owned()),
             (BC::LtEq, self.to_owned()),
             (BC::NotEq, self.to_owned()),
+            (BC::In, self.to_owned()),
+            (BC::NotIn, self.to_owned()),
         ];
 
         BTreeMap::from_iter(
@@ -279,9 +282,20 @@ impl ClickHouseScalarType {
             .map(|(name, argument_type)| {
                 (
                     name.to_string(),
-                    models::ComparisonOperatorDefinition {
-                        argument_type: models::Type::Named {
-                            name: argument_type.to_string(),
+                    match name {
+                        BC::Eq => models::ComparisonOperatorDefinition::Equal,
+                        BC::In => models::ComparisonOperatorDefinition::In,
+                        BC::NotIn => models::ComparisonOperatorDefinition::Custom {
+                            argument_type: models::Type::Array {
+                                element_type: Box::new(models::Type::Named {
+                                    name: argument_type.to_string(),
+                                }),
+                            },
+                        },
+                        _ => models::ComparisonOperatorDefinition::Custom {
+                            argument_type: models::Type::Named {
+                                name: argument_type.to_string(),
+                            },
                         },
                     },
                 )

@@ -112,7 +112,11 @@ impl RowsTypeString {
                         match field {
                             models::Field::Column {
                                 column: column_alias,
+                                fields
                             } => {
+                                if fields.is_some() {
+                                    todo!("support nested field selection")
+                                }
                                 let column = get_column(column_alias, table_alias, config)?;
                                 FieldTypeString::Column(column.data_type.to_owned())
                             }
