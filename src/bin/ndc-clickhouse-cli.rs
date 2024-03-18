@@ -36,13 +36,9 @@ enum LogLevel {
 struct CliPluginArg {
     /// The PAT token which can be used to make authenticated calls to Hasura Cloud
     #[arg(long = "ddn-pat", value_name = "PAT", env = "HASURA_PLUGIN_DDN_PAT")]
-    ddn_pat: String,
+    ddn_pat: Option<String>,
     /// If the plugins are sending any sort of telemetry back to Hasura, it should be disabled if this is true.
-    #[arg(
-        long = "disable-telemetry",
-        value_name = "PAT",
-        env = "HASURA_PLUGIN_DISABLE_TELEMETRY"
-    )]
+    #[arg(long = "disable-telemetry", env = "HASURA_PLUGIN_DISABLE_TELEMETRY")]
     disable_telemetry: bool,
     /// A UUID for every unique user. Can be used in telemetry
     #[arg(
@@ -50,18 +46,19 @@ struct CliPluginArg {
         value_name = "ID",
         env = "HASURA_PLUGIN_INSTANCE_ID"
     )]
-    instance_id: String,
+    instance_id: Option<String>,
     /// A UUID unique to every invocation of Hasura CLI
     #[arg(
         long = "execution-id",
         value_name = "ID",
         env = "HASURA_PLUGIN_EXECUTION_ID"
     )]
-    execution_id: String,
+    execution_id: Option<String>,
     #[arg(
         long = "log-level",
         value_name = "LEVEL",
-        env = "HASURA_PLUGIN_LOG_LEVEL"
+        env = "HASURA_PLUGIN_LOG_LEVEL",
+        default_value = "info"
     )]
     log_level: LogLevel,
     /// Fully qualified path to the context directory of the connector
