@@ -1,13 +1,9 @@
-use std::{
-    env,
-    error::Error,
-    fs::{self, read_to_string},
-    path::Path,
-};
+use std::{env, error::Error, path::Path};
 
 use ndc_sdk::connector::{LocatedError, ParseError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tokio::fs;
 
 use self::database_introspection::{introspect_database, ColumnInfo, TableInfo};
 
@@ -64,10 +60,14 @@ pub async fn read_server_config(
 
     let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
 
-    let config_file = read_to_string(&file_path).map_err(|err| match err.kind() {
-        std::io::ErrorKind::NotFound => ParseError::CouldNotFindConfiguration(file_path.to_owned()),
-        _ => ParseError::IoError(err),
-    })?;
+    let config_file = fs::read_to_string(&file_path)
+        .await
+        .map_err(|err| match err.kind() {
+            std::io::ErrorKind::NotFound => {
+                ParseError::CouldNotFindConfiguration(file_path.to_owned())
+            }
+            _ => ParseError::IoError(err),
+        })?;
 
     let ServerConfigFile { tables } = serde_json::from_str::<ServerConfigFile>(&config_file)
         .map_err(|err| {
@@ -90,7 +90,7 @@ pub async fn update_tables_config(
 
     let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
 
-    let old_config = match read_to_string(&file_path) {
+    let old_config = match fs::read_to_string(&file_path).await {
         Ok(file) => serde_json::from_str(&file)
             .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}")),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(ServerConfigFile::default()),
@@ -144,7 +144,7 @@ pub async fn update_tables_config(
 
     let config = ServerConfigFile { tables };
 
-    fs::write(&file_path, serde_json::to_string(&config)?)?;
+    fs::write(&file_path, serde_json::to_string(&config)?).await?;
 
     Ok(())
 }
