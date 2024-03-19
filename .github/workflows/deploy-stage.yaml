@@ -177,7 +177,7 @@ jobs:
           fi
 
           echo "Building for target: ${CARGO_BUILD_TARGET}"
-          cargo build --release --bin ndc-clickhouse-cli
+          cargo build --release --package ndc-clickhouse-cli
 
           mkdir -p release
           mv -v target/${{ matrix.target }}/release/ndc-clickhouse-cli release/ndc-clickhouse-cli-${{ matrix.target }}${{ matrix.extension }}
