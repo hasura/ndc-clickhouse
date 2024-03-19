@@ -191,7 +191,7 @@ jobs:
   release:
     name: release to GitHub
     needs:
-      - docker
+      - release-connector
       - connector-definition
       - build-cli-binaries
     runs-on: ubuntu-latest
