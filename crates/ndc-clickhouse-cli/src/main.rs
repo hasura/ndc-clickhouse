@@ -12,11 +12,6 @@ use database_introspection::{introspect_database, ColumnInfo, TableInfo};
 use tokio::fs;
 mod database_introspection;
 
-/// The release version specified at build time.
-///
-/// We should use the latest version if this is not specified.
-const RELEASE_VERSION: Option<&str> = option_env!("RELEASE_VERSION");
-
 #[derive(Parser)]
 struct CliArgs {
     /// The PAT token which can be used to make authenticated calls to Hasura Cloud
@@ -89,7 +84,6 @@ enum LogLevel {
 struct Context {
     context_path: PathBuf,
     connection: ConnectionConfig,
-    release_version: Option<&'static str>,
 }
 
 #[tokio::main]
@@ -110,7 +104,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let context = Context {
         context_path,
         connection,
-        release_version: RELEASE_VERSION,
     };
 
     match args.command {
