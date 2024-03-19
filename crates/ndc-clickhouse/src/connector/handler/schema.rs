@@ -1,11 +1,9 @@
+use config::{PrimaryKey, ServerConfig};
 use ndc_sdk::{connector::SchemaError, models};
 use std::{collections::BTreeMap, str::FromStr};
 use strum::IntoEnumIterator;
 
-use crate::{
-    connector::config::{PrimaryKey, ServerConfig},
-    schema::{ClickHouseScalarType, ClickhouseDataType, Identifier},
-};
+use crate::schema::{ClickHouseScalarType, ClickhouseDataType, Identifier};
 
 pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaResponse, SchemaError> {
     let scalar_types = BTreeMap::from_iter(ClickHouseScalarType::iter().map(|scalar_type| {

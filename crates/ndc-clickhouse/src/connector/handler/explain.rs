@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 
+use client::execute_query;
+use config::ServerConfig;
 use ndc_sdk::{connector::ExplainError, models};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connector::{client::execute_query, config::ServerConfig, state::ServerState},
-    sql::QueryBuilder,
-};
+use crate::{connector::state::ServerState, sql::QueryBuilder};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ExplainRow {

@@ -1,8 +1,8 @@
 use std::{error::Error, sync::Arc};
 
+use client::get_http_client;
+use config::ServerConfig;
 use tokio::sync::RwLock;
-
-use super::{client::get_http_client, config::ServerConfig};
 
 #[derive(Debug, Clone)]
 pub struct ServerState {

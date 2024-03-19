@@ -2,7 +2,7 @@ use std::error::Error;
 
 use serde::{Deserialize, Serialize};
 
-use crate::connector::client::{execute_query, get_http_client};
+use client::{execute_query, get_http_client};
 
 use super::ConnectionConfig;
 

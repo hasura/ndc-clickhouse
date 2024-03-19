@@ -1,12 +1,10 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr};
 
+use config::{ColumnConfig, ServerConfig};
 use indexmap::IndexMap;
 use ndc_sdk::models;
 
-use crate::{
-    connector::config::{ColumnConfig, ServerConfig},
-    schema::{ClickHouseScalarType, ClickhouseDataType},
-};
+use crate::schema::{ClickHouseScalarType, ClickhouseDataType};
 
 /// Tuple(rows <RowsCastString>, aggregates <RowsCastString>)
 pub struct RowsetTypeString {
@@ -112,7 +110,7 @@ impl RowsTypeString {
                         match field {
                             models::Field::Column {
                                 column: column_alias,
-                                fields
+                                fields,
                             } => {
                                 if fields.is_some() {
                                     todo!("support nested field selection")
