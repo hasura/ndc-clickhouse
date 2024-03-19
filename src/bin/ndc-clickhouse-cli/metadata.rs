@@ -2,11 +2,7 @@
 //!
 //! See https://github.com/hasura/ndc-hub/blob/main/rfcs/0001-packaging.md#connector-definition.
 
-use std::{error::Error, path::PathBuf};
-
 use serde::{Deserialize, Serialize};
-
-use tokio::fs;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
