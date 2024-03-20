@@ -152,12 +152,6 @@ jobs:
           path: release/artifacts
           merge-multiple: true
 
-      - name: generate SHA-256 checksums
-        run: |
-          cd release/artifacts
-          sha256sum * > ./sha256sum
-          cat ./sha256sum
-
       - name: generate CLI manifest
         run: |
           export CLI_VERSION="$GITHUB_REF_NAME"
@@ -178,7 +172,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: connector-definition.tgz
-          path: ./release/connector-definition.tgz
+          path: ./release/artifacts/connector-definition.tgz
           compression-level: 0 # Already compressed
 
       - name: Get version from tag
