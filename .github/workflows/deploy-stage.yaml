@@ -46,36 +46,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  release-connector:
-    name: Release connector
-    runs-on: ubuntu-latest
-    needs: build-and-push-image
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: connector-definition.tgz
-          path: ./release
-      - name: Get version from tag
-        id: get-version
-        run: |
-          echo "tagged_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-        shell: bash
-      - uses: mindsers/changelog-reader-action@v2
-        id: changelog-reader
-        with:
-          version: ${{ steps.get-version.outputs.tagged_version }}
-          path: ./CHANGELOG.md
-      - uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          tag_name: v${{ steps.get-version.outputs.tagged_version }}
-          body: ${{ steps.changelog-reader.outputs.changes }}
-          files: |
-            ./release/connector-definition.tgz
-          fail_on_unmatched_files: true
-
   build-cli-binaries:
     name: build the CLI binaries
     strategy:
@@ -170,7 +140,7 @@ jobs:
   release:
     name: release to GitHub
     needs:
-      - release-connector
+      - build-and-push-image
       - build-cli-binaries
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
