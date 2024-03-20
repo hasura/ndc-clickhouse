@@ -154,8 +154,19 @@ jobs:
 
       - name: generate CLI manifest
         run: |
+          set -evo pipefail
+          ROOT="$(pwd)"
+
           export CLI_VERSION="$GITHUB_REF_NAME"
-          ./ci/scripts/generate-manifest.sh
+
+          export LINUX_AMD64_SHA256=$(sha256sum ${ROOT}/release/artifacts/ndc-clickhouse-cli-x86_64-unknown-linux-musl     | cut -f1 -d' ')
+          export MACOS_AMD64_SHA256=$(sha256sum ${ROOT}/release/artifacts/ndc-clickhouse-cli-x86_64-apple-darwin           | cut -f1 -d' ')
+          export WINDOWS_AMD64_SHA256=$(sha256sum ${ROOT}/release/artifacts/ndc-clickhouse-cli-x86_64-pc-windows-msvc.exe  | cut -f1 -d' ')
+          export LINUX_ARM64_SHA256=$(sha256sum ${ROOT}/release/artifacts/ndc-clickhouse-cli-aarch64-unknown-linux-musl    | cut -f1 -d' ')
+          export MACOS_ARM64_SHA256=$(sha256sum ${ROOT}/release/artifacts/ndc-clickhouse-cli-aarch64-apple-darwin          | cut -f1 -d' ')
+
+          mkdir -p "${ROOT}/release/"
+          cat "${ROOT}/ci/templates/manifest.yaml" | envsubst > "${ROOT}/release/manifest.yaml"
       
       - uses: actions/upload-artifact@v4
         with:
@@ -165,9 +176,15 @@ jobs:
 
       - name: Build connector definition
         run: |
+          set -evo pipefail
+          ROOT="$(pwd)"
+          
           export DOCKER_IMAGE="ghcr.io/hasura/ndc-clickhouse:$GITHUB_REF_NAME"
           export CLI_VERSION=$GITHUB_REF_NAME
-          ./ci/scripts/generate-connector-definition.sh
+
+          mkdir -p "${ROOT}/release/connector-definition/.hasura-connector/"
+          cat "${ROOT}/ci/templates/connector-metadata.yaml" | envsubst > "${ROOT}/release/connector-definition/.hasura-connector/connector-metadata.yaml"
+          tar -czvf "${ROOT}/release/artifacts/connector-definition.tgz" "${ROOT}/release/connector-definition/"
 
       - uses: actions/upload-artifact@v4
         with:
