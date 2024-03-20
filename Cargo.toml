@@ -6,3 +6,6 @@ members = [
   "crates/client",
 ]
 resolver = "2"
+
+package.version = "0.1.0"
+package.edition = "2021"
