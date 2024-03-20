@@ -1,8 +1,7 @@
 use std::error::Error;
 
+use config::ConnectionConfig;
 use serde::{de::DeserializeOwned, Deserialize};
-
-use super::config::ConnectionConfig;
 
 pub fn get_http_client(
     _connection_config: &ConnectionConfig,

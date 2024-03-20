@@ -1,9 +1,8 @@
+use client::execute_query;
+use config::ServerConfig;
 use ndc_sdk::{connector::QueryError, models};
 
-use crate::{
-    connector::{client::execute_query, config::ServerConfig, state::ServerState},
-    sql::QueryBuilder,
-};
+use crate::{connector::state::ServerState, sql::QueryBuilder};
 
 pub async fn query(
     configuration: &ServerConfig,

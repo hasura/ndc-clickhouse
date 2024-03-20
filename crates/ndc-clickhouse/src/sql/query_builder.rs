@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use config::ServerConfig;
 use indexmap::IndexMap;
 use ndc_sdk::models;
 
@@ -12,10 +13,7 @@ pub use error::QueryBuilderError;
 use typecasting::{AggregatesTypeString, RowsTypeString};
 
 use super::ast::*;
-use crate::{
-    connector::config::ServerConfig,
-    schema::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction},
-};
+use crate::schema::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
 
 pub struct QueryBuilder<'r, 'c> {
     request: &'r models::QueryRequest,
