@@ -1,6 +1,8 @@
 # Clickhouse Connector
 
-The [Clickhouse](https://clickhouse.com/) Native Data Connector allows for connecting to a Clickhouse instance giving 
+**Compatible with Hasura DDN Alpha**
+
+The [Clickhouse](https://clickhouse.com/) Native Data Connector allows for connecting to a Clickhouse instance giving
 you an instant GraphQL API on top of your Clickhouse data.
 
 This uses the [Rust Data Connector SDK](https://github.com/hasura/ndc-hub#rusk-sdk) from the [Data connector Hub](https://github.com/hasura/ndc-hub) and implements the [Data Connector Spec](https://github.com/hasura/ndc-spec).
@@ -16,11 +18,14 @@ In order to use this connector you will need to:
 
 ## Features
 
-TODO
+- Basic queries
+- Relationships
+- Filtering, including filtering across relationships
+- Remote joins
 
 ## For Hasura Users
 
-If you wish to use this connector with your Hasura projects, the best instructions can be found on the Hasura Hub 
+If you wish to use this connector with your Hasura projects, the best instructions can be found on the Hasura Hub
 (TODO: Link to hub page for Clickhouse Connector).
 
 The following steps will allow you to deploy the connector and use it in a Hasura V3 project:
@@ -67,7 +72,7 @@ The following steps will allow you to deploy the connector and use it in a Hasur
   --github-repo-url https://github.com/hasura/ndc-clickhouse/tree/main \
   --config-file ./clickhouse.connector.configuration.json
   ```
-- Ensure that your deployed connector is referenced from your metadata with the service token. This can be done by adding a new file under `subgraphs/<YOUR_SUBGRAPH_DIR>/dataconnectors` with the following: 
+- Ensure that your deployed connector is referenced from your metadata with the service token. This can be done by adding a new file under `subgraphs/<YOUR_SUBGRAPH_DIR>/dataconnectors` with the following:
 
 ```
 kind: DataConnector
@@ -77,7 +82,8 @@ definition:
   url:
     singleUrl: <DEPLOYED_CONNECTOR_URL>
 ```
-- Edit your metadata using the [LSP](https://marketplace.visualstudio.com/items?itemName=HasuraHQ.hasura) support to import the defined schema by running the comamnd `Hasura: Refresh Data Connector`. You can also track functions and procedures using the LSP command `Hasura: Track All`. 
+
+- Edit your metadata using the [LSP](https://marketplace.visualstudio.com/items?itemName=HasuraHQ.hasura) support to import the defined schema by running the comamnd `Hasura: Refresh Data Connector`. You can also track functions and procedures using the LSP command `Hasura: Track All`.
 - Deploy or update your Hasura cloud project
   ```
   hasura3 cloud build create --project-id my-project-id \
