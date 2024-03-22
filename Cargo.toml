@@ -1,23 +1,11 @@
-[package]
-name = "ndc-clickhouse"
-version = "0.1.1"
-edition = "2021"
+[workspace]
+members = [
+  "crates/ndc-clickhouse",
+  "crates/ndc-clickhouse-cli",
+  "crates/config",
+  "crates/client",
+]
+resolver = "2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-tokio = { version = "1.27.0", features = [
-  "macros",
-  "rt-multi-thread",
-  "signal",
-] }
-ndc-sdk = { git = "https://github.com/hasura/ndc-hub.git", rev = "1887363", package = "ndc-sdk" }
-peg = "0.8.1"
-async-trait = "0.1.72"
-prometheus = "0.13.3"
-serde = { version = "1.0.183", features = ["derive"] }
-serde_json = "1.0.104"
-schemars = "0.8.12"
-indexmap = "2.1.0"
-reqwest = { version = "0.11.20", features = ["json"] }
-strum = { version = "0.25.0", features = ["derive"] }
+package.version = "0.2.0"
+package.edition = "2021"

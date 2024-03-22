@@ -18,105 +18,78 @@ In order to use this connector you will need to:
 
 ## Features
 
-- Basic queries
-- Relationships
-- Filtering, including filtering across relationships
-- Remote joins
+This native data connector implements the following Hasura Data Domain Specification features:
+
+| Feature                                                                                                                             |     |
+| ----------------------------------------------------------------------------------------------------------------------------------- | --- |
+| [Simple Queries](https://hasura.io/docs/3.0/graphql-api/queries/simple-queries/)                                                    | ✅  |
+| [Nested Queries](https://hasura.io/docs/3.0/graphql-api/queries/nested-queries/)                                                    | ✅  |
+| [Query Result Sorting](https://hasura.io/docs/3.0/graphql-api/queries/sorting/)                                                     | ✅  |
+| [Query Result Pagination](https://hasura.io/docs/3.0/graphql-api/queries/pagination/)                                               | ✅  |
+| [Multiple Query Arguments](https://hasura.io/docs/3.0/graphql-api/queries/multiple-arguments/)                                      | ✅  |
+| [Multiple Queries in a Request](https://hasura.io/docs/3.0/graphql-api/queries/multiple-queries/)                                   | ✅  |
+| [Variables, Aliases, Fragments, Directives](https://hasura.io/docs/3.0/graphql-api/queries/variables-aliases-fragments-directives/) | ✅  |
+| [Query Filter: Value Comparison](https://hasura.io/docs/3.0/graphql-api/queries/filters/comparison-operators/)                      | ✅  |
+| [Query Filter: Boolean Expressions](https://hasura.io/docs/3.0/graphql-api/queries/filters/boolean-operators/)                      | ✅  |
+| [Query Filter: Text](https://hasura.io/docs/3.0/graphql-api/queries/filters/text-search-operators/)                                 | ✅  |
 
 ## For Hasura Users
 
-If you wish to use this connector with your Hasura projects, the best instructions can be found on the Hasura Hub
-(TODO: Link to hub page for Clickhouse Connector).
-
-The following steps will allow you to deploy the connector and use it in a Hasura V3 project:
-
-- Create a Hasura V3 Project (or use an existing project)
-- Ensure that you have a metadata definition
-- Create a configuration for the Clickhouse Connector referencing your credentials:
-  `clickhouse.connector.configuration.json`
-  You have 2 options for the config:
-  1.  The easiest option is to is to run the connector locally in config mode:
-  ```
-  cargo run -- configuration serve --port 5000
-  curl -X POST -H 'Content-Type: application/json' -d '{"connection": {"username": "your_username", "password": "your_password", "url": "your_clickhouse_url"}, "tables": []}' http://localhost:5000 > clickhouse.connector.configuration.json
-  ```
-  2.  The other option is to manually write your config that follows this pattern:
-  ```
-  {
-     "connection": {
-       "username": "your_username",
-       "password": "your_password",
-       "url": "your_clickhouse_url"
-     },
-     "tables": [
-       {
-         "name": "TableName",
-         "schema": "SchemaName",
-         "alias": "TableAlias",
-         "primary_key": { "name": "TableId", "columns": ["TableId"] },
-         "columns": [
-           { "name": "TableId", "alias": "TableId", "data_type": "Int32" },
-         ]
-       }
-     ]
-   }
-  ```
-- Run the following command to deploy the connector
-- Ensure you are logged in to Hasura CLI
-  ```
-  hasura3 cloud login --pat 'YOUR-HASURA-TOKEN'
-  ```
-- Deploy the connector
-  ```
-  hasura3 connector create clickhouse:v1 \
-  --github-repo-url https://github.com/hasura/ndc-clickhouse/tree/main \
-  --config-file ./clickhouse.connector.configuration.json
-  ```
-- Ensure that your deployed connector is referenced from your metadata with the service token. This can be done by adding a new file under `subgraphs/<YOUR_SUBGRAPH_DIR>/dataconnectors` with the following:
-
-```
-kind: DataConnector
-version: v1
-definition:
-  name: clickhouse
-  url:
-    singleUrl: <DEPLOYED_CONNECTOR_URL>
-```
-
-- Edit your metadata using the [LSP](https://marketplace.visualstudio.com/items?itemName=HasuraHQ.hasura) support to import the defined schema by running the comamnd `Hasura: Refresh Data Connector`. You can also track functions and procedures using the LSP command `Hasura: Track All`.
-- Deploy or update your Hasura cloud project
-  ```
-  hasura3 cloud build create --project-id my-project-id \
-  --metadata-file metadata.json my-build-id
-  ```
-- View in your cloud console, access via the graphql API
+This connector should be used via the hasura ddn cli
 
 ## For Developers
 
 The following instructions are for developers who wish to contribute to the Clickhouse Connector.
 
-### Build
-
-Prerequisites:
+### Prerequisites:
 
 1. Install [rustup](https://www.rust-lang.org/tools/install).
+2. Install [docker](https://docs.docker.com/get-docker/).
 
-Commands:
+### Use the CLI to create/update a configuration directory
 
+View CLI help:
+
+```sh
+cargo run --package ndc-clickhouse-cli -- --help
 ```
-cargo build
-cargo run -- configuration serve --port 5000
-curl -X POST -d '{"connection": {"username": "your_username", "password": "your_password", "url": "your_clickhouse_url"}, "tables": []}' http://localhost:5000 > clickhouse.connector.configuration.json
-cargo run -- serve --configuration clickhouse.connector.congifuration.json
+
+Create a configuration directory in the `./config` directory:
+
+```sh
+cargo run --package ndc-clickhouse-cli -- init --context-path ./config --clickhouse-url "url" --clickhouse-username "user" --clickhouse-password "pass"
 ```
 
-### Docker
+Update an existing directory. Will create the directory and files if not present.
 
-The `Dockerfile` is used by the `connector create` command and can be tested as follows:
+This is required whenever the database schema changes
 
+```sh
+cargo run --package ndc-clickhouse-cli -- update --context-path ./config --clickhouse-url "url" --clickhouse-username "user" --clickhouse-password "pass"
 ```
-docker build . --tag ndc-clickhouse
-docker run -it --v ./clickhouse.connector.configuration.json:/config.json ndc-clickhouse
+
+### Run the connector server in docker
+
+Create a `.env` file in the project root, replacing the placeholders with the actual values:
+
+```env
+CLICKHOUSE_URL=<value>
+CLICKHOUSE_USERNAME=<value>
+CLICKHOUSE_PASSWORD=<value>
+```
+
+Run the connector container. Check `docker-compose.yaml` for configuration details:
+
+```sh
+docker compose up -d
+```
+
+The connector should now be running and accepting requests.
+
+To re-build the connector:
+
+```sh
+docker compose up -d --build
 ```
 
 ## Documentation

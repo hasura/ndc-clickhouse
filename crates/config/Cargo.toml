@@ -1,0 +1,8 @@
+[package]
+name = "config"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+schemars = "0.8.16"
+serde = { version = "1.0.197", features = ["derive"] }
