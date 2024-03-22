@@ -1,5 +1,7 @@
 # Clickhouse Connector
 
+**Compatible with Hasura DDN Alpha**
+
 The [Clickhouse](https://clickhouse.com/) Native Data Connector allows for connecting to a Clickhouse instance giving
 you an instant GraphQL API on top of your Clickhouse data.
 
