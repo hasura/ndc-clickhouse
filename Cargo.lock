@@ -300,7 +300,7 @@ checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
 name = "client"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "config",
  "reqwest",
@@ -326,7 +326,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "schemars",
  "serde",
@@ -977,7 +977,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "client",
@@ -995,7 +995,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "client",
