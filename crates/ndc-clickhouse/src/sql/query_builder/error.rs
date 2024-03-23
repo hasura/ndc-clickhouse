@@ -20,6 +20,8 @@ pub enum QueryBuilderError {
     Unexpected(String),
     /// There was an issue creating typecasting strings
     Typecasting(String),
+    /// An empty list of variables was passed. If variables are passed, we expect at least one set.
+    EmptyQueryVariablesList,
 }
 
 impl fmt::Display for QueryBuilderError {
@@ -42,6 +44,10 @@ impl fmt::Display for QueryBuilderError {
             QueryBuilderError::NotSupported(e) => write!(f, "Not supported: {e}"),
             QueryBuilderError::Unexpected(e) => write!(f, "Unexpected: {e}"),
             QueryBuilderError::Typecasting(e) => write!(f, "Typecasting: {e}"),
+            QueryBuilderError::EmptyQueryVariablesList => write!(
+                f,
+                "Empty query variables list: we expect at least one set, or no list."
+            ),
         }
     }
 }

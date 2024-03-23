@@ -102,6 +102,9 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         };
 
         let with = if let Some(variables) = &self.request.variables {
+            if variables.is_empty() {
+                return Err(QueryBuilderError::EmptyQueryVariablesList);
+            }
             let mut variable_values: IndexMap<String, Vec<serde_json::Value>> = IndexMap::new();
 
             variable_values.insert(

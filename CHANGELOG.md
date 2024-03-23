@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Return error if empty list of query variables passed. Variables should be ommited or be a list with at least one member
+
 ## [0.2.1]
 
 ### CLI
