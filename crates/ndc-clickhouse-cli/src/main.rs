@@ -38,7 +38,8 @@ struct CliArgs {
         long = "log-level",
         value_name = "LEVEL",
         env = "HASURA_PLUGIN_LOG_LEVEL",
-        default_value = "info"
+        default_value = "info",
+        ignore_case = true
     )]
     log_level: LogLevel,
     /// Fully qualified path to the context directory of the connector
