@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### CLI
+
+- ignore casing for log-level flag
+
+### Server
+
+- default to `serve` command
+- default `HASURA_CONFIGURATION_DIRECTORY` to `/etc/connector`
+
+### CI
+
+- correct `connnector-definition.tgz` archive: make root of archive relative (was absolute)
+
 ## [0.2.0]
 
 - DDN Beta release
