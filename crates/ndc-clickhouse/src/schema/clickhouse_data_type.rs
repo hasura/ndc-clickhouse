@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SingleQuotedString(String);
+pub struct SingleQuotedString(pub String);
 
 impl Display for SingleQuotedString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -78,8 +78,8 @@ impl Display for AggregateFunctionParameter {
 /// To create one from a string slice, use try_from()
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum ClickhouseDataType {
-    Nullable(Box<ClickhouseDataType>),
+pub enum ClickHouseDataType {
+    Nullable(Box<ClickHouseDataType>),
     Bool,
     String,
     FixedString(u32),
@@ -126,29 +126,29 @@ pub enum ClickhouseDataType {
     Uuid,
     IPv4,
     IPv6,
-    LowCardinality(Box<ClickhouseDataType>),
-    Nested(Vec<(Identifier, ClickhouseDataType)>),
-    Array(Box<ClickhouseDataType>),
+    LowCardinality(Box<ClickHouseDataType>),
+    Nested(Vec<(Identifier, ClickHouseDataType)>),
+    Array(Box<ClickHouseDataType>),
     Map {
-        key: Box<ClickhouseDataType>,
-        value: Box<ClickhouseDataType>,
+        key: Box<ClickHouseDataType>,
+        value: Box<ClickHouseDataType>,
     },
-    Tuple(Vec<(Option<Identifier>, ClickhouseDataType)>),
+    Tuple(Vec<(Option<Identifier>, ClickHouseDataType)>),
     Enum(Vec<(SingleQuotedString, Option<u32>)>),
     SimpleAggregateFunction {
         function: AggregateFunctionDefinition,
-        arguments: Vec<ClickhouseDataType>,
+        arguments: Vec<ClickHouseDataType>,
     },
     AggregateFunction {
         function: AggregateFunctionDefinition,
-        arguments: Vec<ClickhouseDataType>,
+        arguments: Vec<ClickHouseDataType>,
     },
     Nothing,
 }
 
-impl Display for ClickhouseDataType {
+impl Display for ClickHouseDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ClickhouseDataType as DT;
+        use ClickHouseDataType as DT;
         match self {
             DT::Nullable(inner) => write!(f, "Nullable({inner})"),
             DT::Bool => write!(f, "Bool"),
@@ -271,10 +271,10 @@ impl Display for ClickhouseDataType {
     }
 }
 
-impl FromStr for ClickhouseDataType {
+impl FromStr for ClickHouseDataType {
     type Err = peg::error::ParseError<peg::str::LineCol>;
 
-    /// Attempt to create a ClickhouseDataType from a string representation of the type.
+    /// Attempt to create a ClickHouseDataType from a string representation of the type.
     /// May return a parse error if the type string is malformed, or if our implementation is out of date or incorrect
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         clickhouse_parser::data_type(s)
@@ -283,8 +283,8 @@ impl FromStr for ClickhouseDataType {
 
 peg::parser! {
   grammar clickhouse_parser() for str {
-    use ClickhouseDataType as CDT;
-    pub rule data_type() -> ClickhouseDataType = nullable()
+    use ClickHouseDataType as CDT;
+    pub rule data_type() -> ClickHouseDataType = nullable()
         / uint256()
         / uint128()
         / uint64()
@@ -322,46 +322,46 @@ peg::parser! {
         / tuple()
         / r#enum()
         / nothing()
-    rule nullable() -> ClickhouseDataType = "Nullable(" t:data_type() ")" { CDT::Nullable(Box::new(t)) }
-    rule uint8() -> ClickhouseDataType = "UInt8" { CDT::UInt8 }
-    rule uint16() -> ClickhouseDataType = "UInt16" { CDT::UInt16 }
-    rule uint32() -> ClickhouseDataType = "UInt32" { CDT::UInt32 }
-    rule uint64() -> ClickhouseDataType = "UInt64" { CDT::UInt64 }
-    rule uint128() -> ClickhouseDataType = "UInt128" { CDT::UInt128 }
-    rule uint256() -> ClickhouseDataType = "UInt256" { CDT::UInt256 }
-    rule int8() -> ClickhouseDataType = "Int8" { CDT::Int8 }
-    rule int16() -> ClickhouseDataType = "Int16" { CDT::Int16 }
-    rule int32() -> ClickhouseDataType = "Int32" { CDT::Int32 }
-    rule int64() -> ClickhouseDataType = "Int64" { CDT::Int64 }
-    rule int128() -> ClickhouseDataType = "Int128" { CDT::Int128 }
-    rule int256() -> ClickhouseDataType = "Int256" { CDT::Int256 }
-    rule float32() -> ClickhouseDataType = "Float32" { CDT::Float32 }
-    rule float64() -> ClickhouseDataType = "Float64" { CDT::Float64 }
-    rule decimal() -> ClickhouseDataType = "Decimal(" precision:integer_value() ", " scale:integer_value() ")" { CDT::Decimal { precision, scale }  }
-    rule decimal32() -> ClickhouseDataType = "Decimal32(" scale:integer_value() ")" { CDT::Decimal32 { scale } }
-    rule decimal64() -> ClickhouseDataType = "Decimal64(" scale:integer_value() ")" { CDT::Decimal64 { scale } }
-    rule decimal128() -> ClickhouseDataType = "Decimal128(" scale:integer_value() ")" { CDT::Decimal128 { scale } }
-    rule decimal256() -> ClickhouseDataType = "Decimal256(" scale:integer_value() ")" { CDT::Decimal256 { scale } }
-    rule bool() -> ClickhouseDataType = "Bool" { CDT::Bool }
-    rule string() -> ClickhouseDataType = "String" { CDT::String }
-    rule fixed_string() -> ClickhouseDataType = "FixedString(" n:integer_value() ")" { CDT::FixedString(n) }
-    rule date() -> ClickhouseDataType = "Date" { CDT::Date }
-    rule date32() -> ClickhouseDataType = "Date32" { CDT::Date32 }
-    rule date_time() -> ClickhouseDataType = "DateTime" tz:("(" tz:single_quoted_string_value()? ")" { tz })? { CDT::DateTime { timezone: tz.flatten().map(|s| s.to_owned()) } }
-    rule date_time64() -> ClickhouseDataType = "DateTime64(" precision:integer_value() tz:(", " tz:single_quoted_string_value()? { tz })? ")" { CDT::DateTime64{ precision, timezone: tz.flatten().map(|s| s.to_owned())} }
-    rule json() -> ClickhouseDataType = "JSON" { CDT::Json }
-    rule uuid() -> ClickhouseDataType = "UUID" { CDT::Uuid }
-    rule ipv4() -> ClickhouseDataType = "IPv4" { CDT::IPv4 }
-    rule ipv6() -> ClickhouseDataType = "IPv6" { CDT::IPv6 }
-    rule low_cardinality() -> ClickhouseDataType = "LowCardinality(" t:data_type() ")" { CDT::LowCardinality(Box::new(t)) }
-    rule nested() -> ClickhouseDataType =  "Nested(" e:(("\""? n:identifier() "\""? " " t:data_type() { (n, t)}) ** ", ") ")" { CDT::Nested(e) }
-    rule array() -> ClickhouseDataType =  "Array(" t:data_type() ")" { CDT::Array(Box::new(t)) }
-    rule map() -> ClickhouseDataType =  "Map(" k:data_type() ", " v:data_type() ")" { CDT::Map { key: Box::new(k), value: Box::new(v) } }
-    rule tuple() -> ClickhouseDataType =  "Tuple(" e:((n:(n:identifier() " " { n })? t:data_type() { (n, t) }) ** ", ")  ")" { CDT::Tuple(e) }
-    rule r#enum() -> ClickhouseDataType = "Enum" ("8" / "16")?  "(" e:((n:single_quoted_string_value() i:(" = " i:integer_value() { i })? { (n, i) }) ** ", ") ")" { CDT::Enum(e)}
-    rule aggregate_function() -> ClickhouseDataType = "AggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::AggregateFunction { function: f, arguments:  a }}
-    rule simple_aggregate_function() -> ClickhouseDataType =  "SimpleAggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::SimpleAggregateFunction { function: f, arguments:  a }}
-    rule nothing() -> ClickhouseDataType = "Nothing" { CDT::Nothing }
+    rule nullable() -> ClickHouseDataType = "Nullable(" t:data_type() ")" { CDT::Nullable(Box::new(t)) }
+    rule uint8() -> ClickHouseDataType = "UInt8" { CDT::UInt8 }
+    rule uint16() -> ClickHouseDataType = "UInt16" { CDT::UInt16 }
+    rule uint32() -> ClickHouseDataType = "UInt32" { CDT::UInt32 }
+    rule uint64() -> ClickHouseDataType = "UInt64" { CDT::UInt64 }
+    rule uint128() -> ClickHouseDataType = "UInt128" { CDT::UInt128 }
+    rule uint256() -> ClickHouseDataType = "UInt256" { CDT::UInt256 }
+    rule int8() -> ClickHouseDataType = "Int8" { CDT::Int8 }
+    rule int16() -> ClickHouseDataType = "Int16" { CDT::Int16 }
+    rule int32() -> ClickHouseDataType = "Int32" { CDT::Int32 }
+    rule int64() -> ClickHouseDataType = "Int64" { CDT::Int64 }
+    rule int128() -> ClickHouseDataType = "Int128" { CDT::Int128 }
+    rule int256() -> ClickHouseDataType = "Int256" { CDT::Int256 }
+    rule float32() -> ClickHouseDataType = "Float32" { CDT::Float32 }
+    rule float64() -> ClickHouseDataType = "Float64" { CDT::Float64 }
+    rule decimal() -> ClickHouseDataType = "Decimal(" precision:integer_value() ", " scale:integer_value() ")" { CDT::Decimal { precision, scale }  }
+    rule decimal32() -> ClickHouseDataType = "Decimal32(" scale:integer_value() ")" { CDT::Decimal32 { scale } }
+    rule decimal64() -> ClickHouseDataType = "Decimal64(" scale:integer_value() ")" { CDT::Decimal64 { scale } }
+    rule decimal128() -> ClickHouseDataType = "Decimal128(" scale:integer_value() ")" { CDT::Decimal128 { scale } }
+    rule decimal256() -> ClickHouseDataType = "Decimal256(" scale:integer_value() ")" { CDT::Decimal256 { scale } }
+    rule bool() -> ClickHouseDataType = "Bool" { CDT::Bool }
+    rule string() -> ClickHouseDataType = "String" { CDT::String }
+    rule fixed_string() -> ClickHouseDataType = "FixedString(" n:integer_value() ")" { CDT::FixedString(n) }
+    rule date() -> ClickHouseDataType = "Date" { CDT::Date }
+    rule date32() -> ClickHouseDataType = "Date32" { CDT::Date32 }
+    rule date_time() -> ClickHouseDataType = "DateTime" tz:("(" tz:single_quoted_string_value()? ")" { tz })? { CDT::DateTime { timezone: tz.flatten().map(|s| s.to_owned()) } }
+    rule date_time64() -> ClickHouseDataType = "DateTime64(" precision:integer_value() tz:(", " tz:single_quoted_string_value()? { tz })? ")" { CDT::DateTime64{ precision, timezone: tz.flatten().map(|s| s.to_owned())} }
+    rule json() -> ClickHouseDataType = "JSON" { CDT::Json }
+    rule uuid() -> ClickHouseDataType = "UUID" { CDT::Uuid }
+    rule ipv4() -> ClickHouseDataType = "IPv4" { CDT::IPv4 }
+    rule ipv6() -> ClickHouseDataType = "IPv6" { CDT::IPv6 }
+    rule low_cardinality() -> ClickHouseDataType = "LowCardinality(" t:data_type() ")" { CDT::LowCardinality(Box::new(t)) }
+    rule nested() -> ClickHouseDataType =  "Nested(" e:(("\""? n:identifier() "\""? " " t:data_type() { (n, t)}) ** ", ") ")" { CDT::Nested(e) }
+    rule array() -> ClickHouseDataType =  "Array(" t:data_type() ")" { CDT::Array(Box::new(t)) }
+    rule map() -> ClickHouseDataType =  "Map(" k:data_type() ", " v:data_type() ")" { CDT::Map { key: Box::new(k), value: Box::new(v) } }
+    rule tuple() -> ClickHouseDataType =  "Tuple(" e:((n:(n:identifier() " " { n })? t:data_type() { (n, t) }) ** ", ")  ")" { CDT::Tuple(e) }
+    rule r#enum() -> ClickHouseDataType = "Enum" ("8" / "16")?  "(" e:((n:single_quoted_string_value() i:(" = " i:integer_value() { i })? { (n, i) }) ** ", ") ")" { CDT::Enum(e)}
+    rule aggregate_function() -> ClickHouseDataType = "AggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::AggregateFunction { function: f, arguments:  a }}
+    rule simple_aggregate_function() -> ClickHouseDataType =  "SimpleAggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::SimpleAggregateFunction { function: f, arguments:  a }}
+    rule nothing() -> ClickHouseDataType = "Nothing" { CDT::Nothing }
 
 
 
@@ -385,7 +385,7 @@ peg::parser! {
 
 #[test]
 fn can_parse_clickhouse_data_type() {
-    use ClickhouseDataType as CDT;
+    use ClickHouseDataType as CDT;
     let data_types = vec![
         ("Int32", CDT::Int32),
         ("Nullable(Int32)", CDT::Nullable(Box::new(CDT::Int32))),

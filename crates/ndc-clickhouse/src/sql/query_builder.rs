@@ -1492,7 +1492,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         let mut additional_predicates = vec![];
 
                         let mut last_join_alias = current_join_alias.clone();
-                        let mut last_collection_name = current_collection.clone();
+                        let mut last_collection_name = current_collection;
 
                         for path_element in path {
                             let join_alias = Ident::new_quoted(format!("_exists_{name_index}"));
@@ -1680,6 +1680,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 )
             })?;
 
+        // todo: revise whether we want to get the data type from the type definition instead
         Ok(column.data_type.to_owned())
     }
 }

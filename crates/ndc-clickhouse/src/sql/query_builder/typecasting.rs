@@ -4,7 +4,9 @@ use config::{ColumnConfig, ServerConfig};
 use indexmap::IndexMap;
 use ndc_sdk::models;
 
-use crate::schema::{ClickHouseScalarType, ClickhouseDataType};
+use crate::schema::{
+    ClickHouseDataType, ClickHouseSingleColumnAggregateFunction, ClickHouseTypeDefinition,
+};
 
 /// Tuple(rows <RowsCastString>, aggregates <RowsCastString>)
 pub struct RowsetTypeString {
@@ -69,20 +71,33 @@ impl AggregatesTypeString {
                         function,
                     } => {
                         let column = get_column(column_alias, table_alias, config)?;
-                        let scalar_type =
-                            get_scalar_column_type(column, column_alias, table_alias)?;
+                        let data_type = get_data_type(column, column_alias, table_alias)?;
+                        let type_definition = ClickHouseTypeDefinition::from_table_column(
+                            &data_type,
+                            column_alias,
+                            table_alias,
+                        );
 
-                        let aggregate_functions = scalar_type.aggregate_functions();
+                        let aggregate_function =
+                            ClickHouseSingleColumnAggregateFunction::from_str(&function).map_err(
+                                |_err| TypeStringError::UnknownAggregateFunction {
+                                    table: table_alias.to_owned(),
+                                    column: column_alias.to_owned(),
+                                    data_type: column.data_type.to_owned(),
+                                    function: function.to_owned(),
+                                },
+                            )?;
+
+                        let aggregate_functions = type_definition.aggregate_functions();
 
                         let result_type = aggregate_functions
                             .iter()
-                            .find(|(f, _)| &f.to_string() == function)
-                            .map(|(_, r)| r)
+                            .find(|(function, _)| function == &aggregate_function)
+                            .map(|(_, result_type)| result_type)
                             .ok_or_else(|| TypeStringError::UnknownAggregateFunction {
                                 table: table_alias.to_owned(),
                                 column: column_alias.to_owned(),
                                 data_type: column.data_type.to_owned(),
-                                scalar_type: scalar_type.to_string(),
                                 function: function.to_owned(),
                             })?;
 
@@ -116,7 +131,14 @@ impl RowsTypeString {
                                     todo!("support nested field selection")
                                 }
                                 let column = get_column(column_alias, table_alias, config)?;
-                                FieldTypeString::Column(column.data_type.to_owned())
+                                let data_type =
+                                    get_data_type(&column, &column_alias, &table_alias)?;
+                                let type_definition = ClickHouseTypeDefinition::from_table_column(
+                                    &data_type,
+                                    column_alias,
+                                    table_alias,
+                                );
+                                FieldTypeString::Column(type_definition.cast_type().to_string())
                             }
                             models::Field::Relationship {
                                 query,
@@ -238,79 +260,18 @@ fn get_column<'a>(
     Ok(column)
 }
 
-fn get_scalar_column_type(
+fn get_data_type(
     column: &ColumnConfig,
     column_alias: &str,
     table_alias: &str,
-) -> Result<ClickHouseScalarType, TypeStringError> {
-    let data_type = ClickhouseDataType::from_str(&column.data_type).map_err(|_err| {
+) -> Result<ClickHouseDataType, TypeStringError> {
+    ClickHouseDataType::from_str(&column.data_type).map_err(|_err| {
         TypeStringError::CannotParseTypeString {
             table: table_alias.to_owned(),
             column: column_alias.to_owned(),
             data_type: column.data_type.to_owned(),
         }
-    })?;
-
-    let scalar_type =
-        get_scalar_type(&data_type).ok_or_else(|| TypeStringError::ColumnNotScalar {
-            table: table_alias.to_owned(),
-            column: column_alias.to_owned(),
-            data_type: column.data_type.to_owned(),
-        })?;
-
-    Ok(scalar_type)
-}
-
-fn get_scalar_type(data_type: &ClickhouseDataType) -> Option<ClickHouseScalarType> {
-    match data_type {
-        ClickhouseDataType::Nullable(data_type) => get_scalar_type(data_type),
-        ClickhouseDataType::Bool => Some(ClickHouseScalarType::Bool),
-        ClickhouseDataType::String | ClickhouseDataType::FixedString(_) => {
-            Some(ClickHouseScalarType::String)
-        }
-        ClickhouseDataType::UInt8 => Some(ClickHouseScalarType::UInt8),
-        ClickhouseDataType::UInt16 => Some(ClickHouseScalarType::UInt16),
-        ClickhouseDataType::UInt32 => Some(ClickHouseScalarType::UInt32),
-        ClickhouseDataType::UInt64 => Some(ClickHouseScalarType::UInt64),
-        ClickhouseDataType::UInt128 => Some(ClickHouseScalarType::UInt128),
-        ClickhouseDataType::UInt256 => Some(ClickHouseScalarType::UInt256),
-        ClickhouseDataType::Int8 => Some(ClickHouseScalarType::Int8),
-        ClickhouseDataType::Int16 => Some(ClickHouseScalarType::Int16),
-        ClickhouseDataType::Int32 => Some(ClickHouseScalarType::Int32),
-        ClickhouseDataType::Int64 => Some(ClickHouseScalarType::Int64),
-        ClickhouseDataType::Int128 => Some(ClickHouseScalarType::Int128),
-        ClickhouseDataType::Int256 => Some(ClickHouseScalarType::Int256),
-        ClickhouseDataType::Float32 => Some(ClickHouseScalarType::Float32),
-        ClickhouseDataType::Float64 => Some(ClickHouseScalarType::Float64),
-        ClickhouseDataType::Decimal { .. } => Some(ClickHouseScalarType::Decimal),
-        ClickhouseDataType::Decimal32 { .. } => Some(ClickHouseScalarType::Decimal32),
-        ClickhouseDataType::Decimal64 { .. } => Some(ClickHouseScalarType::Decimal64),
-        ClickhouseDataType::Decimal128 { .. } => Some(ClickHouseScalarType::Decimal128),
-        ClickhouseDataType::Decimal256 { .. } => Some(ClickHouseScalarType::Decimal256),
-        ClickhouseDataType::Date => Some(ClickHouseScalarType::Date),
-        ClickhouseDataType::Date32 => Some(ClickHouseScalarType::Date32),
-        ClickhouseDataType::DateTime { .. } => Some(ClickHouseScalarType::DateTime),
-        ClickhouseDataType::DateTime64 { .. } => Some(ClickHouseScalarType::DateTime64),
-        ClickhouseDataType::Json => Some(ClickHouseScalarType::Json),
-        ClickhouseDataType::Uuid => Some(ClickHouseScalarType::Uuid),
-        ClickhouseDataType::IPv4 => Some(ClickHouseScalarType::IPv4),
-        ClickhouseDataType::IPv6 => Some(ClickHouseScalarType::IPv6),
-        ClickhouseDataType::LowCardinality(data_type) => get_scalar_type(data_type),
-        ClickhouseDataType::Nested(_)
-        | ClickhouseDataType::Array(_)
-        | ClickhouseDataType::Map { .. }
-        | ClickhouseDataType::Tuple(_)
-        | ClickhouseDataType::Enum(_) => None,
-        ClickhouseDataType::SimpleAggregateFunction {
-            function: _,
-            arguments,
-        }
-        | ClickhouseDataType::AggregateFunction {
-            function: _,
-            arguments,
-        } => arguments.first().and_then(get_scalar_type),
-        ClickhouseDataType::Nothing => None,
-    }
+    })
 }
 
 #[derive(Debug)]
@@ -327,16 +288,10 @@ pub enum TypeStringError {
         column: String,
         data_type: String,
     },
-    ColumnNotScalar {
-        table: String,
-        column: String,
-        data_type: String,
-    },
     UnknownAggregateFunction {
         table: String,
         column: String,
         data_type: String,
-        scalar_type: String,
         function: String,
     },
     MissingRelationship(String),
@@ -357,21 +312,12 @@ impl Display for TypeStringError {
                 f,
                 "Unable to parse data type: {data_type} for column: {column} in table: {table}"
             ),
-            TypeStringError::ColumnNotScalar {
-                table,
-                column,
-                data_type,
-            } => write!(
-                f,
-                "Unable to determine scalar type for column: {column} of type: {data_type} in table: {table}"
-            ),
             TypeStringError::UnknownAggregateFunction {
                 table,
                 column,
                 data_type,
-                scalar_type,
                 function,
-            } => write!(f, "Unknown aggregate function: {function} for scalar type: {scalar_type} for column {column} of type: {data_type} in table {table}"),
+            } => write!(f, "Unknown aggregate function: {function} for column {column} of type: {data_type} in table {table}"),
             TypeStringError::MissingRelationship(rel) => write!(f, "Missing relationship: {rel}"),
         }
     }
