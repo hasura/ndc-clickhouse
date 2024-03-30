@@ -149,6 +149,7 @@ pub async fn update_tables_config(
                 name: table.table_name.to_owned(),
                 schema: table.table_schema.to_owned(),
                 alias: get_table_alias(table, &old_table_config),
+                comment: table.table_comment.to_owned(),
                 primary_key: table.primary_key.as_ref().map(|primary_key| PrimaryKey {
                     name: primary_key.to_owned(),
                     columns: table
