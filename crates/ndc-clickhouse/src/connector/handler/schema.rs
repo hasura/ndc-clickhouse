@@ -57,7 +57,7 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
         object_types.push((
             table.alias.to_owned(),
             models::ObjectType {
-                description: None,
+                description: table.comment.to_owned(),
                 fields: BTreeMap::from_iter(fields),
             },
         ));
@@ -70,7 +70,7 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
         .iter()
         .map(|table| models::CollectionInfo {
             name: table.alias.to_owned(),
-            description: None,
+            description: table.comment.to_owned(),
             arguments: BTreeMap::new(),
             collection_type: table.alias.to_owned(),
             uniqueness_constraints: table.primary_key.as_ref().map_or(

@@ -25,6 +25,7 @@ pub struct TableConfig {
     pub name: String,
     pub schema: String,
     pub alias: String,
+    pub comment: Option<String>,
     pub primary_key: Option<PrimaryKey>,
     pub columns: Vec<ColumnConfig>,
 }

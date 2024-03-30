@@ -11,6 +11,7 @@ pub struct TableInfo {
     pub table_name: String,
     pub table_schema: String,
     pub table_catalog: String,
+    pub table_comment: Option<String>,
     pub table_type: TableType,
     pub primary_key: Option<String>,
     pub columns: Vec<ColumnInfo>,
