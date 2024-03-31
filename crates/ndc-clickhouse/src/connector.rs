@@ -140,8 +140,8 @@ pub async fn read_server_config(
             _ => ParseError::IoError(err),
         })?;
 
-    let ServerConfigFile { tables } = serde_json::from_str::<ServerConfigFile>(&config_file)
-        .map_err(|err| {
+    let ServerConfigFile { tables, schema: _ } =
+        serde_json::from_str::<ServerConfigFile>(&config_file).map_err(|err| {
             ParseError::ParseError(LocatedError {
                 file_path,
                 line: err.line(),

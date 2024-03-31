@@ -7,8 +7,10 @@ use std::{
 use clap::{Parser, Subcommand, ValueEnum};
 use config::{
     ColumnConfig, ConnectionConfig, PrimaryKey, ServerConfigFile, TableConfig, CONFIG_FILE_NAME,
+    CONFIG_SCHEMA_FILE_NAME,
 };
 use database_introspection::{introspect_database, ColumnInfo, TableInfo};
+use schemars::schema_for;
 use tokio::fs;
 mod database_introspection;
 
@@ -132,10 +134,11 @@ pub async fn update_tables_config(
     let table_infos = introspect_database(connection_config).await?;
 
     let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
+    let schema_file_path = configuration_dir.as_ref().join(CONFIG_SCHEMA_FILE_NAME);
 
     let old_config = match fs::read_to_string(&file_path).await {
         Ok(file) => serde_json::from_str(&file)
-            .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}")),
+            .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}\n\nDelete {CONFIG_FILE_NAME} to create a fresh file")),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(ServerConfigFile::default()),
         Err(_) => Err(format!("Error reading {CONFIG_FILE_NAME}")),
     }?;
@@ -183,9 +186,18 @@ pub async fn update_tables_config(
         })
         .collect();
 
-    let config = ServerConfigFile { tables };
+    let config = ServerConfigFile {
+        schema: CONFIG_SCHEMA_FILE_NAME.to_owned(),
+        tables,
+    };
+    let config_schema = schema_for!(ServerConfigFile);
 
-    fs::write(&file_path, serde_json::to_string(&config)?).await?;
+    fs::write(&file_path, serde_json::to_string_pretty(&config)?).await?;
+    fs::write(
+        &schema_file_path,
+        serde_json::to_string_pretty(&config_schema)?,
+    )
+    .await?;
 
     Ok(())
 }
