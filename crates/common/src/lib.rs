@@ -1,3 +1,3 @@
-pub mod clickhouse_datatype;
+pub mod clickhouse_parser;
 pub mod client;
 pub mod config;
