@@ -1,3 +1,5 @@
+use common::clickhouse_datatype::ClickHouseDataType;
+
 use crate::sql::ast::{Expr, Function, Ident, Join, Lambda};
 
 use super::and_reducer;
@@ -28,7 +30,7 @@ pub enum ComparisonColumn {
     /// For convenience, can be used with any expression as it won't wrap them in the arrayExists function
     Simple {
         column_ident: Expr,
-        data_type: String,
+        data_type: ClickHouseDataType,
     },
     /// The Flat variant does not group rows with a subquery. This can be safely used inside exists subqueries,
     /// as duplicating rows there does not matter. Like the Simple variant, when applied we do not wrap the expression in the arrayExists function
@@ -36,7 +38,7 @@ pub enum ComparisonColumn {
         column_ident: Expr,
         joins: Vec<Join>,
         additional_predicate: Option<Expr>,
-        data_type: String,
+        data_type: ClickHouseDataType,
     },
     /// The Grouped variant contains a single join which groups all values from the related column into an array.
     /// When applied, the expression returned from the closure is wrapped in the `arrayExists` function, and this expression will be evaluated against all values in the array.
@@ -46,12 +48,12 @@ pub enum ComparisonColumn {
         column_ident: Ident,
         joins: Vec<Join>,
         values_ident: Expr,
-        data_type: String,
+        data_type: ClickHouseDataType,
     },
 }
 
 impl ComparisonColumn {
-    pub fn new_simple(column_ident: Expr, data_type: String) -> Self {
+    pub fn new_simple(column_ident: Expr, data_type: ClickHouseDataType) -> Self {
         Self::Simple {
             column_ident,
             data_type,
@@ -61,7 +63,7 @@ impl ComparisonColumn {
         column_ident: Expr,
         joins: Vec<Join>,
         additional_predicate: Option<Expr>,
-        data_type: String,
+        data_type: ClickHouseDataType,
     ) -> Self {
         Self::Flat {
             column_ident,
@@ -74,7 +76,7 @@ impl ComparisonColumn {
         column_ident: Ident,
         join: Join,
         values_ident: Expr,
-        data_type: String,
+        data_type: ClickHouseDataType,
     ) -> Self {
         Self::Grouped {
             column_ident,
@@ -83,7 +85,7 @@ impl ComparisonColumn {
             data_type,
         }
     }
-    pub fn data_type(&self) -> String {
+    pub fn data_type(&self) -> ClickHouseDataType {
         match self {
             ComparisonColumn::Simple { data_type, .. }
             | ComparisonColumn::Flat { data_type, .. }

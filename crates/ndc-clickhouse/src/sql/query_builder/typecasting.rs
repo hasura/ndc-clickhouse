@@ -72,9 +72,8 @@ impl AggregatesTypeString {
                         function,
                     } => {
                         let column = get_column(column_alias, table_alias, config)?;
-                        let data_type = get_data_type(column, column_alias, table_alias)?;
                         let type_definition = ClickHouseTypeDefinition::from_table_column(
-                            &data_type,
+                            &column.data_type,
                             column_alias,
                             table_alias,
                         );
@@ -132,10 +131,8 @@ impl RowsTypeString {
                                     todo!("support nested field selection")
                                 }
                                 let column = get_column(column_alias, table_alias, config)?;
-                                let data_type =
-                                    get_data_type(&column, &column_alias, &table_alias)?;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
-                                    &data_type,
+                                    &column.data_type,
                                     column_alias,
                                     table_alias,
                                 );
@@ -240,39 +237,23 @@ fn get_column<'a>(
     column_alias: &str,
     table_alias: &str,
     config: &'a ServerConfig,
-) -> Result<&'a ColumnConfig, TypeStringError> {
+) -> Result<&'a ColumnConfig<ClickHouseDataType>, TypeStringError> {
     let table = config
         .tables
-        .iter()
-        .find(|t| t.alias == table_alias)
+        .get(table_alias)
         .ok_or_else(|| TypeStringError::UnknownTable {
             table: table_alias.to_owned(),
         })?;
 
     let column = table
         .columns
-        .iter()
-        .find(|c| c.alias == column_alias)
+        .get(column_alias)
         .ok_or_else(|| TypeStringError::UnknownColumn {
             table: table_alias.to_owned(),
             column: column_alias.to_owned(),
         })?;
 
     Ok(column)
-}
-
-fn get_data_type(
-    column: &ColumnConfig,
-    column_alias: &str,
-    table_alias: &str,
-) -> Result<ClickHouseDataType, TypeStringError> {
-    ClickHouseDataType::from_str(&column.data_type).map_err(|_err| {
-        TypeStringError::CannotParseTypeString {
-            table: table_alias.to_owned(),
-            column: column_alias.to_owned(),
-            data_type: column.data_type.to_owned(),
-        }
-    })
 }
 
 #[derive(Debug)]
@@ -284,15 +265,10 @@ pub enum TypeStringError {
         table: String,
         column: String,
     },
-    CannotParseTypeString {
-        table: String,
-        column: String,
-        data_type: String,
-    },
     UnknownAggregateFunction {
         table: String,
         column: String,
-        data_type: String,
+        data_type: ClickHouseDataType,
         function: String,
     },
     MissingRelationship(String),
@@ -305,14 +281,6 @@ impl Display for TypeStringError {
             TypeStringError::UnknownColumn { table, column } => {
                 write!(f, "Unknown column: {column} in table: {table}")
             }
-            TypeStringError::CannotParseTypeString {
-                table,
-                column,
-                data_type,
-            } => write!(
-                f,
-                "Unable to parse data type: {data_type} for column: {column} in table: {table}"
-            ),
             TypeStringError::UnknownAggregateFunction {
                 table,
                 column,

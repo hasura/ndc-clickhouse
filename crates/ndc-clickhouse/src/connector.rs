@@ -1,21 +1,28 @@
 pub mod handler;
 pub mod state;
 
-use std::{env, path::Path};
+use std::{env, path::Path, str::FromStr};
 use tokio::fs;
 
 use async_trait::async_trait;
 use ndc_sdk::{
     connector::{
         Connector, ConnectorSetup, ExplainError, FetchMetricsError, HealthError,
-        InitializationError, LocatedError, MutationError, ParseError, QueryError, SchemaError,
+        InitializationError, InvalidNode, InvalidNodes, KeyOrIndex, LocatedError, MutationError,
+        ParseError, QueryError, SchemaError,
     },
     json_response::JsonResponse,
     models,
 };
 
 use self::state::ServerState;
-use common::config::{ConnectionConfig, ServerConfig, ServerConfigFile, CONFIG_FILE_NAME};
+use common::{
+    clickhouse_datatype::ClickHouseDataType,
+    config::{
+        ColumnConfig, ConnectionConfig, ServerConfig, ServerConfigFile, TableConfig,
+        CONFIG_FILE_NAME,
+    },
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct ClickhouseConnector;
@@ -140,17 +147,66 @@ pub async fn read_server_config(
             _ => ParseError::IoError(err),
         })?;
 
-    let ServerConfigFile { tables, schema: _ } =
+    let ServerConfigFile { schema: _, tables } =
         serde_json::from_str::<ServerConfigFile>(&config_file).map_err(|err| {
             ParseError::ParseError(LocatedError {
-                file_path,
+                file_path: file_path.to_owned(),
                 line: err.line(),
                 column: err.column(),
                 message: err.to_string(),
             })
         })?;
 
-    Ok(ServerConfig { connection, tables })
+    let config = ServerConfig {
+        connection,
+        tables: tables
+            .into_iter()
+            .map(|(table_alias, table_config)| {
+                Ok((
+                    table_alias.clone(),
+                    TableConfig {
+                        name: table_config.name,
+                        schema: table_config.schema,
+                        comment: table_config.comment,
+                        primary_key: table_config.primary_key,
+                        columns: table_config
+                            .columns
+                            .into_iter()
+                            .map(|(column_alias, column_config)| {
+                                Ok((
+                                    column_alias.clone(),
+                                    ColumnConfig {
+                                        name: column_config.name,
+                                        data_type: ClickHouseDataType::from_str(
+                                            &column_config.data_type,
+                                        )
+                                        .map_err(|_err| {
+                                            ParseError::ValidateError(InvalidNodes(vec![
+                                                InvalidNode {
+                                                    file_path: file_path.to_owned(),
+                                                    node_path: vec![
+                                                        KeyOrIndex::Key("tables".to_string()),
+                                                        KeyOrIndex::Key(table_alias.to_owned()),
+                                                        KeyOrIndex::Key("columns".to_string()),
+                                                        KeyOrIndex::Key(column_alias.to_owned()),
+                                                        KeyOrIndex::Key("data_type".to_string()),
+                                                    ],
+                                                    message: "Unable to parse data type"
+                                                        .to_string(),
+                                                },
+                                            ]))
+                                        })?,
+                                    },
+                                ))
+                            })
+                            .collect::<Result<_, ParseError>>()?,
+                    },
+                ))
+            })
+            .collect::<Result<_, ParseError>>()?,
+    };
+
+    Ok(config)
 }
 
 fn get_connection_config() -> Result<ConnectionConfig, ParseError> {

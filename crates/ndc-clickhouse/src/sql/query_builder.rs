@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common::config::ServerConfig;
+use common::{clickhouse_datatype::ClickHouseDataType, config::ServerConfig};
 use indexmap::IndexMap;
 use ndc_sdk::models;
 
@@ -129,7 +129,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     Value::SingleQuotedString(serde_json::to_string(&variable_values).map_err(
                         |err| QueryBuilderError::CannotSerializeVariables(err.to_string()),
                     )?),
-                    "String".to_owned(),
+                    ClickHouseDataType::String,
                 )
                 .into_expr();
 
@@ -966,7 +966,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 let right_col_type = match operator {
                     ClickHouseBinaryComparisonOperator::In
                     | ClickHouseBinaryComparisonOperator::NotIn => {
-                        format!("Array({})", left_col.data_type())
+                        ClickHouseDataType::Array(Box::new(left_col.data_type()))
                     }
                     _ => left_col.data_type(),
                 };
@@ -1621,8 +1621,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         let table = self
             .configuration
             .tables
-            .iter()
-            .find(|t| t.alias == collection_alias)
+            .get(collection_alias)
             .ok_or_else(|| QueryBuilderError::UnknownTable(collection_alias.to_owned()))?;
 
         Ok(ObjectName(vec![
@@ -1639,20 +1638,12 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         let table = self
             .configuration
             .tables
-            .iter()
-            .find(|t| t.alias == collection_alias)
+            .get(collection_alias)
             .ok_or_else(|| QueryBuilderError::UnknownTable(collection_alias.to_owned()))?;
 
-        let column = table
-            .columns
-            .iter()
-            .find(|c| c.alias == column_alias)
-            .ok_or_else(|| {
-                QueryBuilderError::UnknownColumn(
-                    column_alias.to_owned(),
-                    collection_alias.to_owned(),
-                )
-            })?;
+        let column = table.columns.get(column_alias).ok_or_else(|| {
+            QueryBuilderError::UnknownColumn(column_alias.to_owned(), collection_alias.to_owned())
+        })?;
 
         Ok(Ident::new_quoted(&column.name))
     }
@@ -1660,25 +1651,17 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         &self,
         column_alias: &str,
         collection_alias: &str,
-    ) -> Result<String, QueryBuilderError> {
+    ) -> Result<ClickHouseDataType, QueryBuilderError> {
         // todo: get column name based on column alias and collection alias
         let table = self
             .configuration
             .tables
-            .iter()
-            .find(|t| t.alias == collection_alias)
+            .get(collection_alias)
             .ok_or_else(|| QueryBuilderError::UnknownTable(collection_alias.to_owned()))?;
 
-        let column = table
-            .columns
-            .iter()
-            .find(|c| c.alias == column_alias)
-            .ok_or_else(|| {
-                QueryBuilderError::UnknownColumn(
-                    column_alias.to_owned(),
-                    collection_alias.to_owned(),
-                )
-            })?;
+        let column = table.columns.get(column_alias).ok_or_else(|| {
+            QueryBuilderError::UnknownColumn(column_alias.to_owned(), collection_alias.to_owned())
+        })?;
 
         // todo: revise whether we want to get the data type from the type definition instead
         Ok(column.data_type.to_owned())

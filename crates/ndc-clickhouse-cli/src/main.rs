@@ -1,13 +1,18 @@
 use std::{
+    collections::BTreeMap,
     env,
     error::Error,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use clap::{Parser, Subcommand, ValueEnum};
-use common::config::{
-    ColumnConfig, ConnectionConfig, PrimaryKey, ServerConfigFile, TableConfig, CONFIG_FILE_NAME,
-    CONFIG_SCHEMA_FILE_NAME,
+use common::{
+    clickhouse_datatype::ClickHouseDataType,
+    config::{
+        ColumnConfig, ConnectionConfig, PrimaryKey, ServerConfigFile, TableConfig,
+        CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+    },
 };
 use database_introspection::{introspect_database, ColumnInfo, TableInfo};
 use schemars::schema_for;
@@ -147,11 +152,11 @@ pub async fn update_tables_config(
         .iter()
         .map(|table| {
             let old_table_config = get_old_table_config(table, &old_config.tables);
+            let table_alias = get_table_alias(table, &old_table_config);
 
-            TableConfig {
+            let table_config = TableConfig {
                 name: table.table_name.to_owned(),
                 schema: table.table_schema.to_owned(),
-                alias: get_table_alias(table, &old_table_config),
                 comment: table.table_comment.to_owned(),
                 primary_key: table.primary_key.as_ref().map(|primary_key| PrimaryKey {
                     name: primary_key.to_owned(),
@@ -173,18 +178,36 @@ pub async fn update_tables_config(
                 columns: table
                     .columns
                     .iter()
-                    .map(|column| ColumnConfig {
-                        name: column.column_name.to_owned(),
-                        alias: get_column_alias(
+                    .map(|column| {
+                        let column_alias = get_column_alias(
                             column,
                             &get_old_column_config(column, &old_table_config),
-                        ),
-                        data_type: column.data_type.to_owned(),
+                        );
+                        // check if data type can be parsed, to give early warning to the user
+                        // this is preferable to failing later while handling requests
+                        let _data_type =
+                            ClickHouseDataType::from_str(&column.data_type).map_err(|err| {
+                                format!(
+                                    "Unable to parse data type \"{}\" for column {} in table {}.{}: {}",
+                                    column.data_type,
+                                    column.column_name,
+                                    table.table_schema,
+                                    table.table_name,
+                                    err
+                                )
+                            })?;
+                        let column_config = ColumnConfig {
+                            name: column.column_name.to_owned(),
+                            data_type: column.data_type.to_owned(),
+                        };
+                        Ok((column_alias, column_config))
                     })
-                    .collect(),
-            }
+                    .collect::<Result<_, String>>()?,
+            };
+
+            Ok((table_alias, table_config))
         })
-        .collect();
+        .collect::<Result<_, String>>()?;
 
     let config = ServerConfigFile {
         schema: CONFIG_SCHEMA_FILE_NAME.to_owned(),
@@ -202,33 +225,45 @@ pub async fn update_tables_config(
     Ok(())
 }
 
+/// Get old table config, if any
+/// Note this uses the table name and schema to search, not the alias
+/// This allows custom aliases to be preserved
 fn get_old_table_config<'a>(
     table: &TableInfo,
-    old_tables: &'a [TableConfig],
-) -> Option<&'a TableConfig> {
-    old_tables.iter().find(|old_table| {
+    old_tables: &'a BTreeMap<String, TableConfig<String>>,
+) -> Option<(&'a String, &'a TableConfig<String>)> {
+    old_tables.iter().find(|(_, old_table)| {
         old_table.name == table.table_name && old_table.schema == table.table_schema
     })
 }
 
+/// Get old column config, if any
+/// Note this uses the column name to search, not the alias
+/// This allows custom aliases to be preserved
 fn get_old_column_config<'a>(
     column: &ColumnInfo,
-    old_table: &Option<&'a TableConfig>,
-) -> Option<&'a ColumnConfig> {
+    old_table: &Option<(&'a String, &'a TableConfig<String>)>,
+) -> Option<(&'a String, &'a ColumnConfig<String>)> {
     old_table
-        .map(|old_table| {
+        .map(|(_, old_table)| {
             old_table
                 .columns
                 .iter()
-                .find(|old_column| old_column.name == column.column_name)
+                .find(|(_, old_column)| old_column.name == column.column_name)
         })
         .flatten()
 }
 
-fn get_table_alias(table: &TableInfo, old_table: &Option<&TableConfig>) -> String {
+/// Table aliases default to <schema_name>_<table_name>,
+/// except for tables in the default schema where the table name is used.
+/// Prefer existing, old aliases over creating a new one
+fn get_table_alias(
+    table: &TableInfo,
+    old_table: &Option<(&String, &TableConfig<String>)>,
+) -> String {
     // to preserve any customization, aliases are kept throught updates
-    if let Some(old_table) = old_table {
-        old_table.alias.to_owned()
+    if let Some((old_table_alias, _)) = old_table {
+        old_table_alias.to_string()
     } else if table.table_schema == "default" {
         table.table_name.to_owned()
     } else {
@@ -236,10 +271,15 @@ fn get_table_alias(table: &TableInfo, old_table: &Option<&TableConfig>) -> Strin
     }
 }
 
-fn get_column_alias(column: &ColumnInfo, old_column: &Option<&ColumnConfig>) -> String {
+/// Table aliases default to the column namee
+/// Prefer existing, old aliases over creating a new one
+fn get_column_alias(
+    column: &ColumnInfo,
+    old_column: &Option<(&String, &ColumnConfig<String>)>,
+) -> String {
     // to preserve any customization, aliases are kept throught updates
-    if let Some(old_column) = old_column {
-        old_column.alias.to_owned()
+    if let Some((old_column_alias, _)) = old_column {
+        old_column_alias.to_string()
     } else {
         column.column_name.to_owned()
     }

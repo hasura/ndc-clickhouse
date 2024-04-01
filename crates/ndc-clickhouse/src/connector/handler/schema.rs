@@ -1,25 +1,20 @@
 use crate::schema::ClickHouseTypeDefinition;
-use common::{
-    clickhouse_datatype::ClickHouseDataType,
-    config::{PrimaryKey, ServerConfig},
-};
+use common::config::{PrimaryKey, ServerConfig};
 use ndc_sdk::{connector::SchemaError, models};
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
 pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaResponse, SchemaError> {
     let mut scalar_type_definitions = BTreeMap::new();
     let mut object_type_definitions = vec![];
 
-    for table in &configuration.tables {
+    for (table_alias, table_config) in &configuration.tables {
         let mut fields = vec![];
 
-        for column in &table.columns {
-            let data_type = ClickHouseDataType::from_str(column.data_type.as_str())
-                .map_err(|err| SchemaError::Other(Box::new(err)))?;
+        for (column_alias, column_config) in &table_config.columns {
             let type_definition = ClickHouseTypeDefinition::from_table_column(
-                &data_type,
-                &column.alias,
-                &table.alias,
+                &column_config.data_type,
+                &column_alias,
+                &table_alias,
             );
 
             let (scalars, objects) = type_definition.type_definitions();
@@ -35,7 +30,7 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
             }
 
             fields.push((
-                column.alias.to_owned(),
+                column_alias.to_owned(),
                 models::ObjectField {
                     description: None,
                     r#type: type_definition.type_identifier(),
@@ -44,9 +39,9 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
         }
 
         object_type_definitions.push((
-            table.alias.to_owned(),
+            table_alias.to_owned(),
             models::ObjectType {
-                description: table.comment.to_owned(),
+                description: table_config.comment.to_owned(),
                 fields: fields.into_iter().collect(),
             },
         ));
@@ -55,12 +50,12 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
     let collections = configuration
         .tables
         .iter()
-        .map(|table| models::CollectionInfo {
-            name: table.alias.to_owned(),
-            description: table.comment.to_owned(),
+        .map(|(table_alias, table_config)| models::CollectionInfo {
+            name: table_alias.to_owned(),
+            description: table_config.comment.to_owned(),
             arguments: BTreeMap::new(),
-            collection_type: table.alias.to_owned(),
-            uniqueness_constraints: table.primary_key.as_ref().map_or(
+            collection_type: table_alias.to_owned(),
+            uniqueness_constraints: table_config.primary_key.as_ref().map_or(
                 BTreeMap::new(),
                 |PrimaryKey { name, columns }| {
                     BTreeMap::from([(

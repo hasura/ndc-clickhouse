@@ -2,6 +2,7 @@
 use std::fmt;
 
 mod parameter_extractor;
+use common::clickhouse_datatype::ClickHouseDataType;
 use parameter_extractor::ParameterExtractor;
 
 //.A statement containing placeholders where parameters used to be
@@ -521,12 +522,18 @@ impl fmt::Display for Expr {
 
 #[derive(Debug, Clone)]
 pub enum Parameter {
-    Value { data_type: String, value: Value },
-    Placeholder { data_type: String, name: String },
+    Value {
+        data_type: ClickHouseDataType,
+        value: Value,
+    },
+    Placeholder {
+        data_type: ClickHouseDataType,
+        name: String,
+    },
 }
 
 impl Parameter {
-    pub fn new(value: Value, data_type: String) -> Self {
+    pub fn new(value: Value, data_type: ClickHouseDataType) -> Self {
         Self::Value { data_type, value }
     }
     pub fn into_expr(self) -> Expr {
