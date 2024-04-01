@@ -1,4 +1,4 @@
-use crate::schema::{ClickHouseDataType, ClickHouseTypeDefinition, Identifier, SingleQuotedString};
+use crate::schema::{ClickHouseDataType, ClickHouseTypeDefinition};
 use config::{PrimaryKey, ServerConfig};
 use ndc_sdk::{connector::SchemaError, models};
 use std::{collections::BTreeMap, str::FromStr};
