@@ -143,6 +143,8 @@ pub enum ClickHouseDataType {
         arguments: Vec<ClickHouseDataType>,
     },
     Nothing,
+    CompoundIdentifier(Vec<Identifier>),
+    SingleIdentifier(Identifier),
 }
 
 impl Display for ClickHouseDataType {
@@ -266,6 +268,20 @@ impl Display for ClickHouseDataType {
                 write!(f, ")")
             }
             DT::Nothing => write!(f, "Nothing"),
+            DT::CompoundIdentifier(identifiers) => {
+                let mut first = true;
+                for identifier in identifiers {
+                    if first {
+                        first = false;
+                    } else {
+                        write!(f, ".")?;
+                    }
+
+                    write!(f, "{identifier}")?;
+                }
+                Ok(())
+            }
+            DT::SingleIdentifier(identifier) => write!(f, "{identifier}"),
         }
     }
 }
@@ -321,6 +337,8 @@ peg::parser! {
         / tuple()
         / r#enum()
         / nothing()
+        / compound_identifier()
+        / single_identifier()
     rule nullable() -> ClickHouseDataType = "Nullable(" t:data_type() ")" { CDT::Nullable(Box::new(t)) }
     rule uint8() -> ClickHouseDataType = "UInt8" { CDT::UInt8 }
     rule uint16() -> ClickHouseDataType = "UInt16" { CDT::UInt16 }
@@ -361,8 +379,8 @@ peg::parser! {
     rule aggregate_function() -> ClickHouseDataType = "AggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::AggregateFunction { function: f, arguments:  a }}
     rule simple_aggregate_function() -> ClickHouseDataType =  "SimpleAggregateFunction(" f:aggregate_function_definition() ", " a:(data_type() ** ", ") ")" { CDT::SimpleAggregateFunction { function: f, arguments:  a }}
     rule nothing() -> ClickHouseDataType = "Nothing" { CDT::Nothing }
-
-
+    rule compound_identifier() -> ClickHouseDataType = i:(i:identifier() ** ".") { CDT::CompoundIdentifier(i) }
+    rule single_identifier() -> ClickHouseDataType = i:identifier() { CDT::SingleIdentifier(i) }
 
     rule aggregate_function_definition() -> AggregateFunctionDefinition = n:identifier() p:("(" p:(aggregate_function_parameter() ** ", ") ")" { p })? { AggregateFunctionDefinition { name: n, parameters: p }}
     rule aggregate_function_parameter() -> AggregateFunctionParameter = s:single_quoted_string_value() { AggregateFunctionParameter::SingleQuotedString(s)}
@@ -442,6 +460,14 @@ fn can_parse_clickhouse_data_type() {
                     Some(Identifier::BacktickQuoted("u".to_string())),
                     CDT::UInt8,
                 ),
+            ]),
+        ),
+        (
+            "\"t1\".t2.`t3`",
+            CDT::CompoundIdentifier(vec![
+                Identifier::DoubleQuoted("t1".to_string()),
+                Identifier::Unquoted("t2".to_string()),
+                Identifier::BacktickQuoted("t3".to_string()),
             ]),
         ),
     ];
