@@ -50,56 +50,6 @@ pub enum ComparisonColumn {
     },
 }
 
-#[derive(Debug)]
-pub struct ComparisonColumnWithoutJoins(ComparisonColumn);
-
-impl ComparisonColumnWithoutJoins {
-    /// applies the expression without adding the joins
-    pub fn apply<F>(&self, use_column: F) -> (Expr, Vec<Join>)
-    where
-        F: FnOnce(Expr) -> (Expr, Vec<Join>),
-    {
-        match &self.0 {
-            ComparisonColumn::Simple {
-                column_ident,
-                data_type: _,
-            } => use_column(column_ident.clone()),
-            ComparisonColumn::Flat {
-                column_ident,
-                joins: _,
-                additional_predicate,
-                data_type: _,
-            } => {
-                let (expr, additional_joins) = use_column(column_ident.clone());
-                let expr = if let Some(additional_expr) = additional_predicate {
-                    and_reducer(expr, additional_expr.clone())
-                } else {
-                    expr
-                };
-
-                (expr, additional_joins)
-            }
-            ComparisonColumn::Grouped {
-                column_ident,
-                joins: _,
-                values_ident,
-                data_type: _,
-            } => {
-                let (expr, additional_joins) = use_column(column_ident.clone().into_expr());
-                let expr = Function::new_unquoted("arrayExists")
-                    .args(vec![
-                        Lambda::new(vec![column_ident.clone()], expr)
-                            .into_expr()
-                            .into_arg(),
-                        values_ident.clone().into_arg(),
-                    ])
-                    .into_expr();
-                (expr, additional_joins)
-            }
-        }
-    }
-}
-
 impl ComparisonColumn {
     pub fn new_simple(column_ident: Expr, data_type: String) -> Self {
         Self::Simple {
@@ -138,52 +88,6 @@ impl ComparisonColumn {
             ComparisonColumn::Simple { data_type, .. }
             | ComparisonColumn::Flat { data_type, .. }
             | ComparisonColumn::Grouped { data_type, .. } => data_type.to_owned(),
-        }
-    }
-    /// extract the joins for a column, if any. returns a new column with joins empty.
-    /// Should be used if the column will be cloned, to avoid duplicating joins.
-    /// todo: improve types so this this invariant cannot be broken.
-    /// the main problem to keep in mind is that we cannot allow the
-    pub fn extract_joins(self) -> (ComparisonColumnWithoutJoins, Vec<Join>) {
-        match self {
-            ComparisonColumn::Simple {
-                column_ident,
-                data_type,
-            } => (
-                ComparisonColumnWithoutJoins(ComparisonColumn::Simple {
-                    column_ident,
-                    data_type,
-                }),
-                vec![],
-            ),
-            ComparisonColumn::Flat {
-                column_ident,
-                joins,
-                additional_predicate,
-                data_type,
-            } => (
-                ComparisonColumnWithoutJoins(ComparisonColumn::Flat {
-                    column_ident,
-                    joins: vec![],
-                    additional_predicate,
-                    data_type,
-                }),
-                joins,
-            ),
-            ComparisonColumn::Grouped {
-                column_ident,
-                joins,
-                values_ident,
-                data_type,
-            } => (
-                ComparisonColumnWithoutJoins(ComparisonColumn::Grouped {
-                    column_ident,
-                    joins: vec![],
-                    values_ident,
-                    data_type,
-                }),
-                joins,
-            ),
         }
     }
     /// consumes self, and wraps an expression and set of joins appropriately.
