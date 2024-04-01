@@ -5,7 +5,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand, ValueEnum};
-use config::{
+use common::config::{
     ColumnConfig, ConnectionConfig, PrimaryKey, ServerConfigFile, TableConfig, CONFIG_FILE_NAME,
     CONFIG_SCHEMA_FILE_NAME,
 };

@@ -1,5 +1,8 @@
-use crate::schema::{ClickHouseDataType, ClickHouseTypeDefinition};
-use config::{PrimaryKey, ServerConfig};
+use crate::schema::ClickHouseTypeDefinition;
+use common::{
+    clickhouse_datatype::ClickHouseDataType,
+    config::{PrimaryKey, ServerConfig},
+};
 use ndc_sdk::{connector::SchemaError, models};
 use std::{collections::BTreeMap, str::FromStr};
 

@@ -15,7 +15,7 @@ use ndc_sdk::{
 };
 
 use self::state::ServerState;
-use config::{ConnectionConfig, ServerConfig, ServerConfigFile, CONFIG_FILE_NAME};
+use common::config::{ConnectionConfig, ServerConfig, ServerConfigFile, CONFIG_FILE_NAME};
 
 #[derive(Debug, Clone, Default)]
 pub struct ClickhouseConnector;
@@ -61,7 +61,7 @@ impl Connector for ClickhouseConnector {
             .await
             .map_err(|err| HealthError::Other(err.to_string().into()))?;
 
-        client::ping(&client, &configuration.connection)
+        common::client::ping(&client, &configuration.connection)
             .await
             .map_err(|err| HealthError::Other(err.to_string().into()))?;
 

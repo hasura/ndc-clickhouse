@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use config::ServerConfig;
+use common::config::ServerConfig;
 use indexmap::IndexMap;
 use ndc_sdk::models;
 

@@ -1,7 +1,6 @@
 use std::{error::Error, sync::Arc};
 
-use client::get_http_client;
-use config::ServerConfig;
+use common::{client::get_http_client, config::ServerConfig};
 use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]

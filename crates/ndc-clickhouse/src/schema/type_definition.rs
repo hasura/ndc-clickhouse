@@ -1,11 +1,9 @@
 use std::collections::BTreeMap;
 
+use common::clickhouse_datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
 use ndc_sdk::models;
 
-use super::{
-    ClickHouseBinaryComparisonOperator, ClickHouseDataType,
-    ClickHouseSingleColumnAggregateFunction, Identifier,
-};
+use super::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
 
 #[derive(Debug, Clone, strum::Display)]
 pub enum ClickHouseScalar {
@@ -570,7 +568,7 @@ impl ClickHouseTypeDefinition {
                 let name = namespace.to_owned();
                 let variants = variants
                     .iter()
-                    .map(|(super::SingleQuotedString(variant), _)| variant.to_owned())
+                    .map(|(SingleQuotedString(variant), _)| variant.to_owned())
                     .collect();
 
                 Self::Scalar(ClickHouseScalar::Enum { name, variants })

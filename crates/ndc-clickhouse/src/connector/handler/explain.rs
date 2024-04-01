@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
-use client::execute_query;
-use config::ServerConfig;
+use common::{client::execute_query, config::ServerConfig};
 use ndc_sdk::{connector::ExplainError, models};
 use serde::{Deserialize, Serialize};
 

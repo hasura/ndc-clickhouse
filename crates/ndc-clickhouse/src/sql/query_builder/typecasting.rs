@@ -1,12 +1,13 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr};
 
-use config::{ColumnConfig, ServerConfig};
+use common::{
+    clickhouse_datatype::ClickHouseDataType,
+    config::{ColumnConfig, ServerConfig},
+};
 use indexmap::IndexMap;
 use ndc_sdk::models;
 
-use crate::schema::{
-    ClickHouseDataType, ClickHouseSingleColumnAggregateFunction, ClickHouseTypeDefinition,
-};
+use crate::schema::{ClickHouseSingleColumnAggregateFunction, ClickHouseTypeDefinition};
 
 /// Tuple(rows <RowsCastString>, aggregates <RowsCastString>)
 pub struct RowsetTypeString {
