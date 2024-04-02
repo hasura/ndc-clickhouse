@@ -8,10 +8,11 @@ use std::{
 
 use clap::{Parser, Subcommand, ValueEnum};
 use common::{
-    clickhouse_datatype::ClickHouseDataType,
+    clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery},
     config::{
-        ColumnConfig, ConnectionConfig, PrimaryKey, ServerConfigFile, TableConfig,
-        CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+        ColumnConfig, ConnectionConfig, ParameterizedQueryConfig, ParameterizedQueryConfigFile,
+        ParameterizedQueryReturnType, PrimaryKey, ServerConfigFile, TableConfig, CONFIG_FILE_NAME,
+        CONFIG_SCHEMA_FILE_NAME,
     },
 };
 use database_introspection::{introspect_database, ColumnInfo, TableInfo};
@@ -185,33 +186,23 @@ pub async fn update_tables_config(
                         );
                         // check if data type can be parsed, to give early warning to the user
                         // this is preferable to failing later while handling requests
-                        let _data_type =
-                            ClickHouseDataType::from_str(&column.data_type).map_err(|err| {
-                                format!(
-                                    "Unable to parse data type \"{}\" for column {} in table {}.{}: {}",
-                                    column.data_type,
-                                    column.column_name,
-                                    table.table_schema,
-                                    table.table_name,
-                                    err
-                                )
-                            })?;
                         let column_config = ColumnConfig {
                             name: column.column_name.to_owned(),
                             data_type: column.data_type.to_owned(),
                         };
-                        Ok((column_alias, column_config))
+                        (column_alias, column_config)
                     })
-                    .collect::<Result<_, String>>()?,
+                    .collect(),
             };
 
-            Ok((table_alias, table_config))
+            (table_alias, table_config)
         })
-        .collect::<Result<_, String>>()?;
+        .collect();
 
     let config = ServerConfigFile {
         schema: CONFIG_SCHEMA_FILE_NAME.to_owned(),
-        tables,
+        tables: Some(tables),
+        queries: old_config.queries.to_owned(),
     };
     let config_schema = schema_for!(ServerConfigFile);
 
@@ -222,6 +213,111 @@ pub async fn update_tables_config(
     )
     .await?;
 
+    // validate after writing out the updated metadata. This should help users understand what the problem is
+    // check if some column types can't be parsed
+    if let Some(tables) = &config.tables {
+        for (table_alias, table_config) in tables {
+            for (column_alias, column_config) in &table_config.columns {
+                let _data_type =
+                    ClickHouseDataType::from_str(&column_config.data_type).map_err(|err| {
+                        format!(
+                            "Unable to parse data type \"{}\" for column {} in table {}: {}",
+                            column_config.data_type, column_alias, table_alias, err
+                        )
+                    })?;
+            }
+        }
+    }
+
+    if let Some(queries) = &config.queries {
+        for (query_alias, query_config) in queries {
+            // check for duplicate alias
+            if config
+                .tables
+                .as_ref()
+                .and_then(|tables| tables.get(query_alias))
+                .is_some()
+            {
+                return Err(format!(
+                    "Name collision: query \"{query_alias}\" has the same name as a collection"
+                )
+                .into());
+            }
+
+            // if return type is a reference, check it exists and is valid:
+            match &query_config.return_type {
+                ParameterizedQueryReturnType::TableReference { table_alias } => {
+                    if config
+                        .tables
+                        .as_ref()
+                        .and_then(|tables| tables.get(table_alias))
+                        .is_none()
+                    {
+                        return Err(format!(
+                                          "Orphan reference: query \"{query_alias}\" references table \"{table_alias}\" which cannot be found."
+                                      )
+                                      .into());
+                    }
+                }
+                ParameterizedQueryReturnType::QueryReference {
+                    query_alias: target_alias,
+                } => {
+                    match config
+                        .queries
+                        .as_ref()
+                        .and_then(|queries| queries.get(target_alias))
+                    {
+                        Some(ParameterizedQueryConfigFile {
+                            return_type: ParameterizedQueryReturnType::Custom { .. },
+                            ..
+                        }) => {
+                            // referencing a query that has a custom return type definition we can use. all is well
+                        }
+                        Some(_) => {
+                            return Err(format!(
+                                "Invalid reference: query \"{query_alias}\" references \"{target_alias}\" which does not have a return type definition."
+                            )
+                            .into());
+                        }
+                        None => {
+                            return Err(format!(
+                                "Orphan reference: query \"{query_alias}\" references query \"{target_alias}\" which cannot be found."
+                            )
+                            .into());
+                        }
+                    }
+                }
+                ParameterizedQueryReturnType::Custom { fields } => {
+                    for (field_alias, field_type) in fields {
+                        let _data_type =
+                            ClickHouseDataType::from_str(&field_type).map_err(|err| {
+                                format!(
+                                    "Unable to parse data type \"{}\" for field {} in query {}: {}",
+                                    field_type, field_alias, query_alias, err
+                                )
+                            })?;
+                    }
+                }
+            }
+
+            // validate that we can find the referenced sql file
+            let file_path = configuration_dir.as_ref().join(&query_config.file);
+            let file_content = fs::read_to_string(&file_path).await.map_err(|err| {
+                format!(
+                    "Error reading {} for query {query_alias}: {err}",
+                    query_config.file
+                )
+            })?;
+            // validate that we can parse the reference sql file
+            let _query = ParameterizedQuery::from_str(&file_content).map_err(|err| {
+                format!(
+                    "Unable to parse file {} for parameterized query {}: {}",
+                    query_config.file, query_alias, err
+                )
+            })?;
+        }
+    }
+
     Ok(())
 }
 
@@ -230,10 +326,12 @@ pub async fn update_tables_config(
 /// This allows custom aliases to be preserved
 fn get_old_table_config<'a>(
     table: &TableInfo,
-    old_tables: &'a BTreeMap<String, TableConfig<String>>,
+    old_tables: &'a Option<BTreeMap<String, TableConfig<String>>>,
 ) -> Option<(&'a String, &'a TableConfig<String>)> {
-    old_tables.iter().find(|(_, old_table)| {
-        old_table.name == table.table_name && old_table.schema == table.table_schema
+    old_tables.as_ref().and_then(|old_tables| {
+        old_tables.iter().find(|(_, old_table)| {
+            old_table.name == table.table_name && old_table.schema == table.table_schema
+        })
     })
 }
 
