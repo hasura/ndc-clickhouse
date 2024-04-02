@@ -22,12 +22,27 @@ impl Display for ParameterizedQuery {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     pub name: Identifier,
-    pub data_type: ClickHouseDataType,
+    pub r#type: ParameterType,
 }
 
 impl Display for Parameter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{{}: {}}}", self.name, self.data_type)
+        write!(f, "{{{}: {}}}", self.name, self.r#type)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterType {
+    DataType(ClickHouseDataType),
+    Identifier,
+}
+
+impl Display for ParameterType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParameterType::DataType(t) => write!(f, "{t}"),
+            ParameterType::Identifier => write!(f, "Identifier"),
+        }
     }
 }
 
