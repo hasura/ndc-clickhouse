@@ -1,4 +1,4 @@
 /target
 /.idea
 .env
-config
+/config

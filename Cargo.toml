@@ -2,8 +2,7 @@
 members = [
   "crates/ndc-clickhouse",
   "crates/ndc-clickhouse-cli",
-  "crates/config",
-  "crates/client",
+  "crates/common",
 ]
 resolver = "2"
 
