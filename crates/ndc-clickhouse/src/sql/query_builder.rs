@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common::{clickhouse_datatype::ClickHouseDataType, config::ServerConfig};
+use common::{clickhouse_parser::datatype::ClickHouseDataType, config::ServerConfig};
 use indexmap::IndexMap;
 use ndc_sdk::models;
 

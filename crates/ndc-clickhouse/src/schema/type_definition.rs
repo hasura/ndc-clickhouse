@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use common::clickhouse_datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
+use common::{
+    clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString},
+    config::ParameterizedQueryReturnType,
+};
 use ndc_sdk::models;
 
 use super::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
@@ -453,6 +456,22 @@ impl ClickHouseTypeDefinition {
         table_alias: &str,
     ) -> Self {
         let namespace = format!("{table_alias}.{column_alias}");
+        Self::new(data_type, &namespace)
+    }
+    pub fn from_query_return_type(
+        data_type: &ClickHouseDataType,
+        field_alias: &str,
+        query_alias: &str,
+    ) -> Self {
+        let namespace = format!("{query_alias}.{field_alias}");
+        Self::new(data_type, &namespace)
+    }
+    pub fn from_query_argument(
+        data_type: &ClickHouseDataType,
+        argument_alias: &str,
+        query_alias: &str,
+    ) -> Self {
+        let namespace = format!("{query_alias}.arg.{argument_alias}");
         Self::new(data_type, &namespace)
     }
     fn new(data_type: &ClickHouseDataType, namespace: &str) -> Self {

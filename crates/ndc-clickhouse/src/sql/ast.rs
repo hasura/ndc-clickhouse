@@ -2,7 +2,7 @@
 use std::fmt;
 
 mod parameter_extractor;
-use common::clickhouse_datatype::ClickHouseDataType;
+use common::clickhouse_parser::datatype::ClickHouseDataType;
 use parameter_extractor::ParameterExtractor;
 
 //.A statement containing placeholders where parameters used to be

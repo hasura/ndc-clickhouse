@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr};
 
 use common::{
-    clickhouse_datatype::ClickHouseDataType,
+    clickhouse_parser::datatype::ClickHouseDataType,
     config::{ColumnConfig, ServerConfig},
 };
 use indexmap::IndexMap;

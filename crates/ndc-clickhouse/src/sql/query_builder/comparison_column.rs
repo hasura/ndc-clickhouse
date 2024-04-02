@@ -1,4 +1,4 @@
-use common::clickhouse_datatype::ClickHouseDataType;
+use common::clickhouse_parser::datatype::ClickHouseDataType;
 
 use crate::sql::ast::{Expr, Function, Ident, Join, Lambda};
 
