@@ -1,10 +1,11 @@
-use std::{collections::BTreeMap, default};
+use std::collections::BTreeMap;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::clickhouse_parser::{
-    datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery,
+    datatype::ClickHouseDataType,
+    parameterized_query::{ParameterType, ParameterizedQuery},
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
@@ -17,9 +18,11 @@ pub struct ServerConfigFile {
     /// except for tables in the "default" schema where the table name is used
     /// This is the name exposed to the engine, and may be configured by users.
     /// When the configuration is updated, the table is identified by name and schema, and changes to the alias are preserved.
-    pub tables: BTreeMap<String, TableConfig<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tables: Option<BTreeMap<String, TableConfig<String>>>,
     /// Optionally define custom parameterized queries here
     /// Note the names must not match table names
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub queries: Option<BTreeMap<String, ParameterizedQueryConfigFile>>,
 }
 
@@ -45,7 +48,9 @@ pub struct TableConfig<ColumnDataType> {
     /// The table schema
     pub schema: String,
     /// Comments are sourced from the database table comment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub primary_key: Option<PrimaryKey>,
     /// The map key is a column alias identifying the table and may be customized.
     /// It defaults to the table name.
@@ -71,40 +76,48 @@ pub struct ColumnConfig<ColumnDataType> {
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ParameterizedQueryConfigFile {
     /// Whether this query should be exposed as a procedure (mutating) or collection (non-mutating)
-    kind: ParameterizedQueryKind,
+    pub exposed_as: ParameterizedQueryExposedAs,
+    /// A comment that will be exposed in the schema
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
     /// A relative path to a sql file
-    file: String,
+    pub file: String,
     /// Either a type definition for the return type for this query,
     /// or a reference to another return type: either a table's alias,
     /// or another query's alias. If another query, that query must have a return type definition.
-    return_type: ParameterizedQueryReturnType<String>,
+    pub return_type: ParameterizedQueryReturnType<String>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(untagged, rename_all = "snake_case")]
-pub enum ParameterizedQueryKind {
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ParameterizedQueryExposedAs {
     #[default]
     Collection,
     Procedure,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "definition", rename_all = "snake_case")]
 pub enum ParameterizedQueryReturnType<DataType> {
     /// the same as the return type for a known table
-    Reference {
+    TableReference {
         /// the table alias must match a key in `tables`, and the query must return the same type as that table
         /// alternatively, the alias may reference another parameterized query which has a return type definition,
-        alias: String,
+        table_alias: String,
     },
-    Definition {
-        fields: BTreeMap<String, DataType>,
+    /// The same as the return type for another query that has a return type definition
+    QueryReference {
+        /// the table alias must match a key in `tables`, and the query must return the same type as that table
+        /// alternatively, the alias may reference another parameterized query which has a return type definition,
+        query_alias: String,
     },
+    /// A custom return type definition to associate with this query
+    Custom { fields: BTreeMap<String, DataType> },
 }
 
 impl<T> Default for ParameterizedQueryReturnType<T> {
     fn default() -> Self {
-        Self::Definition {
+        Self::Custom {
             fields: BTreeMap::default(),
         }
     }
@@ -112,9 +125,10 @@ impl<T> Default for ParameterizedQueryReturnType<T> {
 
 #[derive(Debug, Clone)]
 pub struct ParameterizedQueryConfig {
-    kind: ParameterizedQueryKind,
-    query: ParameterizedQuery,
-    return_type: ParameterizedQueryReturnType<ClickHouseDataType>,
+    pub exposed_as: ParameterizedQueryExposedAs,
+    pub comment: Option<String>,
+    pub query: ParameterizedQuery,
+    pub return_type: ParameterizedQueryReturnType<ClickHouseDataType>,
 }
 
 pub const CONFIG_FILE_NAME: &str = "configuration.json";

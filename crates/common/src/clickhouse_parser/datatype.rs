@@ -145,8 +145,6 @@ pub enum ClickHouseDataType {
         arguments: Vec<ClickHouseDataType>,
     },
     Nothing,
-    CompoundIdentifier(Vec<Identifier>),
-    SingleIdentifier(Identifier),
 }
 
 impl Display for ClickHouseDataType {
@@ -270,20 +268,6 @@ impl Display for ClickHouseDataType {
                 write!(f, ")")
             }
             DT::Nothing => write!(f, "Nothing"),
-            DT::CompoundIdentifier(identifiers) => {
-                let mut first = true;
-                for identifier in identifiers {
-                    if first {
-                        first = false;
-                    } else {
-                        write!(f, ".")?;
-                    }
-
-                    write!(f, "{identifier}")?;
-                }
-                Ok(())
-            }
-            DT::SingleIdentifier(identifier) => write!(f, "{identifier}"),
         }
     }
 }

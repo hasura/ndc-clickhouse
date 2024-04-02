@@ -5,13 +5,16 @@ use self::datatype::{
     SingleQuotedString,
 };
 
-use self::parameterized_query::{Parameter, ParameterizedQuery, ParameterizedQueryElement};
+use self::parameterized_query::{
+    Parameter, ParameterType, ParameterizedQuery, ParameterizedQueryElement,
+};
 
 peg::parser! {
   grammar clickhouse_parser() for str {
     pub rule parameterized_query() -> ParameterizedQuery = elements:parameterized_query_element()* statement_end()? { ParameterizedQuery { elements } }
     rule parameterized_query_element() -> ParameterizedQueryElement = p:parameter() { ParameterizedQueryElement::Parameter(p)} / s:$((!parameter() !statement_end() [_])+) { ParameterizedQueryElement::String(s.to_string()) }
-    rule parameter() -> Parameter = p:("{" _ name:identifier() _ ":" _ data_type:data_type() _ "}" { Parameter { name, data_type }})
+    rule parameter() -> Parameter = p:("{" _ name:identifier() _ ":" _ t:parameter_type() _ "}" { Parameter { name, r#type: t }})
+    rule parameter_type() -> ParameterType = d:data_type() { ParameterType::DataType(d) } / "Identifier" { ParameterType::Identifier }
     rule statement_end() =  _ ";" _
 
     pub rule data_type() -> DT = nullable()
@@ -52,8 +55,6 @@ peg::parser! {
         / tuple()
         / r#enum()
         / nothing()
-        / compound_identifier()
-        / single_identifier()
     rule nullable() -> DT = "Nullable(" t:data_type() ")" { DT::Nullable(Box::new(t)) }
     rule uint8() -> DT = "UInt8" { DT::UInt8 }
     rule uint16() -> DT = "UInt16" { DT::UInt16 }
@@ -94,8 +95,6 @@ peg::parser! {
     rule aggregate_function() -> DT = "AggregateFunction(" f:aggregate_function_definition() comma_separator() a:(data_type() ** comma_separator()) ")" { DT::AggregateFunction { function: f, arguments:  a }}
     rule simple_aggregate_function() -> DT =  "SimpleAggregateFunction(" f:aggregate_function_definition() comma_separator() a:(data_type() ** comma_separator()) ")" { DT::SimpleAggregateFunction { function: f, arguments:  a }}
     rule nothing() -> DT = "Nothing" { DT::Nothing }
-    rule compound_identifier() -> DT = i:(i:identifier() ** ".") { DT::CompoundIdentifier(i) }
-    rule single_identifier() -> DT = i:identifier() { DT::SingleIdentifier(i) }
 
     rule aggregate_function_definition() -> AggregateFunctionDefinition = n:identifier() p:("(" p:(aggregate_function_parameter() ** comma_separator()) ")" { p })? { AggregateFunctionDefinition { name: n, parameters: p }}
     rule aggregate_function_parameter() -> AggregateFunctionParameter = s:single_quoted_string_value() { AggregateFunctionParameter::SingleQuotedString(s)}
@@ -180,14 +179,6 @@ fn can_parse_clickhouse_data_type() {
                 (Some(Identifier::BacktickQuoted("u".to_string())), DT::UInt8),
             ]),
         ),
-        (
-            "\"t1\".t2.`t3`",
-            DT::CompoundIdentifier(vec![
-                Identifier::DoubleQuoted("t1".to_string()),
-                Identifier::Unquoted("t2".to_string()),
-                Identifier::BacktickQuoted("t3".to_string()),
-            ]),
-        ),
     ];
 
     for (s, t) in data_types {
@@ -212,12 +203,12 @@ fn can_parse_parameterized_query() {
             ),
             ParameterizedQueryElement::Parameter(Parameter {
                 name: Identifier::Unquoted("ArtistId".to_string()),
-                data_type: DT::Int32,
+                r#type: ParameterType::DataType(DT::Int32),
             }),
             ParameterizedQueryElement::String(" AND Name != ".to_string()),
             ParameterizedQueryElement::Parameter(Parameter {
                 name: Identifier::Unquoted("ArtistName".to_string()),
-                data_type: DT::String,
+                r#type: ParameterType::DataType(DT::String),
             }),
         ],
     };
