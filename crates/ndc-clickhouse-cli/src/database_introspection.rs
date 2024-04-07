@@ -1,12 +1,13 @@
 use std::error::Error;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use common::client::{execute_query, get_http_client};
+use common::{
+    client::{execute_query, get_http_client},
+    config::ConnectionConfig,
+};
 
-use super::ConnectionConfig;
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct TableInfo {
     pub table_name: String,
     pub table_schema: String,
@@ -14,10 +15,11 @@ pub struct TableInfo {
     pub table_comment: Option<String>,
     pub table_type: TableType,
     pub primary_key: Option<String>,
+    pub view_definition: String,
     pub columns: Vec<ColumnInfo>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ColumnInfo {
     pub column_name: String,
     pub data_type: String,
@@ -25,11 +27,15 @@ pub struct ColumnInfo {
     pub is_in_primary_key: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub enum TableType {
-    #[serde(rename = "BASE TABLE")]
+    #[serde(
+        rename = "BASE TABLE",
+        alias = "FOREIGN TABLE",
+        alias = "LOCAL TEMPORARY"
+    )]
     Table,
-    #[serde(rename = "VIEW")]
+    #[serde(rename = "VIEW", alias = "SYSTEM VIEW")]
     View,
 }
 

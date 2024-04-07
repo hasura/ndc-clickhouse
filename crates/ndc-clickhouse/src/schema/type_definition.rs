@@ -1,9 +1,6 @@
 use std::collections::BTreeMap;
 
-use common::{
-    clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString},
-    config::ParameterizedQueryReturnType,
-};
+use common::clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
 use ndc_sdk::models;
 
 use super::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};

@@ -3,12 +3,15 @@ SELECT t.table_name AS "table_name",
     t.table_catalog AS "table_catalog",
     t.table_comment AS "table_comment",
     if(empty(st.primary_key), null, st.primary_key) AS "primary_key",
-    toString(t.table_type) as "table_type",
+    toString(t.table_type) AS "table_type",
+    v.view_definition AS "view_definition",
     cast(
         c.columns,
         'Array(Tuple(column_name String, data_type String, is_nullable Bool, is_in_primary_key Bool))'
     ) AS "columns"
 FROM INFORMATION_SCHEMA.TABLES AS t
+    LEFT JOIN INFORMATION_SCHEMA.VIEWS AS v ON v.table_schema = t.table_schema
+            AND v.table_name = t.table_name
     LEFT JOIN system.tables AS st ON st.database = t.table_schema
     AND st.name = t.table_name
     LEFT JOIN (

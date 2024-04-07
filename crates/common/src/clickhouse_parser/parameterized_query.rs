@@ -5,7 +5,7 @@ use super::{
     datatype::{ClickHouseDataType, Identifier},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ParameterizedQuery {
     pub elements: Vec<ParameterizedQueryElement>,
 }
@@ -35,6 +35,12 @@ impl Display for Parameter {
 pub enum ParameterType {
     DataType(ClickHouseDataType),
     Identifier,
+}
+
+impl From<ClickHouseDataType> for ParameterType {
+    fn from(value: ClickHouseDataType) -> Self {
+        Self::DataType(value)
+    }
 }
 
 impl Display for ParameterType {

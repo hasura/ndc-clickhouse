@@ -4,7 +4,8 @@ use common::{
         datatype::{ClickHouseDataType, Identifier},
         parameterized_query::{Parameter, ParameterType, ParameterizedQueryElement},
     },
-    config::{ParameterizedQueryExposedAs, ParameterizedQueryReturnType, PrimaryKey, ServerConfig},
+    config::ServerConfig,
+    config_file::{ParameterizedQueryExposedAs, PrimaryKey},
 };
 use ndc_sdk::{connector::SchemaError, models};
 use std::collections::BTreeMap;
@@ -13,14 +14,13 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
     let mut scalar_type_definitions = BTreeMap::new();
     let mut object_type_definitions = vec![];
 
-    for (table_alias, table_config) in &configuration.tables {
+    for (type_name, table_type) in &configuration.table_types {
         let mut fields = vec![];
-
-        for (column_alias, column_config) in &table_config.columns {
+        for (column_alias, column_type) in &table_type.columns {
             let type_definition = ClickHouseTypeDefinition::from_table_column(
-                &column_config.data_type,
+                &column_type,
                 &column_alias,
-                &table_alias,
+                &type_name,
             );
 
             let (scalars, objects) = type_definition.type_definitions();
@@ -45,47 +45,36 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
         }
 
         object_type_definitions.push((
-            table_alias.to_owned(),
+            type_name.to_owned(),
             models::ObjectType {
-                description: table_config.comment.to_owned(),
+                description: table_type.comment.to_owned(),
                 fields: fields.into_iter().collect(),
             },
         ));
     }
 
-    for (query_alias, query_config) in &configuration.queries {
-        if let ParameterizedQueryReturnType::Custom { fields } = &query_config.return_type {
-            let mut query_type_fields = vec![];
+    for (table_alias, table_config) in &configuration.tables {
+        for (argument_name, argument_type) in &table_config.arguments {
+            let type_definition = ClickHouseTypeDefinition::from_query_argument(
+                &argument_type,
+                &argument_name,
+                table_alias,
+            );
+            let (scalars, objects) = type_definition.type_definitions();
 
-            for (field_alias, field_data_type) in fields {
-                let type_definition = ClickHouseTypeDefinition::from_table_column(
-                    field_data_type,
-                    field_alias,
-                    query_alias,
-                );
-
-                let (scalars, objects) = type_definition.type_definitions();
-
-                for (name, definition) in objects {
-                    object_type_definitions.push((name, definition));
-                }
-                for (name, definition) in scalars {
-                    // silently dropping duplicate scalar definitions
-                    // this could be an issue if somehow an enum has the same name as a primitive scalar
-                    // there is the potential for name collisions resulting in dropped enum defintions
-                    scalar_type_definitions.insert(name, definition);
-                }
-
-                query_type_fields.push((
-                    field_alias.to_owned(),
-                    models::ObjectField {
-                        description: None,
-                        r#type: type_definition.type_identifier(),
-                    },
-                ));
+            for (name, definition) in objects {
+                object_type_definitions.push((name, definition));
+            }
+            for (name, definition) in scalars {
+                // silently dropping duplicate scalar definitions
+                // this could be an issue if somehow an enum has the same name as a primitive scalar
+                // there is the potential for name collisions resulting in dropped enum defintions
+                scalar_type_definitions.insert(name, definition);
             }
         }
+    }
 
+    for (query_alias, query_config) in &configuration.queries {
         for element in &query_config.query.elements {
             if let ParameterizedQueryElement::Parameter(Parameter { name, r#type }) = element {
                 let argument_alias = match name {
@@ -124,8 +113,25 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
         .map(|(table_alias, table_config)| models::CollectionInfo {
             name: table_alias.to_owned(),
             description: table_config.comment.to_owned(),
-            arguments: BTreeMap::new(),
-            collection_type: table_alias.to_owned(),
+            arguments: table_config
+                .arguments
+                .iter()
+                .map(|(argument_name, argument_type)| {
+                    let type_definition = ClickHouseTypeDefinition::from_query_argument(
+                        &argument_type,
+                        &argument_name,
+                        table_alias,
+                    );
+                    (
+                        argument_name.to_owned(),
+                        models::ArgumentInfo {
+                            description: None,
+                            argument_type: type_definition.type_identifier(),
+                        },
+                    )
+                })
+                .collect(),
+            collection_type: table_config.return_type.to_owned(),
             uniqueness_constraints: table_config.primary_key.as_ref().map_or(
                 BTreeMap::new(),
                 |PrimaryKey { name, columns }| {
@@ -147,6 +153,8 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
             query_config.exposed_as == ParameterizedQueryExposedAs::Collection
         })
         .map(|(query_alias, query_config)| {
+            // arguments with the same name may apear in multiple places in the same query
+            // collecting into a map effectively de-duplicates the arguments
             let arguments = query_config
                 .query
                 .elements
@@ -184,15 +192,7 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
                 name: query_alias.to_owned(),
                 description: query_config.comment.to_owned(),
                 arguments,
-                collection_type: match &query_config.return_type {
-                    ParameterizedQueryReturnType::TableReference {
-                        table_alias: target_alias,
-                    }
-                    | ParameterizedQueryReturnType::QueryReference {
-                        query_alias: target_alias,
-                    } => target_alias.to_owned(),
-                    ParameterizedQueryReturnType::Custom { .. } => query_alias.to_owned(),
-                },
+                collection_type: query_config.return_type.to_owned(),
                 uniqueness_constraints: BTreeMap::new(),
                 foreign_keys: BTreeMap::new(),
             }

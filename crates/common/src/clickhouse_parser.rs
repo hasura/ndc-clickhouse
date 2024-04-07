@@ -12,7 +12,9 @@ use self::parameterized_query::{
 peg::parser! {
   grammar clickhouse_parser() for str {
     pub rule parameterized_query() -> ParameterizedQuery = elements:parameterized_query_element()* statement_end()? { ParameterizedQuery { elements } }
-    rule parameterized_query_element() -> ParameterizedQueryElement = p:parameter() { ParameterizedQueryElement::Parameter(p)} / s:$((!parameter() !statement_end() [_])+) { ParameterizedQueryElement::String(s.to_string()) }
+    // single quoted strings, or anything that doesn't match a statement end or a parameter, is a part of the string
+    // this prevents matching on parameters insides of single quotes, if for some reason we have sql like that?
+    rule parameterized_query_element() -> ParameterizedQueryElement = s:$((single_quoted_string_value() / !parameter() !statement_end() [_])+) { ParameterizedQueryElement::String(s.to_string()) } / p:parameter() { ParameterizedQueryElement::Parameter(p)}
     rule parameter() -> Parameter = p:("{" _ name:identifier() _ ":" _ t:parameter_type() _ "}" { Parameter { name, r#type: t }})
     rule parameter_type() -> ParameterType = d:data_type() { ParameterType::DataType(d) } / "Identifier" { ParameterType::Identifier }
     rule statement_end() =  _ ";" _
@@ -210,6 +212,39 @@ fn can_parse_parameterized_query() {
                 name: Identifier::Unquoted("ArtistName".to_string()),
                 r#type: ParameterType::DataType(DT::String),
             }),
+        ],
+    };
+    let parsed = clickhouse_parser::parameterized_query(&query);
+    assert_eq!(parsed, Ok(expected), "can parse parameterized query");
+}
+
+#[test]
+fn can_parse_empty_parameterized_query() {
+    let query = r#""#;
+    let expected = ParameterizedQuery { elements: vec![] };
+    let parsed = clickhouse_parser::parameterized_query(&query);
+    assert_eq!(parsed, Ok(expected), "can parse parameterized query");
+}
+
+#[test]
+fn does_not_parse_parameters_insides_quoted_strings() {
+    let query = r#"
+    SELECT Name
+    FROM "default"."Artist"
+    WHERE ArtistId = {ArtistId:Int32} AND Name = '{ArtistName: String}';
+
+"#;
+    let expected = ParameterizedQuery {
+        elements: vec![
+            ParameterizedQueryElement::String(
+                "\n    SELECT Name\n    FROM \"default\".\"Artist\"\n    WHERE ArtistId = "
+                    .to_string(),
+            ),
+            ParameterizedQueryElement::Parameter(Parameter {
+                name: Identifier::Unquoted("ArtistId".to_string()),
+                r#type: ParameterType::DataType(DT::Int32),
+            }),
+            ParameterizedQueryElement::String(" AND Name = '{ArtistName: String}'".to_string()),
         ],
     };
     let parsed = clickhouse_parser::parameterized_query(&query);

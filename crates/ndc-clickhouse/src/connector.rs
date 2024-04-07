@@ -1,7 +1,12 @@
 pub mod handler;
 pub mod state;
 
-use std::{collections::BTreeMap, env, path::Path, str::FromStr};
+use std::{
+    collections::BTreeMap,
+    env,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use tokio::fs;
 
 use async_trait::async_trait;
@@ -17,12 +22,10 @@ use ndc_sdk::{
 
 use self::state::ServerState;
 use common::{
-    clickhouse_parser::{
-        self, datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery,
-    },
-    config::{
-        ColumnConfig, ConnectionConfig, ParameterizedQueryConfig, ParameterizedQueryConfigFile,
-        ParameterizedQueryReturnType, ServerConfig, ServerConfigFile, TableConfig,
+    clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery},
+    config::{ConnectionConfig, ParameterizedQueryConfig, ServerConfig, TableConfig, TableType},
+    config_file::{
+        ParameterizedQueryConfigFile, ReturnType, ServerConfigFile, TableConfigFile,
         CONFIG_FILE_NAME,
     },
 };
@@ -159,44 +162,89 @@ pub async fn read_server_config(
         })
     })?;
 
+    let table_types = config
+        .tables
+        .iter()
+        .map(|(table_alias, table_config)| {
+            let table_type = validate_and_parse_return_type(
+                &table_config.return_type,
+                &config,
+                &file_path,
+                &["tables", &table_alias, "return_type"],
+            )?
+            .and_then(|columns| {
+                Some((
+                    table_alias.to_owned(),
+                    TableType {
+                        comment: table_config.comment.to_owned(),
+                        columns,
+                    },
+                ))
+            });
+
+            Ok(table_type)
+        })
+        .chain(config.queries.iter().map(|(query_alias, query_config)| {
+            let table_type = validate_and_parse_return_type(
+                &query_config.return_type,
+                &config,
+                &file_path,
+                &["query", &query_alias, "return_type"],
+            )?
+            .and_then(|columns| {
+                Some((
+                    query_alias.to_owned(),
+                    TableType {
+                        comment: query_config.comment.to_owned(),
+                        columns,
+                    },
+                ))
+            });
+
+            Ok(table_type)
+        }))
+        .filter_map(|table_type| table_type.transpose())
+        .collect::<Result<_, ParseError>>()?;
+
     let tables = config
         .tables
-        .unwrap_or_default()
-        .into_iter()
+        .iter()
         .map(|(table_alias, table_config)| {
             Ok((
                 table_alias.clone(),
                 TableConfig {
-                    name: table_config.name,
-                    schema: table_config.schema,
-                    comment: table_config.comment,
-                    primary_key: table_config.primary_key,
-                    columns: table_config
-                        .columns
-                        .into_iter()
-                        .map(|(column_alias, column_config)| {
-                            Ok((
-                                column_alias.clone(),
-                                ColumnConfig {
-                                    name: column_config.name,
-                                    data_type: ClickHouseDataType::from_str(
-                                        &column_config.data_type,
-                                    )
-                                    .map_err(|_err| {
-                                        ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
-                                            file_path: file_path.to_owned(),
-                                            node_path: vec![
-                                                KeyOrIndex::Key("tables".to_string()),
-                                                KeyOrIndex::Key(table_alias.to_owned()),
-                                                KeyOrIndex::Key("columns".to_string()),
-                                                KeyOrIndex::Key(column_alias.to_owned()),
-                                                KeyOrIndex::Key("data_type".to_string()),
-                                            ],
-                                            message: "Unable to parse data type".to_string(),
-                                        }]))
-                                    })?,
-                                },
-                            ))
+                    name: table_config.name.to_owned(),
+                    schema: table_config.schema.to_owned(),
+                    comment: table_config.comment.to_owned(),
+                    primary_key: table_config.primary_key.to_owned(),
+                    return_type: match &table_config.return_type {
+                        ReturnType::Definition { .. } => table_alias.to_owned(),
+                        ReturnType::TableReference {
+                            table_name: target_alias,
+                        }
+                        | ReturnType::QueryReference {
+                            query_name: target_alias,
+                        } => target_alias.to_owned(),
+                    },
+                    arguments: table_config
+                        .arguments
+                        .iter()
+                        .map(|(name, r#type)| {
+                            let data_type =
+                                ClickHouseDataType::from_str(&r#type).map_err(|_err| {
+                                    ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
+                                        file_path: file_path.to_owned(),
+                                        node_path: vec![
+                                            KeyOrIndex::Key("tables".to_string()),
+                                            KeyOrIndex::Key(table_alias.to_owned()),
+                                            KeyOrIndex::Key("arguments".to_string()),
+                                            KeyOrIndex::Key(name.to_owned()),
+                                        ],
+                                        message: "Unable to parse data type".to_string(),
+                                    }]))
+                                })?;
+
+                            Ok((name.to_owned(), data_type))
                         })
                         .collect::<Result<_, ParseError>>()?,
                 },
@@ -206,7 +254,7 @@ pub async fn read_server_config(
 
     let mut queries = BTreeMap::new();
 
-    for (query_alias, query_config) in config.queries.clone().unwrap_or_default() {
+    for (query_alias, query_config) in config.queries.clone() {
         let query_file_path = configuration_dir.as_ref().join(&query_config.file);
         let file_content = fs::read_to_string(&query_file_path).await.map_err(|err| {
             if let std::io::ErrorKind::NotFound = err.kind() {
@@ -231,103 +279,14 @@ pub async fn read_server_config(
             exposed_as: query_config.exposed_as.to_owned(),
             comment: query_config.comment.to_owned(),
             query,
-            return_type: match &query_config.return_type {
-                ParameterizedQueryReturnType::TableReference {
-                    table_alias: target_alias,
-                } => {
-                    if tables.contains_key(target_alias) {
-                        ParameterizedQueryReturnType::TableReference {
-                            table_alias: target_alias.to_owned(),
-                        }
-                    } else {
-                        return Err(ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
-                            file_path: file_path.clone(),
-                            node_path: vec![
-                                KeyOrIndex::Key("queries".to_owned()),
-                                KeyOrIndex::Key(query_alias.to_owned()),
-                                KeyOrIndex::Key("return_type".to_owned()),
-                                KeyOrIndex::Key("alias".to_owned()),
-                            ],
-                            message: format!(
-                                "Orphan reference: cannot table {} referenced by query {}",
-                                target_alias, query_alias
-                            ),
-                        }])));
-                    }
+            return_type: match query_config.return_type {
+                ReturnType::Definition { .. } => query_alias.to_owned(),
+                ReturnType::TableReference {
+                    table_name: target_alias,
                 }
-                ParameterizedQueryReturnType::QueryReference {
-                    query_alias: target_alias,
-                } => match config
-                    .queries
-                    .as_ref()
-                    .and_then(|queries| queries.get(target_alias))
-                {
-                    Some(ParameterizedQueryConfigFile {
-                        return_type: ParameterizedQueryReturnType::Custom { .. },
-                        ..
-                    }) => ParameterizedQueryReturnType::QueryReference {
-                        query_alias: target_alias.to_owned(),
-                    },
-                    Some(_) => {
-                        return Err(ParseError::ValidateError(InvalidNodes(vec![
-                                InvalidNode {
-                                    file_path: file_path.clone(),
-                                    node_path: vec![
-                                        KeyOrIndex::Key("queries".to_owned()),
-                                        KeyOrIndex::Key(query_alias.to_owned()),
-                                        KeyOrIndex::Key("return_type".to_owned()),
-                                        KeyOrIndex::Key("alias".to_owned()),
-                                    ],
-                                    message: format!(
-                                        "Invalid reference: query {} referenced by query {} does not have a custom return type",
-                                        target_alias, query_alias
-                                    ),
-                                },
-                            ])));
-                    }
-                    None => {
-                        return Err(ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
-                            file_path: file_path.clone(),
-                            node_path: vec![
-                                KeyOrIndex::Key("queries".to_owned()),
-                                KeyOrIndex::Key(query_alias.to_owned()),
-                                KeyOrIndex::Key("return_type".to_owned()),
-                                KeyOrIndex::Key("alias".to_owned()),
-                            ],
-                            message: format!(
-                                "Orphan reference: cannot table {} referenced by query {}",
-                                target_alias, query_alias
-                            ),
-                        }])));
-                    }
-                },
-                ParameterizedQueryReturnType::Custom { fields } => {
-                    ParameterizedQueryReturnType::Custom {
-                        fields: fields
-                            .into_iter()
-                            .map(|(field_alias, field_type)| {
-                                let data_type =
-                                    ClickHouseDataType::from_str(&field_type).map_err(|err| {
-                                        ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
-                                            file_path: file_path.clone(),
-                                            node_path: vec![
-                                                KeyOrIndex::Key("queries".to_string()),
-                                                KeyOrIndex::Key(query_alias.clone()),
-                                                KeyOrIndex::Key("return_type".to_string()),
-                                                KeyOrIndex::Key("fields".to_string()),
-                                                KeyOrIndex::Key(field_alias.clone()),
-                                            ],
-                                            message: format!(
-                                                "Unable to parse data type \"{}\": {}",
-                                                field_type, err
-                                            ),
-                                        }]))
-                                    })?;
-                                Ok((field_alias.to_owned(), data_type))
-                            })
-                            .collect::<Result<_, ParseError>>()?,
-                    }
-                }
+                | ReturnType::QueryReference {
+                    query_name: target_alias,
+                } => target_alias.to_owned(),
             },
         };
 
@@ -336,6 +295,7 @@ pub async fn read_server_config(
 
     let config = ServerConfig {
         connection,
+        table_types,
         tables,
         queries,
     };
@@ -358,4 +318,105 @@ fn get_connection_config() -> Result<ConnectionConfig, ParseError> {
         username,
         password,
     })
+}
+
+fn validate_and_parse_return_type(
+    return_type: &ReturnType,
+    config: &ServerConfigFile,
+    file_path: &PathBuf,
+    node_path: &[&str],
+) -> Result<Option<BTreeMap<String, ClickHouseDataType>>, ParseError> {
+    let get_node_path = |extra_segments: &[&str]| {
+        node_path
+            .iter()
+            .chain(extra_segments.iter())
+            .map(|s| KeyOrIndex::Key(s.to_string()))
+            .collect()
+    };
+    match return_type {
+        ReturnType::TableReference { table_name } => {
+            match config.tables.get(table_name) {
+                Some(TableConfigFile {
+                    return_type: ReturnType::Definition { .. },
+                    ..
+                }) => Ok(None),
+                Some(_) => {
+                    Err(ParseError::ValidateError(InvalidNodes(vec![
+                        InvalidNode {
+                            file_path: file_path.clone(),
+                            node_path: get_node_path(&["table_name"]),
+                            message: format!(
+                            "Invalid reference: referenced table {} which does not have a return type definition",
+                            table_name,
+                        ),
+                        },
+                    ])))
+                }
+                None => {
+                    return Err(ParseError::ValidateError(InvalidNodes(vec![
+                        InvalidNode {
+                            file_path: file_path.clone(),
+                            node_path: get_node_path(&["table_name"]),
+                            message: format!(
+                            "Orphan reference: cannot find referenced table {}",
+                            table_name,
+                        ),
+                        },
+                    ])));
+                }
+            }
+        }
+        ReturnType::QueryReference { query_name } => {
+            match config.queries.get(query_name) {
+                Some(ParameterizedQueryConfigFile {
+                    return_type: ReturnType::Definition { .. },
+                    ..
+                }) => Ok(None),
+                Some(_) => {
+                    Err(ParseError::ValidateError(InvalidNodes(vec![
+                        InvalidNode {
+                            file_path: file_path.clone(),
+                            node_path: get_node_path(&["query_name"]),
+                            message: format!(
+                                "Invalid reference: referenced query {} which does not have a return type definition",
+                            query_name,
+                        ),
+                        },
+                    ])))
+                }
+                None => {
+                    Err(ParseError::ValidateError(InvalidNodes(vec![
+                        InvalidNode {
+                            file_path: file_path.clone(),
+                            node_path: get_node_path(&["query_name"]),
+                            message: format!(
+                                "Orphan reference: cannot find referenced query {}",
+                            query_name,
+                        ),
+                        },
+                    ])))
+                }
+            }
+        }
+        ReturnType::Definition { columns } => Ok(Some(
+
+            columns
+            .iter()
+            .map(|(field_alias, field_type)| {
+                let data_type = ClickHouseDataType::from_str(&field_type).map_err(|err| {
+                    ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
+                        file_path: file_path.clone(),
+                        node_path: get_node_path(&["columns", field_alias]),
+                        message: format!(
+                            "Unable to parse data type \"{}\": {}",
+                            field_type, err
+                        ),
+                    }]))
+                })?;
+                Ok((field_alias.to_owned(), data_type))
+            })
+            .collect::<Result<BTreeMap<String, ClickHouseDataType>, ParseError>>()?
+
+        ))
+    }
 }

@@ -1,9 +1,6 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr};
 
-use common::{
-    clickhouse_parser::datatype::ClickHouseDataType,
-    config::{ColumnConfig, ServerConfig},
-};
+use common::{clickhouse_parser::datatype::ClickHouseDataType, config::ServerConfig};
 use indexmap::IndexMap;
 use ndc_sdk::models;
 
@@ -71,9 +68,9 @@ impl AggregatesTypeString {
                         column: column_alias,
                         function,
                     } => {
-                        let column = get_column(column_alias, table_alias, config)?;
+                        let column_type = get_column(column_alias, table_alias, config)?;
                         let type_definition = ClickHouseTypeDefinition::from_table_column(
-                            &column.data_type,
+                            &column_type,
                             column_alias,
                             table_alias,
                         );
@@ -83,7 +80,7 @@ impl AggregatesTypeString {
                                 |_err| TypeStringError::UnknownAggregateFunction {
                                     table: table_alias.to_owned(),
                                     column: column_alias.to_owned(),
-                                    data_type: column.data_type.to_owned(),
+                                    data_type: column_type.to_owned(),
                                     function: function.to_owned(),
                                 },
                             )?;
@@ -97,7 +94,7 @@ impl AggregatesTypeString {
                             .ok_or_else(|| TypeStringError::UnknownAggregateFunction {
                                 table: table_alias.to_owned(),
                                 column: column_alias.to_owned(),
-                                data_type: column.data_type.to_owned(),
+                                data_type: column_type.to_owned(),
                                 function: function.to_owned(),
                             })?;
 
@@ -130,9 +127,9 @@ impl RowsTypeString {
                                 if fields.is_some() {
                                     todo!("support nested field selection")
                                 }
-                                let column = get_column(column_alias, table_alias, config)?;
+                                let column_type = get_column(column_alias, table_alias, config)?;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
-                                    &column.data_type,
+                                    &column_type,
                                     column_alias,
                                     table_alias,
                                 );
@@ -237,21 +234,37 @@ fn get_column<'a>(
     column_alias: &str,
     table_alias: &str,
     config: &'a ServerConfig,
-) -> Result<&'a ColumnConfig<ClickHouseDataType>, TypeStringError> {
-    let table = config
+) -> Result<&'a ClickHouseDataType, TypeStringError> {
+    let return_type = config
         .tables
         .get(table_alias)
+        .map(|table| &table.return_type)
+        .or_else(|| {
+            config
+                .queries
+                .get(table_alias)
+                .map(|query| &query.return_type)
+        })
         .ok_or_else(|| TypeStringError::UnknownTable {
             table: table_alias.to_owned(),
         })?;
 
-    let column = table
-        .columns
-        .get(column_alias)
-        .ok_or_else(|| TypeStringError::UnknownColumn {
-            table: table_alias.to_owned(),
-            column: column_alias.to_owned(),
-        })?;
+    let table_type =
+        config
+            .table_types
+            .get(return_type)
+            .ok_or_else(|| TypeStringError::UnknownTableType {
+                table: return_type.to_owned(),
+            })?;
+
+    let column =
+        table_type
+            .columns
+            .get(column_alias)
+            .ok_or_else(|| TypeStringError::UnknownColumn {
+                table: table_alias.to_owned(),
+                column: column_alias.to_owned(),
+            })?;
 
     Ok(column)
 }
@@ -259,6 +272,9 @@ fn get_column<'a>(
 #[derive(Debug)]
 pub enum TypeStringError {
     UnknownTable {
+        table: String,
+    },
+    UnknownTableType {
         table: String,
     },
     UnknownColumn {
@@ -278,6 +294,7 @@ impl Display for TypeStringError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeStringError::UnknownTable { table } => write!(f, "Unknown table: {table}"),
+            TypeStringError::UnknownTableType { table } => write!(f, "Unknown table type: {table}"),
             TypeStringError::UnknownColumn { table, column } => {
                 write!(f, "Unknown column: {column} in table: {table}")
             }
