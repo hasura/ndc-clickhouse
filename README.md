@@ -27,6 +27,8 @@ See [development instructions](./docs/development.md)
 
 ## Documentation
 
+See which Hasura OpenDD Spec features are supported by the connector [here](./docs/usage.md).
+
 View other documentation for the ClickHouse connector [here](./docs/index.md).
 
 ## Contributing
