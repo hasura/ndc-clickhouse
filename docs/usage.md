@@ -15,4 +15,3 @@ This native data connector implements the following Hasura Data Domain Specifica
 | [Query Filter: Boolean Expressions](https://hasura.io/docs/3.0/graphql-api/queries/filters/boolean-operators/)                      | ✅ |
 | [Query Filter: Text](https://hasura.io/docs/3.0/graphql-api/queries/filters/text-search-operators/)                                 | ✅ |
 | [Query Filter: Nested Objects](https://hasura.io/docs/3.0/graphql-api/queries/filters/nested-objects/)                              | ✅ |
-| [Multi-Region Routing](https://hasura.io/docs/3.0/graphql-api/queries/filters/nested-objects/)                                      | ✅ |
