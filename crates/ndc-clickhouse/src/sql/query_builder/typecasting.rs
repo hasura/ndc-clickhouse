@@ -125,7 +125,9 @@ impl RowsTypeString {
                                 fields,
                             } => {
                                 if fields.is_some() {
-                                    todo!("support nested field selection")
+                                    return Err(TypeStringError::NotSupported(
+                                        "subfield selector".into(),
+                                    ));
                                 }
                                 let column_type = get_column(column_alias, table_alias, config)?;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
@@ -288,6 +290,7 @@ pub enum TypeStringError {
         function: String,
     },
     MissingRelationship(String),
+    NotSupported(String),
 }
 
 impl Display for TypeStringError {
@@ -305,6 +308,7 @@ impl Display for TypeStringError {
                 function,
             } => write!(f, "Unknown aggregate function: {function} for column {column} of type: {data_type} in table {table}"),
             TypeStringError::MissingRelationship(rel) => write!(f, "Missing relationship: {rel}"),
+            TypeStringError::NotSupported(feature) => write!(f, "Not supported: {feature}"),
         }
     }
 }

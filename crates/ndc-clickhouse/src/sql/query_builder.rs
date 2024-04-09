@@ -315,7 +315,9 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 let expr = match field {
                     models::Field::Column { column, fields } => {
                         if fields.is_some() {
-                            todo!("support nested field selection")
+                            return Err(QueryBuilderError::NotSupported(
+                                "nested field selector".into(),
+                            ));
                         }
                         Expr::CompoundIdentifier(vec![
                             Ident::new_quoted("_origin"),
@@ -1757,21 +1759,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             } else {
                 Ok(table_name.into_table_factor())
             }
-            // let arguments = match collection {
-            //     CollectionContext::Base {
-            //         collection_alias: _,
-            //         arguments,
-            //     } => arguments.iter().map(|(name, )|),
-            //     CollectionContext::Relationship {
-            //         collection_alias,
-            //         arguments,
-            //         relationship_arguments,
-            //     } => todo!(),
-            //     CollectionContext::UnrelatedRelationship {
-            //         collection_alias,
-            //         arguments,
-            //     } => todo!(),
-            // };
         } else if let Some(query) = self.configuration.queries.get(collection.alias()) {
             let get_argument = |name| match collection {
                 CollectionContext::Base {
