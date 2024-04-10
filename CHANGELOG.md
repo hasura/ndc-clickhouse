@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support parameterized native queries, except in foreach queries. Also don't support column valued arguments
 - Change explain output so the console knows how to extract generated SQL and sql explain plan to display to the user
 - Pretty print explain SQL output
+- Fix a bug where no result sets where returned when foreach predicate didn't match any rows. Correct behavior: empty result set is returned
 
 ## [0.2.1]
 
