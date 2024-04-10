@@ -1,14 +1,25 @@
 use std::{
+    collections::BTreeMap,
     env,
     error::Error,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use clap::{Parser, Subcommand, ValueEnum};
-use config::{
-    ColumnConfig, ConnectionConfig, PrimaryKey, ServerConfigFile, TableConfig, CONFIG_FILE_NAME,
+use common::{
+    clickhouse_parser::{
+        datatype::ClickHouseDataType,
+        parameterized_query::{Parameter, ParameterizedQuery, ParameterizedQueryElement},
+    },
+    config::ConnectionConfig,
+    config_file::{
+        self, ParameterizedQueryConfigFile, PrimaryKey, ReturnType, ServerConfigFile,
+        TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+    },
 };
-use database_introspection::{introspect_database, ColumnInfo, TableInfo};
+use database_introspection::{introspect_database, TableInfo};
+use schemars::schema_for;
 use tokio::fs;
 mod database_introspection;
 
@@ -132,11 +143,12 @@ pub async fn update_tables_config(
     let table_infos = introspect_database(connection_config).await?;
 
     let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
+    let schema_file_path = configuration_dir.as_ref().join(CONFIG_SCHEMA_FILE_NAME);
 
     let old_config = match fs::read_to_string(&file_path).await {
         Ok(file) => serde_json::from_str(&file)
-            .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}")),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(ServerConfigFile::default()),
+            .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}\n\nDelete {CONFIG_FILE_NAME} to create a fresh file")),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(config_file::ServerConfigFile::default()),
         Err(_) => Err(format!("Error reading {CONFIG_FILE_NAME}")),
     }?;
 
@@ -144,11 +156,25 @@ pub async fn update_tables_config(
         .iter()
         .map(|table| {
             let old_table_config = get_old_table_config(table, &old_config.tables);
+            let table_alias = get_table_alias(table, &old_table_config);
 
-            TableConfig {
+            let arguments = ParameterizedQuery::from_str(&table.view_definition)
+                // when unable to parse, default to empty arguments list
+                .unwrap_or_default()
+                .elements
+                .iter()
+                .filter_map(|element| match element {
+                    ParameterizedQueryElement::String(_) => None,
+                    ParameterizedQueryElement::Parameter(Parameter { name, r#type }) => {
+                        Some((name.to_string(), r#type.to_string()))
+                    }
+                })
+                .collect();
+
+            let table_config = TableConfigFile {
                 name: table.table_name.to_owned(),
                 schema: table.table_schema.to_owned(),
-                alias: get_table_alias(table, &old_table_config),
+                comment: table.table_comment.to_owned(),
                 primary_key: table.primary_key.as_ref().map(|primary_key| PrimaryKey {
                     name: primary_key.to_owned(),
                     columns: table
@@ -156,66 +182,217 @@ pub async fn update_tables_config(
                         .iter()
                         .filter_map(|column| {
                             if column.is_in_primary_key {
-                                Some(get_column_alias(
-                                    column,
-                                    &get_old_column_config(column, &old_table_config),
-                                ))
+                                Some(column.column_name.to_owned())
                             } else {
                                 None
                             }
                         })
                         .collect(),
                 }),
-                columns: table
-                    .columns
-                    .iter()
-                    .map(|column| ColumnConfig {
-                        name: column.column_name.to_owned(),
-                        alias: get_column_alias(
-                            column,
-                            &get_old_column_config(column, &old_table_config),
-                        ),
-                        data_type: column.data_type.to_owned(),
-                    })
-                    .collect(),
-            }
+                arguments,
+                return_type: get_table_return_type(
+                    table,
+                    &old_table_config,
+                    &old_config,
+                    &table_infos,
+                ),
+            };
+
+            (table_alias, table_config)
         })
         .collect();
 
-    let config = ServerConfigFile { tables };
+    let config = ServerConfigFile {
+        schema: CONFIG_SCHEMA_FILE_NAME.to_owned(),
+        tables: tables,
+        queries: old_config.queries.to_owned(),
+    };
+    let config_schema = schema_for!(ServerConfigFile);
 
-    fs::write(&file_path, serde_json::to_string(&config)?).await?;
+    fs::write(&file_path, serde_json::to_string_pretty(&config)?).await?;
+    fs::write(
+        &schema_file_path,
+        serde_json::to_string_pretty(&config_schema)?,
+    )
+    .await?;
+
+    // validate after writing out the updated metadata. This should help users understand what the problem is
+    // check if some column types can't be parsed
+    for (table_alias, table_config) in &config.tables {
+        match &table_config.return_type {
+            ReturnType::TableReference {
+                table_name: target_table,
+            } => {
+                match config.tables.get(target_table) {
+                    Some(TableConfigFile {
+                        return_type: ReturnType::Definition { .. },
+                        ..
+                    }) => {
+                        // referencing a table that has a return type defintion we can use. all is well
+                    }
+                    Some(_) => {
+                        return Err(format!(
+                                "Invalid reference: table \"{table_alias}\" references table \"{target_table}\" which does not have a return type definition."
+                            )
+                            .into());
+                    }
+                    None => {
+                        return Err(format!(
+                                              "Orphan reference: table \"{table_alias}\" references table \"{target_table}\" which cannot be found."
+                                          )
+                                          .into());
+                    }
+                }
+            }
+            ReturnType::QueryReference {
+                query_name: target_query,
+            } => {
+                match config.queries.get(target_query) {
+                    Some(ParameterizedQueryConfigFile {
+                        return_type: ReturnType::Definition { .. },
+                        ..
+                    }) => {
+                        // referencing a query that has a  return type definition we can use. all is well
+                    }
+                    Some(_) => {
+                        return Err(format!(
+                            "Invalid reference: table \"{table_alias}\" references query \"{target_query}\" which does not have a return type definition."
+                        )
+                        .into());
+                    }
+                    None => {
+                        return Err(format!(
+                            "Orphan reference: table \"{table_alias}\" references query \"{target_query}\" which cannot be found."
+                        )
+                        .into());
+                    }
+                }
+            }
+            ReturnType::Definition { columns } => {
+                for (column_alias, column_data_type) in columns {
+                    let _data_type =
+                        ClickHouseDataType::from_str(&column_data_type).map_err(|err| {
+                            format!(
+                                "Unable to parse data type \"{}\" for column {} in table {}: {}",
+                                column_data_type, column_alias, table_alias, err
+                            )
+                        })?;
+                }
+            }
+        }
+    }
+
+    for (query_alias, query_config) in &config.queries {
+        // check for duplicate alias
+        if config.tables.contains_key(query_alias) {
+            return Err(format!(
+                "Name collision: query \"{query_alias}\" has the same name as a collection"
+            )
+            .into());
+        }
+
+        // if return type is a reference, check it exists and is valid:
+        match &query_config.return_type {
+            ReturnType::TableReference {
+                table_name: target_table,
+            } => {
+                match config.tables.get(target_table) {
+                    Some(TableConfigFile {
+                        return_type: ReturnType::Definition { .. },
+                        ..
+                    }) => {
+                        // referencing a table that has a return type defintion we can use. all is well
+                    }
+                    Some(_) => {
+                        return Err(format!(
+                                "Invalid reference: query \"{query_alias}\" references table \"{target_table}\" which does not have a return type definition."
+                            )
+                            .into());
+                    }
+                    None => {
+                        return Err(format!(
+                                              "Orphan reference: query \"{query_alias}\" references table \"{target_table}\" which cannot be found."
+                                          )
+                                          .into());
+                    }
+                }
+            }
+            ReturnType::QueryReference {
+                query_name: target_query,
+            } => {
+                match config.queries.get(target_query) {
+                    Some(ParameterizedQueryConfigFile {
+                        return_type: ReturnType::Definition { .. },
+                        ..
+                    }) => {
+                        // referencing a query that has a  return type definition we can use. all is well
+                    }
+                    Some(_) => {
+                        return Err(format!(
+                            "Invalid reference: query \"{query_alias}\" references \"{target_query}\" which does not have a return type definition."
+                        )
+                        .into());
+                    }
+                    None => {
+                        return Err(format!(
+                            "Orphan reference: query \"{query_alias}\" references query \"{target_query}\" which cannot be found."
+                        )
+                        .into());
+                    }
+                }
+            }
+            ReturnType::Definition { columns } => {
+                for (column_name, column_data_type) in columns {
+                    let _data_type =
+                        ClickHouseDataType::from_str(&column_data_type).map_err(|err| {
+                            format!(
+                                "Unable to parse data type \"{}\" for field {} in query {}: {}",
+                                column_data_type, column_name, query_alias, err
+                            )
+                        })?;
+                }
+            }
+        }
+
+        // validate that we can find the referenced sql file
+        let file_path = configuration_dir.as_ref().join(&query_config.file);
+        let file_content = fs::read_to_string(&file_path).await.map_err(|err| {
+            format!(
+                "Error reading {} for query {query_alias}: {err}",
+                query_config.file
+            )
+        })?;
+        // validate that we can parse the reference sql file
+        let _query = ParameterizedQuery::from_str(&file_content).map_err(|err| {
+            format!(
+                "Unable to parse file {} for parameterized query {}: {}",
+                query_config.file, query_alias, err
+            )
+        })?;
+    }
 
     Ok(())
 }
 
+/// Get old table config, if any
+/// Note this uses the table name and schema to search, not the alias
+/// This allows custom aliases to be preserved
 fn get_old_table_config<'a>(
     table: &TableInfo,
-    old_tables: &'a [TableConfig],
-) -> Option<&'a TableConfig> {
-    old_tables.iter().find(|old_table| {
+    old_tables: &'a BTreeMap<String, TableConfigFile>,
+) -> Option<(&'a String, &'a TableConfigFile)> {
+    old_tables.iter().find(|(_, old_table)| {
         old_table.name == table.table_name && old_table.schema == table.table_schema
     })
 }
 
-fn get_old_column_config<'a>(
-    column: &ColumnInfo,
-    old_table: &Option<&'a TableConfig>,
-) -> Option<&'a ColumnConfig> {
-    old_table
-        .map(|old_table| {
-            old_table
-                .columns
-                .iter()
-                .find(|old_column| old_column.name == column.column_name)
-        })
-        .flatten()
-}
-
-fn get_table_alias(table: &TableInfo, old_table: &Option<&TableConfig>) -> String {
+/// Table aliases default to <schema_name>_<table_name>,
+/// except for tables in the default schema where the table name is used.
+/// Prefer existing, old aliases over creating a new one
+fn get_table_alias(table: &TableInfo, old_table: &Option<(&String, &TableConfigFile)>) -> String {
     // to preserve any customization, aliases are kept throught updates
-    if let Some(old_table) = old_table {
-        old_table.alias.to_owned()
+    if let Some((old_table_alias, _)) = old_table {
+        old_table_alias.to_string()
     } else if table.table_schema == "default" {
         table.table_name.to_owned()
     } else {
@@ -223,11 +400,82 @@ fn get_table_alias(table: &TableInfo, old_table: &Option<&TableConfig>) -> Strin
     }
 }
 
-fn get_column_alias(column: &ColumnInfo, old_column: &Option<&ColumnConfig>) -> String {
-    // to preserve any customization, aliases are kept throught updates
-    if let Some(old_column) = old_column {
-        old_column.alias.to_owned()
-    } else {
-        column.column_name.to_owned()
-    }
+/// Given table info, and optionally old table info, get the return type for this table
+///
+/// If the old configuration's return type is a reference
+/// to a table: check that table still exists, and that it returns the same type as this table
+/// to a query: check that query still exists, and that it returns the same type as this table
+fn get_table_return_type(
+    table: &TableInfo,
+    old_table: &Option<(&String, &TableConfigFile)>,
+    old_config: &ServerConfigFile,
+    introspection: &Vec<TableInfo>,
+) -> ReturnType {
+    let new_columns = get_return_type_columns(table);
+
+    let old_return_type =
+        old_table.and_then(
+            |(_table_alias, table_config)| match &table_config.return_type {
+                ReturnType::Definition { .. } => None,
+                ReturnType::TableReference { table_name } => {
+                    // get the old table config for the referenced table
+                    let referenced_table_config = old_config.tables.get(table_name);
+                    // get the new table info for the referenced table, if the referenced table's return type is a definition
+                    let referenced_table_info =
+                        referenced_table_config.and_then(|old_table| match old_table.return_type {
+                            ReturnType::TableReference { .. }
+                            | ReturnType::QueryReference { .. } => None,
+                            ReturnType::Definition { .. } => {
+                                introspection.iter().find(|table_info| {
+                                    table_info.table_schema == old_table.schema
+                                        && table_info.table_name == table_config.name
+                                })
+                            }
+                        });
+
+                    // get the new return type for the referenced table
+                    let referenced_table_columns =
+                        referenced_table_info.map(get_return_type_columns);
+
+                    // preserve the reference if the return type for the referenced table matches this table
+                    if referenced_table_columns.is_some_and(|r| r == new_columns) {
+                        Some(ReturnType::TableReference {
+                            table_name: table_name.to_owned(),
+                        })
+                    } else {
+                        None
+                    }
+                }
+                // if the old config references a query, keep the it if it points to a query that returns the same type as we just introspected
+                ReturnType::QueryReference { query_name } => old_config
+                    .queries
+                    .get(query_name)
+                    .and_then(|query| match &query.return_type {
+                        ReturnType::TableReference { .. } | ReturnType::QueryReference { .. } => {
+                            None
+                        }
+                        ReturnType::Definition { columns } => {
+                            if columns == &new_columns {
+                                Some(ReturnType::QueryReference {
+                                    query_name: query_name.to_owned(),
+                                })
+                            } else {
+                                None
+                            }
+                        }
+                    }),
+            },
+        );
+
+    old_return_type.unwrap_or_else(|| ReturnType::Definition {
+        columns: new_columns,
+    })
+}
+
+fn get_return_type_columns(table: &TableInfo) -> BTreeMap<String, String> {
+    table
+        .columns
+        .iter()
+        .map(|column| (column.column_name.to_owned(), column.data_type.to_owned()))
+        .collect()
 }

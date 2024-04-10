@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2]
+
+- Return error if empty list of query variables passed. Variables should be ommited or be a list with at least one member
+- Use table comment as description for corresponding collection and object type
+- Return json representation for applicable scalar types in schema response
+- Add `configuration.schema.json` to generated configuration directory
+- Bump ndc-spec dependency to 0.1.1
+- Config breaking change: use maps for tables and columns list, rather than arrays. This should help avoid duplicate alias issues
+- Move parsing column data types into configuration time and startup time, instead of query execution time. This should give error feedback earlier
+- Allow tables and native query return types to be marked as identical to return types for other tables/queries
+- Support parameterized views (don't support column valued arguments)
+- Support parameterized native queries, except in foreach queries. Also don't support column valued arguments
+- Change explain output so the console knows how to extract generated SQL and sql explain plan to display to the user
+- Pretty print explain SQL output
+- Fix a bug where no result sets where returned when foreach predicate didn't match any rows. Correct behavior: empty result set is returned
+
 ## [0.2.1]
 
 ### CLI

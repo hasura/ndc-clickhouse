@@ -2,10 +2,9 @@
 members = [
   "crates/ndc-clickhouse",
   "crates/ndc-clickhouse-cli",
-  "crates/config",
-  "crates/client",
+  "crates/common",
 ]
 resolver = "2"
 
-package.version = "0.2.1"
+package.version = "0.2.2"
 package.edition = "2021"

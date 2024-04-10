@@ -2,6 +2,7 @@
 use std::fmt;
 
 mod parameter_extractor;
+use common::clickhouse_parser::parameterized_query::ParameterType;
 use parameter_extractor::ParameterExtractor;
 
 //.A statement containing placeholders where parameters used to be
@@ -384,6 +385,10 @@ pub enum TableFactor {
         function: Function,
         alias: Option<Ident>,
     },
+    NativeQuery {
+        native_query: NativeQuery,
+        alias: Option<Ident>,
+    },
 }
 
 impl TableFactor {
@@ -395,6 +400,13 @@ impl TableFactor {
             TableFactor::TableFunction { function, alias: _ } => {
                 TableFactor::TableFunction { function, alias }
             }
+            TableFactor::NativeQuery {
+                native_query,
+                alias: _,
+            } => TableFactor::NativeQuery {
+                native_query,
+                alias,
+            },
         }
     }
     pub fn into_table_with_joins(self, joins: Vec<Join>) -> TableWithJoins {
@@ -426,8 +438,58 @@ impl fmt::Display for TableFactor {
                     write!(f, " AS {}", alias)?;
                 }
             }
+            TableFactor::NativeQuery {
+                native_query,
+                alias,
+            } => {
+                write!(f, "({})", native_query)?;
+                if let Some(alias) = alias {
+                    write!(f, " AS {}", alias)?;
+                }
+            }
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeQuery {
+    elements: Vec<NativeQueryElement>,
+}
+
+impl NativeQuery {
+    pub fn new(elements: Vec<NativeQueryElement>) -> Self {
+        Self { elements }
+    }
+    pub fn into_table_factor(self) -> TableFactor {
+        TableFactor::NativeQuery {
+            native_query: self,
+            alias: None,
+        }
+    }
+}
+
+impl fmt::Display for NativeQuery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for element in &self.elements {
+            write!(f, "{element}")?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum NativeQueryElement {
+    String(String),
+    Parameter(Parameter),
+}
+
+impl fmt::Display for NativeQueryElement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NativeQueryElement::String(s) => write!(f, "{s}"),
+            NativeQueryElement::Parameter(p) => write!(f, "{p}"),
+        }
     }
 }
 
@@ -439,6 +501,14 @@ impl ObjectName {
         TableFactor::Table {
             name: self,
             alias: None,
+        }
+    }
+    pub fn into_table_function(self) -> Function {
+        Function {
+            name: self,
+            args: vec![],
+            over: None,
+            distinct: false,
         }
     }
 }
@@ -477,8 +547,8 @@ impl Expr {
             None => SelectItem::UnnamedExpr(self),
         }
     }
-    pub fn into_arg(self) -> FunctionArgExpr {
-        FunctionArgExpr::Expr(self)
+    pub fn into_arg(self) -> FunctionArg {
+        FunctionArg::new(FunctionArgExpr::Expr(self))
     }
     pub fn into_with_item<S: Into<String>>(self, alias: S) -> WithItem {
         WithItem::Expr {
@@ -503,15 +573,7 @@ impl fmt::Display for Expr {
             Expr::Not(expr) => write!(f, "NOT {expr}"),
             Expr::Nested(expr) => write!(f, "({})", expr),
             Expr::Value(value) => write!(f, "{}", value),
-            Expr::Parameter(p) => match p {
-                Parameter::Value {
-                    value,
-                    data_type: _,
-                } => write!(f, "{value}"),
-                Parameter::Placeholder { name, data_type } => {
-                    write!(f, "{{{}:{}}}", name, data_type)
-                }
-            },
+            Expr::Parameter(p) => write!(f, "{}", p),
             Expr::Function(function) => write!(f, "{}", function),
             Expr::Lambda(lambda) => write!(f, "{}", lambda),
             Expr::List(list) => write!(f, "({})", display_separated(list, ", ")),
@@ -521,16 +583,36 @@ impl fmt::Display for Expr {
 
 #[derive(Debug, Clone)]
 pub enum Parameter {
-    Value { data_type: String, value: Value },
-    Placeholder { data_type: String, name: String },
+    Value {
+        data_type: ParameterType,
+        value: Value,
+    },
+    Placeholder {
+        data_type: ParameterType,
+        name: String,
+    },
 }
 
 impl Parameter {
-    pub fn new(value: Value, data_type: String) -> Self {
+    pub fn new(value: Value, data_type: ParameterType) -> Self {
         Self::Value { data_type, value }
     }
     pub fn into_expr(self) -> Expr {
         Expr::Parameter(self)
+    }
+}
+
+impl fmt::Display for Parameter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Parameter::Value {
+                value,
+                data_type: _,
+            } => write!(f, "{value}"),
+            Parameter::Placeholder { name, data_type } => {
+                write!(f, "{{{}:{}}}", name, data_type)
+            }
+        }
     }
 }
 
@@ -566,7 +648,7 @@ impl fmt::Display for Lambda {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: ObjectName,
-    pub args: Vec<FunctionArgExpr>,
+    pub args: Vec<FunctionArg>,
     pub over: Option<WindowSpec>,
     pub distinct: bool,
 }
@@ -588,7 +670,7 @@ impl Function {
             distinct: false,
         }
     }
-    pub fn args(self, args: Vec<FunctionArgExpr>) -> Self {
+    pub fn args(self, args: Vec<FunctionArg>) -> Self {
         Self { args, ..self }
     }
     pub fn over(self, over: Option<WindowSpec>) -> Self {
@@ -649,12 +731,45 @@ impl fmt::Display for WindowSpec {
 }
 
 #[derive(Debug, Clone)]
+pub struct FunctionArg {
+    name: Option<Ident>,
+    value: FunctionArgExpr,
+}
+
+impl FunctionArg {
+    pub fn new(value: FunctionArgExpr) -> Self {
+        Self { value, name: None }
+    }
+    pub fn name(self, name: Ident) -> Self {
+        Self {
+            name: Some(name),
+            ..self
+        }
+    }
+}
+
+impl fmt::Display for FunctionArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.name {
+            Some(name) => write!(f, "{name}={}", self.value),
+            None => write!(f, "{}", self.value),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum FunctionArgExpr {
     Expr(Expr),
     /// Qualified wildcard, e.g. `alias.*` or `schema.table.*`.
     QualifiedWildcard(ObjectName),
     /// An unqualified `*`
     Wildcard,
+}
+
+impl FunctionArgExpr {
+    pub fn into_arg(self) -> FunctionArg {
+        FunctionArg::new(self)
+    }
 }
 
 impl fmt::Display for FunctionArgExpr {

@@ -1,5 +1,4 @@
-use client::execute_query;
-use config::ServerConfig;
+use common::{client::execute_query, config::ServerConfig};
 use ndc_sdk::{connector::QueryError, models};
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};

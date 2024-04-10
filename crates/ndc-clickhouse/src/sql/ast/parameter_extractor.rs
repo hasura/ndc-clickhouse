@@ -72,7 +72,7 @@ impl ParameterExtractor {
             Expr::BinaryOp { left, op: _, right } => {
                 self.visit_expr(left);
                 self.visit_expr(right);
-            },
+            }
             Expr::Not(expr) => self.visit_expr(expr),
             Expr::Nested(expr) => self.visit_expr(expr),
             Expr::Value(_) => {}
@@ -103,6 +103,10 @@ impl ParameterExtractor {
                 ref mut function,
                 alias: _,
             } => self.visit_function(function),
+            TableFactor::NativeQuery {
+                ref mut native_query,
+                alias: _,
+            } => self.visit_native_query(native_query),
         }
     }
     fn visit_join(&mut self, join: &mut Join) {
@@ -122,8 +126,8 @@ impl ParameterExtractor {
     }
     fn visit_function(&mut self, function: &mut Function) {
         for arg in function.args.iter_mut() {
-            match arg {
-                FunctionArgExpr::Expr(expr) => self.visit_expr(expr),
+            match arg.value {
+                FunctionArgExpr::Expr(ref mut expr) => self.visit_expr(expr),
                 FunctionArgExpr::QualifiedWildcard(_) => {}
                 FunctionArgExpr::Wildcard => {}
             }
@@ -134,6 +138,14 @@ impl ParameterExtractor {
             }
             for order_by in over.order_by.iter_mut() {
                 self.visit_expr(&mut order_by.expr)
+            }
+        }
+    }
+    fn visit_native_query(&mut self, native_query: &mut NativeQuery) {
+        for element in native_query.elements.iter_mut() {
+            match element {
+                NativeQueryElement::String(_) => {}
+                NativeQueryElement::Parameter(ref mut parameter) => self.visit_parameter(parameter),
             }
         }
     }

@@ -2,7 +2,7 @@ use strum::{Display, EnumIter, EnumString};
 
 use crate::sql::ast::{Expr, Function};
 
-#[derive(Debug, Clone, EnumString, Display, EnumIter)]
+#[derive(Debug, Clone, EnumString, Display, EnumIter, PartialEq, Eq)]
 #[strum(serialize_all = "snake_case")]
 pub enum ClickHouseSingleColumnAggregateFunction {
     Max,

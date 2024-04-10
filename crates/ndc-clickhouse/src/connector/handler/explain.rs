@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
-use client::execute_query;
-use config::ServerConfig;
+use common::{client::execute_query, config::ServerConfig};
 use ndc_sdk::{connector::ExplainError, models};
 use serde::{Deserialize, Serialize};
 
@@ -49,16 +48,23 @@ pub async fn explain(
 
     let details = BTreeMap::from_iter(vec![
         (
-            "inlined_sql".to_string(),
-            unsafe_statement.to_unsafe_sql_string(),
+            "SQL Query".to_string(),
+            pretty_print_sql(&unsafe_statement.to_unsafe_sql_string()),
         ),
-        ("parameterized_sql".to_string(), statement_string),
-        (
-            "parameters".to_string(),
-            serde_json::to_string(&parameters).map_err(|err| ExplainError::Other(Box::new(err)))?,
-        ),
-        ("explain".to_string(), explain),
+        ("Execution Plan".to_string(), explain),
     ]);
 
     Ok(models::ExplainResponse { details })
+}
+
+fn pretty_print_sql(query: &str) -> String {
+    use sqlformat::{format, FormatOptions, Indent, QueryParams};
+    let params = QueryParams::None;
+    let options = FormatOptions {
+        indent: Indent::Spaces(2),
+        uppercase: false,
+        lines_between_queries: 1,
+    };
+
+    format(query, &params, options)
 }
