@@ -6,11 +6,11 @@ services:
     ports:
       - "4000:4000"
     environment:
-      PORT: 4000
+      HASURA_CONNECTOR_PORT: 4000
       HASURA_CONFIGURATION_DIRECTORY: /etc/connector
       CLICKHOUSE_URL: ${CLICKHOUSE_URL}
       CLICKHOUSE_USERNAME: ${CLICKHOUSE_USERNAME}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
     volumes:
       - ./config:/etc/connector
-    command: serve --port 4000
+    command: serve
