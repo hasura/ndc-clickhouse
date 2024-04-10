@@ -156,11 +156,39 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             vec![]
         };
 
-        let from = vec![self
+        let rowset_subquery = self
             .rowset_subquery(&collection, &vec![], query)?
             .into_table_factor()
-            .alias("_rowset")
-            .into_table_with_joins(vec![])];
+            .alias("_rowset");
+
+        let from = if self.request.variables.is_some() {
+            let table = ObjectName(vec![Ident::new_quoted("_vars")])
+                .into_table_factor()
+                .alias("_vars");
+
+            let join_expr = Expr::BinaryOp {
+                left: Expr::CompoundIdentifier(vec![
+                    Ident::new_quoted("_vars"),
+                    Ident::new_quoted("_varset_id"),
+                ])
+                .into_box(),
+                op: BinaryOperator::Eq,
+                right: Expr::CompoundIdentifier(vec![
+                    Ident::new_quoted(format!("_rowset")),
+                    Ident::new_quoted("_varset_id"),
+                ])
+                .into_box(),
+            };
+
+            let join = Join {
+                relation: rowset_subquery,
+                join_operator: JoinOperator::LeftOuter(JoinConstraint::On(join_expr)),
+            };
+
+            vec![table.into_table_with_joins(vec![join])]
+        } else {
+            vec![rowset_subquery.into_table_with_joins(vec![])]
+        };
 
         let order_by = if self.request.variables.is_some() {
             vec![OrderByExpr {
@@ -1856,7 +1884,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         column_alias: &str,
         collection: &CollectionContext,
     ) -> Result<ClickHouseDataType, QueryBuilderError> {
-        // todo: get column name based on column alias and collection alias
         let return_type = self
             .configuration
             .tables
@@ -1880,7 +1907,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             QueryBuilderError::UnknownColumn(column_alias.to_owned(), collection.alias().to_owned())
         })?;
 
-        // todo: revise whether we want to get the data type from the type definition instead
         Ok(column_type.to_owned())
     }
 }
