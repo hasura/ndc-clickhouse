@@ -193,7 +193,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         let order_by = if self.request.variables.is_some() {
             vec![OrderByExpr {
                 expr: Expr::CompoundIdentifier(vec![
-                    Ident::new_quoted("_rowset"),
+                    Ident::new_quoted("_vars"),
                     Ident::new_quoted("_varset_id"),
                 ]),
                 asc: Some(true),

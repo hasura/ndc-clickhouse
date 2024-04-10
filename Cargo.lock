@@ -340,7 +340,7 @@ checksum = "97af0562545a7d7f3d9222fcf909963bec36dcb502afaacab98c6ffac8da47ce"
 
 [[package]]
 name = "common"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "peg",
  "reqwest 0.12.3",
@@ -1044,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "async-trait",
  "common",
@@ -1061,7 +1061,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse-cli"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "clap",
  "common",

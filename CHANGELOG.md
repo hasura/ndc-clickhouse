@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3]
+
+- Fix ordering of result sets for foreach queries (remote joins)
+
 ## [0.2.2]
 
 - Return error if empty list of query variables passed. Variables should be ommited or be a list with at least one member
