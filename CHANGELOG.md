@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4]
+
+- Allow explain of invalid foreach queries. Will generate invalid SQL, for proper execution these should be parameterized
+
 ## [0.2.3]
 
 - Fix ordering of result sets for foreach queries (remote joins)

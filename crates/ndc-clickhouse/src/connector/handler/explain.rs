@@ -49,7 +49,18 @@ pub async fn explain(
     let details = BTreeMap::from_iter(vec![
         (
             "SQL Query".to_string(),
-            pretty_print_sql(&unsafe_statement.to_unsafe_sql_string()),
+            add_variables_note(
+                &request,
+                &pretty_print_sql(&unsafe_statement.to_unsafe_sql_string()),
+            ),
+        ),
+        (
+            "Parameterized SQL Query".to_string(),
+            add_variables_note(&request, &pretty_print_sql(&statement_string)),
+        ),
+        (
+            "Parameters".to_string(),
+            serde_json::to_string(&parameters).map_err(|err| ExplainError::Other(Box::new(err)))?,
         ),
         ("Execution Plan".to_string(), explain),
     ]);
@@ -67,4 +78,20 @@ fn pretty_print_sql(query: &str) -> String {
     };
 
     format(query, &params, options)
+}
+
+const EXPLAIN_NOTE: &str = r#"-- note: the source object for _vars should be a JSON string of the form
+-- `{"_varset_id": [1,2,3], "_var_ID": [1,2,3], "_var_NAME": ["Name1","Name2","Name3"]}`
+-- The example assumes the variables ID and NAME, change as appropriate. "_varset_id" is an index starting from 1
+-- Each array member corresponds to a row, all arrays should have the same number of members. See clickhouse docs for more:
+-- https://clickhouse.com/docs/en/interfaces/formats#jsoncolumns
+-- https://clickhouse.com/docs/en/sql-reference/table-functions/format
+"#;
+
+fn add_variables_note(request: &models::QueryRequest, statement: &str) -> String {
+    if request.variables.is_some() {
+        format!("{EXPLAIN_NOTE}\n{statement}")
+    } else {
+        statement.to_owned()
+    }
 }
