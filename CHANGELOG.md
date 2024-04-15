@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Cast variables to UUID before comparison to UUID columns. This enables remote relationships to UUID columns
+
 ## [0.2.4]
 
 - Allow explain of invalid foreach queries. Will generate invalid SQL, for proper execution these should be parameterized

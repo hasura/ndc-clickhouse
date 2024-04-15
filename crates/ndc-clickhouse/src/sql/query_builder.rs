@@ -1019,13 +1019,20 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         right_col_type,
                     ),
 
-                    models::ComparisonValue::Variable { name } => ComparisonColumn::new_simple(
-                        Expr::CompoundIdentifier(vec![
+                    models::ComparisonValue::Variable { name } => {
+                        let column_ident = Expr::CompoundIdentifier(vec![
                             Ident::new_quoted("_vars"),
                             Ident::new_quoted(format!("_var_{name}")),
-                        ]),
-                        right_col_type,
-                    ),
+                        ]);
+                        let column_ident = if is_uuid(&right_col_type) {
+                            Function::new_unquoted("toUUID")
+                                .args(vec![column_ident.into_arg()])
+                                .into_expr()
+                        } else {
+                            column_ident
+                        };
+                        ComparisonColumn::new_simple(column_ident, right_col_type)
+                    }
                 };
 
                 let (expression, expression_joins) = right_col.apply(|right_col| {
@@ -1679,6 +1686,30 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     }
                 })
             };
+            let variable_argument = |arg_name: &String, variable_name: &String| {
+                let argument_type = table_argument_type(&arg_name)?;
+                let column_ident = Expr::CompoundIdentifier(vec![
+                    Ident::new_quoted("_vars"),
+                    Ident::new_quoted(format!("_var_{variable_name}")),
+                ]);
+
+                let column_ident = if is_uuid(argument_type) {
+                    Function::new_unquoted("toUUID")
+                        .args(vec![column_ident.into_arg()])
+                        .into_expr()
+                } else {
+                    column_ident
+                };
+                Ok(column_ident.into_arg().name(Ident::new_quoted(arg_name)))
+            };
+            let literal_argument = |arg_name: &String, value: &serde_json::Value| {
+                Ok(Expr::Parameter(Parameter::new(
+                    value.into(),
+                    table_argument_type(arg_name)?.to_owned().into(),
+                ))
+                .into_arg()
+                .name(Ident::new_quoted(arg_name)))
+            };
             let table_name = ObjectName(vec![
                 Ident::new_quoted(&table.schema),
                 Ident::new_quoted(&table.name),
@@ -1692,22 +1723,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         .iter()
                         .map(|(arg_name, arg)| match arg {
                             models::Argument::Variable { name } => {
-                                let varkey = format!("_var_{name}");
-
-                                Ok(Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_vars"),
-                                    Ident::new_quoted(varkey),
-                                ])
-                                .into_arg()
-                                .name(Ident::new_quoted(arg_name)))
+                                variable_argument(arg_name, name)
                             }
                             models::Argument::Literal { value } => {
-                                Ok(Expr::Parameter(Parameter::new(
-                                    value.into(),
-                                    table_argument_type(arg_name)?.to_owned().into(),
-                                ))
-                                .into_arg()
-                                .name(Ident::new_quoted(arg_name)))
+                                literal_argument(arg_name, value)
                             }
                         })
                         .collect::<Result<Vec<FunctionArg>, _>>()?,
@@ -1720,22 +1739,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         .chain(arguments.iter())
                         .map(|(arg_name, arg)| match arg {
                             models::RelationshipArgument::Variable { name } => {
-                                let varkey = format!("_var_{name}");
-
-                                Ok(Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_vars"),
-                                    Ident::new_quoted(varkey),
-                                ])
-                                .into_arg()
-                                .name(Ident::new_quoted(arg_name)))
+                                variable_argument(arg_name, name)
                             }
                             models::RelationshipArgument::Literal { value } => {
-                                Ok(Expr::Parameter(Parameter::new(
-                                    value.into(),
-                                    table_argument_type(arg_name)?.to_owned().into(),
-                                ))
-                                .into_arg()
-                                .name(Ident::new_quoted(arg_name)))
+                                literal_argument(arg_name, value)
                             }
                             models::RelationshipArgument::Column { .. } => {
                                 Err(QueryBuilderError::NotSupported(
@@ -1751,22 +1758,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         .iter()
                         .map(|(arg_name, arg)| match arg {
                             models::RelationshipArgument::Variable { name } => {
-                                let varkey = format!("_var_{name}");
-
-                                Ok(Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_vars"),
-                                    Ident::new_quoted(varkey),
-                                ])
-                                .into_arg()
-                                .name(Ident::new_quoted(arg_name)))
+                                variable_argument(arg_name, name)
                             }
                             models::RelationshipArgument::Literal { value } => {
-                                Ok(Expr::Parameter(Parameter::new(
-                                    value.into(),
-                                    table_argument_type(arg_name)?.to_owned().into(),
-                                ))
-                                .into_arg()
-                                .name(Ident::new_quoted(arg_name)))
+                                literal_argument(arg_name, value)
                             }
                             models::RelationshipArgument::Column { .. } => {
                                 Err(QueryBuilderError::NotSupported(
@@ -1927,5 +1922,13 @@ fn or_reducer(left: Expr, right: Expr) -> Expr {
         left: Box::new(left),
         op: BinaryOperator::Or,
         right: Box::new(right),
+    }
+}
+
+fn is_uuid(t: &ClickHouseDataType) -> bool {
+    match t {
+        ClickHouseDataType::Nullable(t) => is_uuid(t),
+        ClickHouseDataType::Uuid => true,
+        _ => false,
     }
 }
