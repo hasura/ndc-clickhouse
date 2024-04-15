@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Do not write out config file unless it has changed. This avoids issues with the ddn cli which watches for filechange events
 - Cast variables to UUID before comparison to UUID columns. This enables remote relationships to UUID columns
 
 ## [0.2.4]

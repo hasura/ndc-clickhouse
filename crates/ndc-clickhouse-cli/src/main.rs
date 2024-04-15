@@ -14,8 +14,8 @@ use common::{
     },
     config::ConnectionConfig,
     config_file::{
-        self, ParameterizedQueryConfigFile, PrimaryKey, ReturnType, ServerConfigFile,
-        TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+        ParameterizedQueryConfigFile, PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile,
+        CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
     },
 };
 use database_introspection::{introspect_database, TableInfo};
@@ -145,17 +145,17 @@ pub async fn update_tables_config(
     let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
     let schema_file_path = configuration_dir.as_ref().join(CONFIG_SCHEMA_FILE_NAME);
 
-    let old_config = match fs::read_to_string(&file_path).await {
-        Ok(file) => serde_json::from_str(&file)
-            .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}\n\nDelete {CONFIG_FILE_NAME} to create a fresh file")),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(config_file::ServerConfigFile::default()),
-        Err(_) => Err(format!("Error reading {CONFIG_FILE_NAME}")),
-    }?;
+    let old_config: Option<ServerConfigFile> = match fs::read_to_string(&file_path).await {
+        Ok(file) => Some(serde_json::from_str(&file)
+            .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}\n\nDelete {CONFIG_FILE_NAME} to create a fresh file"))),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
+        Err(_) => Some(Err(format!("Error reading {CONFIG_FILE_NAME}"))),
+    }.transpose()?;
 
     let tables = table_infos
         .iter()
         .map(|table| {
-            let old_table_config = get_old_table_config(table, &old_config.tables);
+            let old_table_config = get_old_table_config(table, &old_config);
             let table_alias = get_table_alias(table, &old_table_config);
 
             let arguments = ParameterizedQuery::from_str(&table.view_definition)
@@ -205,16 +205,21 @@ pub async fn update_tables_config(
     let config = ServerConfigFile {
         schema: CONFIG_SCHEMA_FILE_NAME.to_owned(),
         tables: tables,
-        queries: old_config.queries.to_owned(),
+        queries: old_config
+            .as_ref()
+            .map(|old_config| old_config.queries.to_owned())
+            .unwrap_or_default(),
     };
     let config_schema = schema_for!(ServerConfigFile);
 
-    fs::write(&file_path, serde_json::to_string_pretty(&config)?).await?;
-    fs::write(
-        &schema_file_path,
-        serde_json::to_string_pretty(&config_schema)?,
-    )
-    .await?;
+    if old_config.is_none() || old_config.is_some_and(|old_config| old_config != config) {
+        fs::write(&file_path, serde_json::to_string_pretty(&config)?).await?;
+        fs::write(
+            &schema_file_path,
+            serde_json::to_string_pretty(&config_schema)?,
+        )
+        .await?;
+    }
 
     // validate after writing out the updated metadata. This should help users understand what the problem is
     // check if some column types can't be parsed
@@ -379,10 +384,12 @@ pub async fn update_tables_config(
 /// This allows custom aliases to be preserved
 fn get_old_table_config<'a>(
     table: &TableInfo,
-    old_tables: &'a BTreeMap<String, TableConfigFile>,
+    old_config: &'a Option<ServerConfigFile>,
 ) -> Option<(&'a String, &'a TableConfigFile)> {
-    old_tables.iter().find(|(_, old_table)| {
-        old_table.name == table.table_name && old_table.schema == table.table_schema
+    old_config.as_ref().and_then(|old_config| {
+        old_config.tables.iter().find(|(_, old_table)| {
+            old_table.name == table.table_name && old_table.schema == table.table_schema
+        })
     })
 }
 
@@ -408,7 +415,7 @@ fn get_table_alias(table: &TableInfo, old_table: &Option<(&String, &TableConfigF
 fn get_table_return_type(
     table: &TableInfo,
     old_table: &Option<(&String, &TableConfigFile)>,
-    old_config: &ServerConfigFile,
+    old_config: &Option<ServerConfigFile>,
     introspection: &Vec<TableInfo>,
 ) -> ReturnType {
     let new_columns = get_return_type_columns(table);
@@ -419,7 +426,9 @@ fn get_table_return_type(
                 ReturnType::Definition { .. } => None,
                 ReturnType::TableReference { table_name } => {
                     // get the old table config for the referenced table
-                    let referenced_table_config = old_config.tables.get(table_name);
+                    let referenced_table_config = old_config
+                        .as_ref()
+                        .and_then(|old_config| old_config.tables.get(table_name));
                     // get the new table info for the referenced table, if the referenced table's return type is a definition
                     let referenced_table_info =
                         referenced_table_config.and_then(|old_table| match old_table.return_type {
@@ -448,8 +457,8 @@ fn get_table_return_type(
                 }
                 // if the old config references a query, keep the it if it points to a query that returns the same type as we just introspected
                 ReturnType::QueryReference { query_name } => old_config
-                    .queries
-                    .get(query_name)
+                    .as_ref()
+                    .and_then(|old_config| old_config.queries.get(query_name))
                     .and_then(|query| match &query.return_type {
                         ReturnType::TableReference { .. } | ReturnType::QueryReference { .. } => {
                             None

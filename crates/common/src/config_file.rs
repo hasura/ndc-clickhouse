@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 /// the main configuration file
 pub struct ServerConfigFile {
     #[serde(rename = "$schema")]
@@ -22,7 +22,7 @@ pub struct ServerConfigFile {
     pub queries: BTreeMap<String, ParameterizedQueryConfigFile>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct TableConfigFile {
     /// The table name
     pub name: String,
@@ -41,14 +41,14 @@ pub struct TableConfigFile {
     pub return_type: ReturnType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PrimaryKey {
     pub name: String,
     /// The names of columns in this primary key
     pub columns: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ReturnType {
     /// A custom return type definition
@@ -76,7 +76,7 @@ impl Default for ReturnType {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ParameterizedQueryConfigFile {
     /// Whether this query should be exposed as a procedure (mutating) or collection (non-mutating)
     pub exposed_as: ParameterizedQueryExposedAs,
