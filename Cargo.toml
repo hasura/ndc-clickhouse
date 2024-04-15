@@ -6,5 +6,5 @@ members = [
 ]
 resolver = "2"
 
-package.version = "0.2.4"
+package.version = "0.2.5"
 package.edition = "2021"
