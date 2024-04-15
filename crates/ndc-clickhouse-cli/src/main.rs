@@ -120,13 +120,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match args.command {
         Command::Init {} => {
-            update_tables_config(&context.context_path, &context.connection).await?;
+            let introspection = introspect_database(&context.connection).await?;
+            let config = update_tables_config(&context.context_path, &introspection).await?;
+            validate_table_config(&context.context_path, &config).await?;
         }
         Command::Update {} => {
-            update_tables_config(&context.context_path, &context.connection).await?;
+            let introspection = introspect_database(&context.connection).await?;
+            let config = update_tables_config(&context.context_path, &introspection).await?;
+            validate_table_config(&context.context_path, &config).await?;
         }
         Command::Validate {} => {
-            todo!("implement validate command")
+            let file_path = context.context_path.join(CONFIG_FILE_NAME);
+            let config = read_config_file(&file_path).await?;
+            if let Some(config) = config {
+                validate_table_config(&context.context_path, &config).await?;
+            }
         }
         Command::Watch {} => {
             todo!("implement watch command")
@@ -136,23 +144,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn update_tables_config(
-    configuration_dir: impl AsRef<Path> + Send,
-    connection_config: &ConnectionConfig,
-) -> Result<(), Box<dyn Error>> {
-    let table_infos = introspect_database(connection_config).await?;
-
-    let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
-    let schema_file_path = configuration_dir.as_ref().join(CONFIG_SCHEMA_FILE_NAME);
-
-    let old_config: Option<ServerConfigFile> = match fs::read_to_string(&file_path).await {
+async fn read_config_file(file_path: &PathBuf) -> Result<Option<ServerConfigFile>, Box<dyn Error>> {
+    let config: Option<ServerConfigFile> = match fs::read_to_string(file_path).await {
         Ok(file) => Some(serde_json::from_str(&file)
             .map_err(|err| format!("Error parsing {CONFIG_FILE_NAME}: {err}\n\nDelete {CONFIG_FILE_NAME} to create a fresh file"))),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
         Err(_) => Some(Err(format!("Error reading {CONFIG_FILE_NAME}"))),
     }.transpose()?;
 
-    let tables = table_infos
+    Ok(config)
+}
+
+async fn update_tables_config(
+    configuration_dir: impl AsRef<Path> + Send,
+    introspection: &Vec<TableInfo>,
+) -> Result<ServerConfigFile, Box<dyn Error>> {
+    let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
+    let schema_file_path = configuration_dir.as_ref().join(CONFIG_SCHEMA_FILE_NAME);
+
+    let old_config = read_config_file(&file_path).await?;
+
+    let tables = introspection
         .iter()
         .map(|table| {
             let old_table_config = get_old_table_config(table, &old_config);
@@ -194,7 +206,7 @@ pub async fn update_tables_config(
                     table,
                     &old_table_config,
                     &old_config,
-                    &table_infos,
+                    &introspection,
                 ),
             };
 
@@ -221,6 +233,13 @@ pub async fn update_tables_config(
         .await?;
     }
 
+    Ok(config)
+}
+
+async fn validate_table_config(
+    configuration_dir: impl AsRef<Path> + Send,
+    config: &ServerConfigFile,
+) -> Result<(), Box<dyn Error>> {
     // validate after writing out the updated metadata. This should help users understand what the problem is
     // check if some column types can't be parsed
     for (table_alias, table_config) in &config.tables {
