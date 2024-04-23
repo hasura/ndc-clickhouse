@@ -7,10 +7,12 @@ use common::{
     config::ServerConfig,
     config_file::{ParameterizedQueryExposedAs, PrimaryKey},
 };
-use ndc_sdk::{connector::SchemaError, models};
+use ndc_sdk::{connector::SchemaError, json_response::JsonResponse, models};
 use std::collections::BTreeMap;
 
-pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaResponse, SchemaError> {
+pub async fn schema(
+    configuration: &ServerConfig,
+) -> Result<JsonResponse<models::SchemaResponse>, SchemaError> {
     let mut scalar_type_definitions = BTreeMap::new();
     let mut object_type_definitions = vec![];
 
@@ -200,7 +202,7 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
 
     let collections = table_collections.chain(query_collections).collect();
 
-    Ok(models::SchemaResponse {
+    Ok(JsonResponse::Value(models::SchemaResponse {
         scalar_types: scalar_type_definitions,
         // converting vector to map drops any duplicate definitions
         // this could be an issue if there are name collisions
@@ -208,5 +210,5 @@ pub async fn schema(configuration: &ServerConfig) -> Result<models::SchemaRespon
         collections,
         functions: vec![],
         procedures: vec![],
-    })
+    }))
 }

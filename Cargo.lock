@@ -340,13 +340,15 @@ checksum = "97af0562545a7d7f3d9222fcf909963bec36dcb502afaacab98c6ffac8da47ce"
 
 [[package]]
 name = "common"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
+ "bytes",
  "peg",
  "reqwest 0.12.3",
  "schemars",
  "serde",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -364,6 +366,15 @@ name = "core-foundation-sys"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
+
+[[package]]
+name = "crc32fast"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3855a8a784b474f333699ef2bbca9db2c4a1f6d9088a90a2d25b1eb53111eaa"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "crossbeam-channel"
@@ -467,6 +478,16 @@ name = "fastrand"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
+
+[[package]]
+name = "flate2"
+version = "1.0.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46303f565772937ffe1d394a4fac6f411c6013172fadde9dcdb1e147a086940e"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
+]
 
 [[package]]
 name = "fnv"
@@ -1044,9 +1065,10 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "async-trait",
+ "bytes",
  "common",
  "indexmap 2.2.5",
  "ndc-sdk",
@@ -1057,11 +1079,12 @@ dependencies = [
  "sqlformat",
  "strum",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "ndc-clickhouse-cli"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "clap",
  "common",
@@ -1072,26 +1095,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "ndc-client"
-version = "0.1.1"
-source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.1#17c61946cc9a3ff6dcee1d535af33141213b639a"
+name = "ndc-models"
+version = "0.1.2"
+source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.2#6e7d12a31787d5f618099a42ddc0bea786438c00"
 dependencies = [
- "async-trait",
  "indexmap 2.2.5",
- "opentelemetry",
- "reqwest 0.11.27",
  "schemars",
  "serde",
- "serde_derive",
  "serde_json",
  "serde_with",
- "url",
 ]
 
 [[package]]
 name = "ndc-sdk"
 version = "0.1.0"
-source = "git+https://github.com/hasura/ndc-sdk-rs?rev=7b56fac#7b56fac3aba2bc6533d3163111377fd5fbeb3011"
+source = "git+https://github.com/hasura/ndc-sdk-rs?rev=972dba6#972dba6e270ad54f4748487f75018c24229c1e5e"
 dependencies = [
  "async-trait",
  "axum",
@@ -1100,12 +1118,13 @@ dependencies = [
  "clap",
  "http 0.2.12",
  "mime",
- "ndc-client",
+ "ndc-models",
  "ndc-test",
  "opentelemetry",
  "opentelemetry-http",
  "opentelemetry-otlp",
  "opentelemetry-semantic-conventions",
+ "opentelemetry-zipkin",
  "opentelemetry_sdk",
  "prometheus",
  "reqwest 0.11.27",
@@ -1122,14 +1141,14 @@ dependencies = [
 
 [[package]]
 name = "ndc-test"
-version = "0.1.1"
-source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.1#17c61946cc9a3ff6dcee1d535af33141213b639a"
+version = "0.1.2"
+source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.2#6e7d12a31787d5f618099a42ddc0bea786438c00"
 dependencies = [
  "async-trait",
  "clap",
  "colorful",
  "indexmap 2.2.5",
- "ndc-client",
+ "ndc-models",
  "rand",
  "reqwest 0.11.27",
  "semver",
@@ -1137,6 +1156,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -1309,6 +1329,27 @@ name = "opentelemetry-semantic-conventions"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9ab5bd6c42fb9349dcf28af2ba9a0667f697f9bdcca045d39f2cec5543e2910"
+
+[[package]]
+name = "opentelemetry-zipkin"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6943c09b1b7c17b403ae842b00f23e6d5fc6f5ec06cccb3f39aca97094a899a"
+dependencies = [
+ "async-trait",
+ "futures-core",
+ "http 0.2.12",
+ "once_cell",
+ "opentelemetry",
+ "opentelemetry-http",
+ "opentelemetry-semantic-conventions",
+ "opentelemetry_sdk",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "typed-builder",
+]
 
 [[package]]
 name = "opentelemetry_sdk"
@@ -1726,6 +1767,19 @@ dependencies = [
  "rustls-webpki",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f1fb85efa936c42c6d5fc28d2629bb51e4b2f4b8a5211e297d599cc5a093792"
+dependencies = [
+ "openssl-probe",
+ "rustls-pemfile 2.1.2",
+ "rustls-pki-types",
+ "schannel",
+ "security-framework",
 ]
 
 [[package]]
@@ -2283,6 +2337,7 @@ dependencies = [
  "axum",
  "base64 0.21.7",
  "bytes",
+ "flate2",
  "h2",
  "http 0.2.12",
  "http-body 0.4.6",
@@ -2291,7 +2346,11 @@ dependencies = [
  "percent-encoding",
  "pin-project",
  "prost",
+ "rustls-native-certs",
+ "rustls-pemfile 2.1.2",
+ "rustls-pki-types",
  "tokio",
+ "tokio-rustls",
  "tokio-stream",
  "tower",
  "tower-layer",
@@ -2447,6 +2506,26 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "typed-builder"
+version = "0.18.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77739c880e00693faef3d65ea3aad725f196da38b22fdc7ea6ded6e1ce4d3add"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.18.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f718dfaf347dcb5b983bfc87608144b0bad87970aebcbea5ce44d2a30c08e63"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.53",
+]
 
 [[package]]
 name = "unicase"

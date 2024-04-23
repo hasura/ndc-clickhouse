@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use common::{client::execute_query, config::ServerConfig};
-use ndc_sdk::{connector::ExplainError, models};
+use common::{client::execute_json_query, config::ServerConfig};
+use ndc_sdk::{connector::ExplainError, json_response::JsonResponse, models};
 use serde::{Deserialize, Serialize};
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};
@@ -15,7 +15,7 @@ pub async fn explain(
     configuration: &ServerConfig,
     state: &ServerState,
     request: models::QueryRequest,
-) -> Result<models::ExplainResponse, ExplainError> {
+) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
     let unsafe_statement = QueryBuilder::new(&request, configuration)
         .build()
         .map_err(|err| ExplainError::Other(Box::new(err)))?;
@@ -31,7 +31,7 @@ pub async fn explain(
         .await
         .map_err(|err| ExplainError::Other(err.to_string().into()))?;
 
-    let explain = execute_query::<ExplainRow>(
+    let explain = execute_json_query::<ExplainRow>(
         &client,
         &configuration.connection,
         &statement_string,
@@ -65,7 +65,7 @@ pub async fn explain(
         ("Execution Plan".to_string(), explain),
     ]);
 
-    Ok(models::ExplainResponse { details })
+    Ok(JsonResponse::Value(models::ExplainResponse { details }))
 }
 
 fn pretty_print_sql(query: &str) -> String {
