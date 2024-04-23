@@ -27,7 +27,7 @@ pub async fn query(
         .await
         .map_err(|err| QueryError::Other(err.to_string().into()))?;
 
-    let execution_span = tracing::info_span!("Execute SQL query", "query.SQL" = statement_string);
+    tracing::event!(Level::DEBUG, "Generated SQL" = statement_string);
 
     let rowsets = execute_query(
         &client,
@@ -35,7 +35,7 @@ pub async fn query(
         &statement_string,
         &parameters,
     )
-    .instrument(execution_span)
+    .instrument(tracing::info_span!("Execute SQL query"))
     .await
     .map_err(|err| QueryError::Other(err.to_string().into()))?;
 
