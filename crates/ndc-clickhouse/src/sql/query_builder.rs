@@ -17,9 +17,8 @@ mod typecasting;
 use comparison_column::ComparisonColumn;
 pub use error::QueryBuilderError;
 use ndc_sdk::models;
-use typecasting::{AggregatesTypeString, RowsTypeString};
 
-use self::collection_context::CollectionContext;
+use self::{collection_context::CollectionContext, typecasting::RowsetTypeString};
 
 use super::ast::*;
 use crate::schema::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
@@ -39,76 +38,37 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     pub fn build(&self) -> Result<UnsafeInlinedStatement, QueryBuilderError> {
         self.root_query()
     }
-    fn rows_typecast_string(
-        &self,
-        fields: &IndexMap<String, models::Field>,
-        current_collection: &CollectionContext,
-    ) -> Result<String, QueryBuilderError> {
-        Ok(RowsTypeString::new(
-            current_collection.alias(),
-            fields,
-            &self.request.collection_relationships,
-            self.configuration,
-        )
-        .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?
-        .to_string())
-    }
-    fn agregates_typecast_string(
-        &self,
-        aggregates: &IndexMap<String, models::Aggregate>,
-        current_collection: &CollectionContext,
-    ) -> Result<String, QueryBuilderError> {
-        Ok(
-            AggregatesTypeString::new(current_collection.alias(), aggregates, self.configuration)
-                .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?
-                .to_string(),
-        )
-    }
     fn root_query(&self) -> Result<UnsafeInlinedStatement, QueryBuilderError> {
         let collection = CollectionContext::new(&self.request.collection, &self.request.arguments);
         let query = &self.request.query;
 
-        let get_typecasting_wrapper = |index: usize, alias: &str, typecast_string: String| {
-            Function::new_unquoted("cast")
-                .args(vec![
-                    Function::new_unquoted("tupleElement")
-                        .args(vec![
-                            Expr::CompoundIdentifier(vec![
-                                Ident::new_quoted("_rowset"),
-                                Ident::new_quoted("_rowset"),
-                            ])
-                            .into_arg(),
-                            Expr::Value(Value::Number(index.to_string())).into_arg(),
+        let select = vec![Function::new_unquoted("toJSONString")
+            .args(vec![Function::new_unquoted("groupArray")
+                .args(vec![Function::new_unquoted("cast")
+                    .args(vec![
+                        Expr::CompoundIdentifier(vec![
+                            Ident::new_quoted("_rowset"),
+                            Ident::new_quoted("_rowset"),
                         ])
-                        .into_expr()
                         .into_arg(),
-                    Expr::Value(Value::SingleQuotedString(typecast_string)).into_arg(),
-                ])
+                        Expr::Value(Value::SingleQuotedString(
+                            RowsetTypeString::new(
+                                collection.alias(),
+                                query,
+                                &self.request.collection_relationships,
+                                &self.configuration,
+                            )
+                            .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?
+                            .to_string(),
+                        ))
+                        .into_arg(),
+                    ])
+                    .into_expr()
+                    .into_arg()])
                 .into_expr()
-                .into_select(Some(alias))
-        };
-
-        let select = match (&self.request.query.fields, &self.request.query.aggregates) {
-            (None, None) => vec![Expr::Value(Value::Null).into_select::<String>(None)],
-            (None, Some(aggregates)) => vec![get_typecasting_wrapper(
-                1,
-                "aggregates",
-                self.agregates_typecast_string(aggregates, &collection)?,
-            )],
-            (Some(fields), None) => vec![get_typecasting_wrapper(
-                1,
-                "rows",
-                self.rows_typecast_string(fields, &collection)?,
-            )],
-            (Some(fields), Some(aggregates)) => vec![
-                get_typecasting_wrapper(1, "rows", self.rows_typecast_string(fields, &collection)?),
-                get_typecasting_wrapper(
-                    2,
-                    "aggregates",
-                    self.agregates_typecast_string(aggregates, &collection)?,
-                ),
-            ],
-        };
+                .into_arg()])
+            .into_expr()
+            .into_select(Some("rowsets"))];
 
         let with = if let Some(variables) = &self.request.variables {
             let mut variable_values: IndexMap<String, Vec<serde_json::Value>> = IndexMap::new();
@@ -205,8 +165,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             .select(select)
             .from(from)
             .order_by(order_by)
-            .into_statement()
-            .format("JSON"))
+            .into_statement())
     }
     fn rowset_subquery(
         &self,

@@ -88,9 +88,7 @@ impl Connector for ClickhouseConnector {
     async fn get_schema(
         configuration: &Self::Configuration,
     ) -> Result<JsonResponse<models::SchemaResponse>, SchemaError> {
-        handler::schema(configuration)
-            .await
-            .map(JsonResponse::Value)
+        handler::schema(configuration).await
     }
 
     async fn query_explain(
@@ -98,10 +96,7 @@ impl Connector for ClickhouseConnector {
         state: &Self::State,
         request: models::QueryRequest,
     ) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
-        handler::explain(configuration, state, request)
-            .await
-            .map(JsonResponse::Value)
-            .map_err(|err| ExplainError::Other(err.to_string().into()))
+        handler::explain(configuration, state, request).await
     }
 
     async fn mutation_explain(
@@ -129,10 +124,7 @@ impl Connector for ClickhouseConnector {
         state: &Self::State,
         request: models::QueryRequest,
     ) -> Result<JsonResponse<models::QueryResponse>, QueryError> {
-        handler::query(configuration, state, request)
-            .await
-            .map(JsonResponse::Value)
-            .map_err(|err| QueryError::Other(err.to_string().into()))
+        handler::query(configuration, state, request).await
     }
 }
 

@@ -5,9 +5,10 @@ edition.workspace = true
 
 [dependencies]
 async-trait = "0.1.78"
+bytes = "1.6.0"
 common = { path = "../common" }
 indexmap = "2.1.0"
-ndc-sdk = { git = "https://github.com/hasura/ndc-sdk-rs", rev = "7b56fac", package = "ndc-sdk" }
+ndc-sdk = { git = "https://github.com/hasura/ndc-sdk-rs", rev = "972dba6", package = "ndc-sdk" }
 prometheus = "0.13.3"
 reqwest = { version = "0.12.3", features = [
   "json",
@@ -18,3 +19,4 @@ serde_json = "1.0.114"
 sqlformat = "0.2.3"
 strum = { version = "0.26.2", features = ["derive"] }
 tokio = "1.36.0"
+tracing = "0.1.40"

@@ -1,5 +1,6 @@
 use common::{client::execute_query, config::ServerConfig};
-use ndc_sdk::{connector::QueryError, models};
+use ndc_sdk::{connector::QueryError, json_response::JsonResponse, models};
+use tracing::{Instrument, Level};
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};
 
@@ -7,28 +8,37 @@ pub async fn query(
     configuration: &ServerConfig,
     state: &ServerState,
     request: models::QueryRequest,
-) -> Result<models::QueryResponse, QueryError> {
-    let statement = QueryBuilder::new(&request, configuration)
-        .build()
-        .map_err(|err| QueryError::Other(Box::new(err)))?;
+) -> Result<JsonResponse<models::QueryResponse>, QueryError> {
+    let (statement_string, parameters) =
+        tracing::info_span!("Build SQL Query").in_scope(|| -> Result<_, QueryError> {
+            let statement = QueryBuilder::new(&request, configuration)
+                .build()
+                .map_err(|err| QueryError::Other(Box::new(err)))?;
 
-    let (statement, parameters) = statement.into_parameterized_statement();
+            let (statement, parameters) = statement.into_parameterized_statement();
 
-    let statement_string = statement.to_parameterized_sql_string();
+            let statement_string = statement.to_parameterized_sql_string();
+
+            Ok((statement_string, parameters))
+        })?;
 
     let client = state
         .client(configuration)
         .await
         .map_err(|err| QueryError::Other(err.to_string().into()))?;
 
-    let rowsets = execute_query::<models::RowSet>(
+    tracing::event!(Level::DEBUG, "Generated SQL" = statement_string);
+
+    let rowsets = execute_query(
         &client,
         &configuration.connection,
         &statement_string,
         &parameters,
     )
+    .instrument(tracing::info_span!("Execute SQL query"))
     .await
     .map_err(|err| QueryError::Other(err.to_string().into()))?;
 
-    Ok(models::QueryResponse(rowsets))
+    // we assume the response is a valid JSON string, and send those bytes back without parsing
+    Ok(JsonResponse::Serialized(rowsets))
 }

@@ -1,6 +1,8 @@
 use std::error::Error;
 
+use bytes::Bytes;
 use serde::{de::DeserializeOwned, Deserialize};
+use tracing::Instrument;
 
 use crate::config::ConnectionConfig;
 
@@ -12,7 +14,35 @@ pub fn get_http_client(
     Ok(client)
 }
 
-pub async fn execute_query<T: DeserializeOwned>(
+pub async fn execute_query(
+    client: &reqwest::Client,
+    connection_config: &ConnectionConfig,
+    statement: &str,
+    parameters: &Vec<(String, String)>,
+) -> Result<Bytes, Box<dyn Error>> {
+    let response = client
+        .post(&connection_config.url)
+        .header("X-ClickHouse-User", &connection_config.username)
+        .header("X-ClickHouse-Key", &connection_config.password)
+        .query(parameters)
+        .body(statement.to_owned())
+        .send()
+        .instrument(tracing::info_span!("Execute HTTP request"))
+        .await?;
+
+    if response.error_for_status_ref().is_err() {
+        return Err(response.text().await?.into());
+    }
+
+    let response = response
+        .bytes()
+        .instrument(tracing::info_span!("Read HTTP response"))
+        .await?;
+
+    Ok(response)
+}
+
+pub async fn execute_json_query<T: DeserializeOwned>(
     client: &reqwest::Client,
     connection_config: &ConnectionConfig,
     statement: &str,
@@ -25,13 +55,17 @@ pub async fn execute_query<T: DeserializeOwned>(
         .query(parameters)
         .body(statement.to_owned())
         .send()
+        .instrument(tracing::info_span!("Execute HTTP request"))
         .await?;
 
     if response.error_for_status_ref().is_err() {
         return Err(response.text().await?.into());
     }
 
-    let payload: ClickHouseResponse<T> = response.json().await?;
+    let payload: ClickHouseResponse<T> = response
+        .json()
+        .instrument(tracing::info_span!("Parse HTTP response"))
+        .await?;
 
     Ok(payload.data)
 }

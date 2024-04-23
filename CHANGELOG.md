@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6]
+
+- Add additional trace spans for SQL generation and query execution
+- Do not parse db response as JSON, instead send it back directly
+
 ## [0.2.5]
 
 - Implement validate cli command
