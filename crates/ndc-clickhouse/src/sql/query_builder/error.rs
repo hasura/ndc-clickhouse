@@ -1,5 +1,9 @@
 use std::fmt;
 
+use ndc_sdk::connector::{ExplainError, QueryError};
+
+use super::typecasting::TypeStringError;
+
 #[derive(Debug)]
 pub enum QueryBuilderError {
     /// A relationship referenced in the query is missing from the collection_relationships map
@@ -27,7 +31,7 @@ pub enum QueryBuilderError {
     /// An error that should never happen, and indicates a bug if triggered
     Unexpected(String),
     /// There was an issue creating typecasting strings
-    Typecasting(String),
+    Typecasting(TypeStringError),
 }
 
 impl fmt::Display for QueryBuilderError {
@@ -69,3 +73,51 @@ impl fmt::Display for QueryBuilderError {
 }
 
 impl std::error::Error for QueryBuilderError {}
+
+impl From<QueryBuilderError> for QueryError {
+    fn from(value: QueryBuilderError) -> Self {
+        match value {
+            QueryBuilderError::MissingRelationship(_)
+            | QueryBuilderError::MissingNativeQueryArgument { .. }
+            | QueryBuilderError::UnknownTable(_)
+            | QueryBuilderError::UnknownTableArgument { .. }
+            | QueryBuilderError::UnknownQueryArgument { .. }
+            | QueryBuilderError::UnknownTableType(_)
+            | QueryBuilderError::UnknownColumn(_, _)
+            | QueryBuilderError::CannotSerializeVariables(_)
+            | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
+            | QueryBuilderError::UnknownBinaryComparisonOperator(_)
+            | QueryBuilderError::Typecasting(_) => {
+                QueryError::UnprocessableContent(value.to_string())
+            }
+            QueryBuilderError::NotSupported(_) => {
+                QueryError::UnsupportedOperation(value.to_string())
+            }
+            QueryBuilderError::Unexpected(_) => QueryError::Other(Box::new(value)),
+        }
+    }
+}
+
+impl From<QueryBuilderError> for ExplainError {
+    fn from(value: QueryBuilderError) -> Self {
+        match value {
+            QueryBuilderError::MissingRelationship(_)
+            | QueryBuilderError::MissingNativeQueryArgument { .. }
+            | QueryBuilderError::UnknownTable(_)
+            | QueryBuilderError::UnknownTableArgument { .. }
+            | QueryBuilderError::UnknownQueryArgument { .. }
+            | QueryBuilderError::UnknownTableType(_)
+            | QueryBuilderError::UnknownColumn(_, _)
+            | QueryBuilderError::CannotSerializeVariables(_)
+            | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
+            | QueryBuilderError::UnknownBinaryComparisonOperator(_)
+            | QueryBuilderError::Typecasting(_) => {
+                ExplainError::UnprocessableContent(value.to_string())
+            }
+            QueryBuilderError::NotSupported(_) => {
+                ExplainError::UnsupportedOperation(value.to_string())
+            }
+            QueryBuilderError::Unexpected(_) => ExplainError::Other(Box::new(value)),
+        }
+    }
+}

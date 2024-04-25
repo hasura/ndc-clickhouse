@@ -6,6 +6,8 @@ use ndc_sdk::models;
 
 use crate::schema::{ClickHouseSingleColumnAggregateFunction, ClickHouseTypeDefinition};
 
+use super::QueryBuilderError;
+
 /// Tuple(rows <RowsCastString>, aggregates <RowsCastString>)
 pub struct RowsetTypeString {
     rows: Option<RowsTypeString>,
@@ -314,3 +316,9 @@ impl Display for TypeStringError {
 }
 
 impl std::error::Error for TypeStringError {}
+
+impl From<TypeStringError> for QueryBuilderError {
+    fn from(value: TypeStringError) -> Self {
+        QueryBuilderError::Typecasting(value)
+    }
+}
