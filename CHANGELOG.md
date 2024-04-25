@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7]
+
+- Fix a bug introduced in 0.2.6 that would cause responses including a single quote to be serialized as invalid JSON strings
+
 ## [0.2.6]
 
 - Add additional trace spans for SQL generation and query execution
