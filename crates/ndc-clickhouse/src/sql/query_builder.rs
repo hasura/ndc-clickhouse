@@ -170,7 +170,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             .select(select)
             .from(from)
             .order_by(order_by)
-            .into_statement())
+            .into_statement()
+            .format("TabSeparatedRaw"))
     }
     fn rowset_subquery(
         &self,
