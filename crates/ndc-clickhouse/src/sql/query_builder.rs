@@ -57,8 +57,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 query,
                                 &self.request.collection_relationships,
                                 &self.configuration,
-                            )
-                            .map_err(|err| QueryBuilderError::Typecasting(err.to_string()))?
+                            )?
                             .to_string(),
                         ))
                         .into_arg(),
@@ -71,6 +70,12 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             .into_select(Some("rowsets"))];
 
         let with = if let Some(variables) = &self.request.variables {
+            // we make the following assumptions here:
+            // variables is an array with at least one item
+            // all items in variables are object with keys and primitive values
+            // all items have the same keys
+            // if those assumptions aren't true, we may generate a misshapen object
+            // clickhouse will reject this at runtime
             let mut variable_values: IndexMap<String, Vec<serde_json::Value>> = IndexMap::new();
 
             variable_values.insert(
@@ -165,7 +170,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             .select(select)
             .from(from)
             .order_by(order_by)
-            .into_statement())
+            .into_statement()
+            .format("TabSeparatedRaw"))
     }
     fn rowset_subquery(
         &self,
@@ -236,7 +242,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         }
                         .into_arg())
                     })
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<Result<Vec<_>, QueryBuilderError>>()?;
                 Function::new_unquoted("tuple").args(args).into_expr()
             })
         } else {
@@ -400,7 +406,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 .into_box(),
                             })
                         })
-                        .collect::<Result<Vec<_>, _>>()?;
+                        .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
                     if self.request.variables.is_some() {
                         join_expr.push(Expr::BinaryOp {
@@ -612,7 +618,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                             .into_box(),
                                         })
                                     })
-                                    .collect::<Result<Vec<_>, _>>()?;
+                                    .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
                                 let join_operator = join_exprs
                                     .into_iter()
@@ -723,7 +729,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         .into_box(),
                                     })
                                 })
-                                .collect::<Result<Vec<_>, _>>()?;
+                                .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
                             if self.request.variables.is_some() {
                                 join_exprs.push(Expr::BinaryOp {
@@ -790,7 +796,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     self.column_ident(relkey, current_collection)?,
                 ]))
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
         if self.request.variables.is_some() {
             limit_by_cols.push(Expr::CompoundIdentifier(vec![
@@ -1160,7 +1166,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             right,
                         })
                     })
-                    .collect::<Result<_, _>>()?
+                    .collect::<Result<_, QueryBuilderError>>()?
             }
             models::ExistsInCollection::Unrelated {
                 collection: _,
@@ -1353,7 +1359,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                                 .into_box(),
                                             })
                                         })
-                                        .collect::<Result<Vec<_>, _>>()?;
+                                        .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
                                     let join_operator = join_exprs
                                         .into_iter()
@@ -1443,7 +1449,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         .into_box(),
                                     })
                                 })
-                                .collect::<Result<Vec<_>, _>>()?;
+                                .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
                             if self.request.variables.is_some() {
                                 join_exprs.push(Expr::BinaryOp {
@@ -1537,7 +1543,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         .into_box(),
                                     })
                                 })
-                                .collect::<Result<Vec<_>, _>>()?;
+                                .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
                             let join_operator = join_exprs
                                 .into_iter()

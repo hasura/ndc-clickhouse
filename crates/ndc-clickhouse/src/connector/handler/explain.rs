@@ -16,9 +16,7 @@ pub async fn explain(
     state: &ServerState,
     request: models::QueryRequest,
 ) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
-    let unsafe_statement = QueryBuilder::new(&request, configuration)
-        .build()
-        .map_err(|err| ExplainError::Other(Box::new(err)))?;
+    let unsafe_statement = QueryBuilder::new(&request, configuration).build()?;
 
     let unsafe_statement = unsafe_statement.explain();
 

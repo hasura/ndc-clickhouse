@@ -1,16 +1,99 @@
-version: "3.8"
 services:
   ndc-clickhouse:
     build:
       context: .
+      args:
+        # enable debug assertions to run debug code in our local build
+        RUSTFLAGS: -C debug-assertions=true
+    restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "5000:5000"
     environment:
-      HASURA_CONNECTOR_PORT: 4000
+      HASURA_CONNECTOR_PORT: 5000
       HASURA_CONFIGURATION_DIRECTORY: /etc/connector
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL}
-      CLICKHOUSE_USERNAME: ${CLICKHOUSE_USERNAME}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USERNAME: default
+      CLICKHOUSE_PASSWORD: default
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://jaeger:4317"
+      OTEL_SERVICE_NAME: "ndc-clickhouse"
+      RUST_LOG: debug
     volumes:
-      - ./config:/etc/connector
+      - ./tests/config:/etc/connector
     command: serve
+    depends_on:
+      jaeger:
+        condition: service_started
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: default
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse/
+      - ./tests/clickhouse-db/logs:/var/log/clickhouse-server/
+      - ./tests/clickhouse-db/init:/docker-entrypoint-initdb.d/
+
+  engine:
+    image: ghcr.io/hasura/v3-engine
+    restart: unless-stopped
+    environment:
+      METADATA_PATH: /metadata.json
+      AUTHN_CONFIG_PATH: /auth-config.json
+      OTLP_ENDPOINT: http://jaeger:4317
+      LOG_LEVEL: debug
+    ports:
+      - 3000:3000
+    volumes:
+      - ./tests/engine/metadata.json:/metadata.json
+      - ./tests/engine/auth-config.json:/auth-config.json
+    depends_on:
+      jaeger:
+        condition: service_started
+      auth-hook:
+        condition: service_started
+    develop:
+      watch:
+        - path: ./tests/engine/metadata.json
+          target: /metadata.json
+          action: sync+restart
+        - path: ./tests/engine/auth-config.json
+          target: /auth-config.json
+          action: sync+restart
+
+  auth-hook:
+    image: ghcr.io/hasura/v3-dev-auth-webhook
+    restart: unless-stopped
+    environment:
+      OTLP_ENDPOINT: "http://jaeger:4317"
+    ports:
+      - "3050:3050"
+    depends_on:
+      jaeger:
+        condition: service_started
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    restart: always
+    ports:
+      - 5775:5775/udp
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686 # Jaeger UI
+      - 14250:14250
+      - 14268:14268
+      - 14269:14269
+      - 4317:4317 # OTLP gRPC
+      - 4318:4318 # OTLP HTTP
+      - 9411:9411
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      COLLECTOR_ZIPKIN_HOST_PORT: "9411"
+
+volumes:
+  clickhouse-data:
