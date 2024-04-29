@@ -27,7 +27,10 @@ pub async fn execute_query(
         .query(parameters)
         .body(statement.to_owned())
         .send()
-        .instrument(tracing::info_span!("Execute HTTP request"))
+        .instrument(tracing::info_span!(
+            "Execute HTTP request",
+            internal.visibility = "user"
+        ))
         .await?;
 
     if response.error_for_status_ref().is_err() {
@@ -36,7 +39,10 @@ pub async fn execute_query(
 
     let response = response
         .bytes()
-        .instrument(tracing::info_span!("Read HTTP response"))
+        .instrument(tracing::info_span!(
+            "Read HTTP response",
+            internal.visibility = "user"
+        ))
         .await?;
 
     Ok(response)
