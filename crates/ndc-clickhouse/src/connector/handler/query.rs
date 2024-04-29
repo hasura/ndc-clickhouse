@@ -23,23 +23,25 @@ pub async fn query(
     }
 
     let (statement_string, parameters) =
-        tracing::info_span!("Build SQL Query").in_scope(|| -> Result<_, QueryError> {
-            let statement = QueryBuilder::new(&request, configuration).build()?;
+        tracing::info_span!("Build SQL Query", internal.visibility = "user").in_scope(
+            || -> Result<_, QueryError> {
+                let statement = QueryBuilder::new(&request, configuration).build()?;
 
-            #[cfg(debug_assertions)]
-            {
-                // this block only present in debug builds, to avoid leaking sensitive information
-                let unsafe_statement_string = statement.to_unsafe_sql_string();
+                #[cfg(debug_assertions)]
+                {
+                    // this block only present in debug builds, to avoid leaking sensitive information
+                    let unsafe_statement_string = statement.to_unsafe_sql_string();
 
-                tracing::event!(Level::DEBUG, "Generated SQL" = unsafe_statement_string);
-            }
+                    tracing::event!(Level::DEBUG, "Generated SQL" = unsafe_statement_string);
+                }
 
-            let (statement, parameters) = statement.into_parameterized_statement();
+                let (statement, parameters) = statement.into_parameterized_statement();
 
-            let statement_string = statement.to_parameterized_sql_string();
+                let statement_string = statement.to_parameterized_sql_string();
 
-            Ok((statement_string, parameters))
-        })?;
+                Ok((statement_string, parameters))
+            },
+        )?;
 
     let client = state
         .client(configuration)
@@ -51,6 +53,7 @@ pub async fn query(
         db.system = "clickhouse",
         db.user = configuration.connection.username,
         db.statement = statement_string,
+        internal.visibility = "user",
     );
 
     let rowsets = execute_query(
