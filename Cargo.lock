@@ -1074,6 +1074,7 @@ dependencies = [
  "ndc-sdk",
  "prometheus",
  "reqwest 0.12.3",
+ "schemars",
  "serde",
  "serde_json",
  "sqlformat",
