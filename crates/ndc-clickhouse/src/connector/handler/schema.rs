@@ -1,7 +1,7 @@
 use crate::schema::ClickHouseTypeDefinition;
 use common::{
     clickhouse_parser::{
-        datatype::{ClickHouseDataType, Identifier},
+        datatype::ClickHouseDataType,
         parameterized_query::{Parameter, ParameterType, ParameterizedQueryElement},
     },
     config::ServerConfig,
@@ -23,6 +23,7 @@ pub async fn schema(
                 &column_type,
                 &column_alias,
                 &type_name,
+                &configuration.namespace_separator,
             );
 
             let (scalars, objects) = type_definition.type_definitions();
@@ -61,6 +62,7 @@ pub async fn schema(
                 &argument_type,
                 &argument_name,
                 table_alias,
+                &configuration.namespace_separator,
             );
             let (scalars, objects) = type_definition.type_definitions();
 
@@ -79,19 +81,15 @@ pub async fn schema(
     for (query_alias, query_config) in &configuration.queries {
         for element in &query_config.query.elements {
             if let ParameterizedQueryElement::Parameter(Parameter { name, r#type }) = element {
-                let argument_alias = match name {
-                    Identifier::DoubleQuoted(n)
-                    | Identifier::BacktickQuoted(n)
-                    | Identifier::Unquoted(n) => n,
-                };
                 let data_type = match r#type {
                     ParameterType::Identifier => &ClickHouseDataType::String,
                     ParameterType::DataType(t) => t,
                 };
                 let type_definition = ClickHouseTypeDefinition::from_query_argument(
                     data_type,
-                    &argument_alias,
+                    name.value(),
                     query_alias,
+                    &configuration.namespace_separator,
                 );
 
                 let (scalars, objects) = type_definition.type_definitions();
@@ -123,6 +121,7 @@ pub async fn schema(
                         &argument_type,
                         &argument_name,
                         table_alias,
+                        &configuration.namespace_separator,
                     );
                     (
                         argument_name.to_owned(),
@@ -164,23 +163,19 @@ pub async fn schema(
                 .filter_map(|element| match element {
                     ParameterizedQueryElement::String(_) => None,
                     ParameterizedQueryElement::Parameter(Parameter { name, r#type }) => {
-                        let argument_alias = match name {
-                            Identifier::DoubleQuoted(n)
-                            | Identifier::BacktickQuoted(n)
-                            | Identifier::Unquoted(n) => n,
-                        };
                         let data_type = match r#type {
                             ParameterType::Identifier => &ClickHouseDataType::String,
                             ParameterType::DataType(t) => &t,
                         };
                         let type_definition = ClickHouseTypeDefinition::from_query_argument(
                             data_type,
-                            &argument_alias,
+                            name.value(),
                             query_alias,
+                            &configuration.namespace_separator,
                         );
 
                         Some((
-                            argument_alias.to_owned(),
+                            name.value().to_owned(),
                             models::ArgumentInfo {
                                 description: None,
                                 argument_type: type_definition.type_identifier(),
