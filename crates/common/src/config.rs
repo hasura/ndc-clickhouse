@@ -10,6 +10,7 @@ use crate::{
 pub struct ServerConfig {
     /// the connection part of the config is not part of the config file
     pub connection: ConnectionConfig,
+    pub namespace_separator: String,
     pub table_types: BTreeMap<ReturnTypeRef, TableType>,
     pub tables: BTreeMap<String, TableConfig>,
     pub queries: BTreeMap<String, ParameterizedQueryConfig>,
