@@ -287,6 +287,9 @@ pub async fn read_server_config(
 
     let config = ServerConfig {
         connection,
+        // hardcoding separator for now, to avoid prematurely exposing configuration options we may not want to keep
+        // if we make this configurable, we must default to this separator when the option is not provided
+        namespace_separator: ".".to_string(),
         table_types,
         tables,
         queries,
