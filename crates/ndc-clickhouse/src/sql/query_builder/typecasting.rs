@@ -68,12 +68,12 @@ impl RowsetTypeString {
             )]),
             (Some(rows), None) => ClickHouseDataType::Tuple(vec![(
                 Some(Identifier::Unquoted("rows".to_string())),
-                ClickHouseDataType::Array(Box::new(rows.into_cast_type()))
-                )]),
-                (Some(rows), Some(aggregates)) => ClickHouseDataType::Tuple(vec![
-                    (
-                        Some(Identifier::Unquoted("rows".to_string())),
-                        ClickHouseDataType::Array(Box::new(rows.into_cast_type()))
+                ClickHouseDataType::Array(Box::new(rows.into_cast_type())),
+            )]),
+            (Some(rows), Some(aggregates)) => ClickHouseDataType::Tuple(vec![
+                (
+                    Some(Identifier::Unquoted("rows".to_string())),
+                    ClickHouseDataType::Array(Box::new(rows.into_cast_type())),
                 ),
                 (
                     Some(Identifier::Unquoted("aggregates".to_string())),
@@ -257,10 +257,7 @@ impl FieldTypeString {
                     Ok(FieldTypeString::Array(Box::new(underlying_typestring)))
                 }
                 (
-                    ClickHouseTypeDefinition::Object {
-                        name: _,
-                        fields,
-                    },
+                    ClickHouseTypeDefinition::Object { name: _, fields },
                     NestedField::Object(subfield_selector),
                 ) => {
                     let subfields = subfield_selector
@@ -469,7 +466,6 @@ impl Display for TypeStringError {
             TypeStringError::NotSupported(feature) => write!(f, "Not supported: {feature}"),
             TypeStringError::NestedFieldTypeMismatch { expected, got } => write!(f, "Nested field selector type mismatch, expected: {expected}, got {got}"),
             TypeStringError::MissingNestedField { field_name, object_type } => write!(f, "Missing field {field_name} in object type {object_type}"),
-            
         }
     }
 }
