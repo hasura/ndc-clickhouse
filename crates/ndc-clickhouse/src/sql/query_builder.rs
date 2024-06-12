@@ -703,7 +703,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         last_join_alias,
                                         self.column_ident(name),
                                     ]);
-                                    select.push(column.into_select(Some("_order_by_value")))
+                                    group_by.push(column.clone());
+                                    select.push(column.into_select(Some("_order_by_value")));
                                 }
                                 models::OrderByTarget::SingleColumnAggregate {
                                     column,
@@ -718,14 +719,14 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         aggregate_function(function)?
                                             .as_expr(column)
                                             .into_select(Some("_order_by_value")),
-                                    )
+                                    );
                                 }
                                 models::OrderByTarget::StarCountAggregate { path: _ } => {
                                     let count = Function::new_unquoted("COUNT")
                                         .args(vec![FunctionArgExpr::Wildcard.into_arg()]);
                                     select.push(
                                         count.into_expr().into_select(Some("_order_by_value")),
-                                    )
+                                    );
                                 }
                             }
 
@@ -739,10 +740,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             let predicate = additional_predicate.into_iter().reduce(and_reducer);
 
                             let limit_by = Some(LimitByExpr::new(Some(1), None, limit_by));
-                            if let models::OrderByTarget::Column { .. } = &element.target {
-                                // skip group by clause when ordering by column
-                                group_by = vec![]
-                            }
 
                             Query::new()
                                 .select(select)
