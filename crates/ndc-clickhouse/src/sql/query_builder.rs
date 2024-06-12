@@ -421,75 +421,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             select.push(Expr::Value(Value::Null).into_select::<String>(None))
         }
 
-        if let Some(fields) = &query.fields {
-            for (alias, field) in fields {
-                if let models::Field::Relationship {
-                    query,
-                    relationship,
-                    arguments,
-                } = field
-                {
-                    let relationship = self.collection_relationship(relationship)?;
-                    let relationship_collection =
-                        CollectionContext::from_relationship(&relationship, arguments);
-
-                    let mut join_expr = relationship
-                        .column_mapping
-                        .iter()
-                        .map(|(source_col, target_col)| {
-                            Ok(Expr::BinaryOp {
-                                left: Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_origin"),
-                                    self.column_ident(source_col),
-                                ])
-                                .into_box(),
-                                op: BinaryOperator::Eq,
-                                right: Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted(format!("_rel_{alias}")),
-                                    Ident::new_quoted(format!("_relkey_{target_col}")),
-                                ])
-                                .into_box(),
-                            })
-                        })
-                        .collect::<Result<Vec<_>, QueryBuilderError>>()?;
-
-                    if self.request.variables.is_some() {
-                        join_expr.push(Expr::BinaryOp {
-                            left: Expr::CompoundIdentifier(vec![
-                                Ident::new_quoted("_vars"),
-                                Ident::new_quoted("_varset_id"),
-                            ])
-                            .into_box(),
-                            op: BinaryOperator::Eq,
-                            right: Expr::CompoundIdentifier(vec![
-                                Ident::new_quoted(format!("_rel_{alias}")),
-                                Ident::new_quoted("_varset_id"),
-                            ])
-                            .into_box(),
-                        })
-                    }
-
-                    let join_operator = join_expr
-                        .into_iter()
-                        .reduce(and_reducer)
-                        .map(|expr| JoinOperator::LeftOuter(JoinConstraint::On(expr)))
-                        .unwrap_or(JoinOperator::CrossJoin);
-
-                    let relkeys = relationship.column_mapping.values().collect();
-
-                    let join = Join {
-                        relation: self
-                            .rowset_subquery(&relationship_collection, &relkeys, query)?
-                            .into_table_factor()
-                            .alias(format!("_rel_{alias}")),
-                        join_operator,
-                    };
-
-                    base_joins.push(join)
-                }
-            }
-        }
-
         let (predicate, predicate_joins) = if let Some(predicate) = &query.predicate {
             self.filter_expression(
                 predicate,
@@ -503,10 +434,75 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             (None, vec![])
         };
 
+        let (order_by_exprs, order_by_joins) = self.order_by(&query.order_by)?;
+
+        let joins = base_joins
+            .into_iter()
+            .chain(predicate_joins)
+            .chain(order_by_joins)
+            .collect();
+
+        let from = vec![table.into_table_with_joins(joins)];
+
+        let mut limit_by_cols = relkeys
+            .iter()
+            .map(|relkey| {
+                Ok(Expr::CompoundIdentifier(vec![
+                    Ident::new_quoted("_origin"),
+                    self.column_ident(relkey),
+                ]))
+            })
+            .collect::<Result<Vec<_>, QueryBuilderError>>()?;
+
+        if self.request.variables.is_some() {
+            limit_by_cols.push(Expr::CompoundIdentifier(vec![
+                Ident::new_quoted("_vars"),
+                Ident::new_quoted("_varset_id"),
+            ]));
+        }
+
+        let (limit_by, limit, offset) = if limit_by_cols.is_empty() {
+            (
+                None,
+                query.limit.map(|limit| limit as u64),
+                query.offset.map(|offset| offset as u64),
+            )
+        } else {
+            let limit_by = match (query.limit, query.offset) {
+                (None, None) => None,
+                (None, Some(offset)) => {
+                    Some(LimitByExpr::new(None, Some(offset as u64), limit_by_cols))
+                }
+                (Some(limit), None) => {
+                    Some(LimitByExpr::new(Some(limit as u64), None, limit_by_cols))
+                }
+                (Some(limit), Some(offset)) => Some(LimitByExpr::new(
+                    Some(limit as u64),
+                    Some(offset as u64),
+                    limit_by_cols,
+                )),
+            };
+
+            (limit_by, None, None)
+        };
+
+        Ok(Query::new()
+            .select(select)
+            .from(from)
+            .predicate(predicate)
+            .order_by(order_by_exprs)
+            .limit_by(limit_by)
+            .limit(limit)
+            .offset(offset))
+    }
+    fn order_by(
+        &self,
+        order_by: &Option<models::OrderBy>,
+    ) -> Result<(Vec<OrderByExpr>, Vec<Join>), QueryBuilderError> {
         let mut order_by_exprs = vec![];
         let mut order_by_joins = vec![];
 
-        if let Some(order_by) = &query.order_by {
+        if let Some(order_by) = &order_by {
             let mut order_by_index = 0;
 
             for element in &order_by.elements {
@@ -538,6 +534,16 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                         let relationship =
                             self.collection_relationship(&first_element.relationship)?;
+
+                        if let (
+                            models::RelationshipType::Array,
+                            models::OrderByTarget::Column { .. },
+                        ) = (&relationship.relationship_type, &element.target)
+                        {
+                            return Err(QueryBuilderError::NotSupported(
+                                "order by column across array relationship".to_string(),
+                            ));
+                        }
                         let relationship_collection = CollectionContext::from_relationship(
                             relationship,
                             &first_element.arguments,
@@ -633,6 +639,17 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                                 let relationship =
                                     self.collection_relationship(&path_element.relationship)?;
+
+                                if let (
+                                    models::RelationshipType::Array,
+                                    models::OrderByTarget::Column { .. },
+                                ) = (&relationship.relationship_type, &element.target)
+                                {
+                                    return Err(QueryBuilderError::NotSupported(
+                                        "order by column across array relationship".to_string(),
+                                    ));
+                                }
+
                                 let relationship_collection = CollectionContext::from_relationship(
                                     relationship,
                                     &path_element.arguments,
@@ -719,12 +736,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     )
                                 }
                                 models::OrderByTarget::StarCountAggregate { path: _ } => {
-                                    if select.is_empty() {
-                                        select.push(
-                                            Expr::Value(Value::Number("1".to_string()))
-                                                .into_select(Some("_order_by_value")),
-                                        )
-                                    }
+                                    let count = Function::new_unquoted("COUNT")
+                                        .args(vec![FunctionArgExpr::Wildcard.into_arg()]);
+                                    select.push(
+                                        count.into_expr().into_select(Some("_order_by_value")),
+                                    )
                                 }
                             }
 
@@ -738,6 +754,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             let predicate = additional_predicate.into_iter().reduce(and_reducer);
 
                             let limit_by = Some(LimitByExpr::new(Some(1), None, limit_by));
+                            if let models::OrderByTarget::Column { .. } = &element.target {
+                                // skip group by clause when ordering by column
+                                group_by = vec![]
+                            }
 
                             Query::new()
                                 .select(select)
@@ -817,64 +837,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             }
         }
 
-        let joins = base_joins
-            .into_iter()
-            .chain(predicate_joins)
-            .chain(order_by_joins)
-            .collect();
-
-        let from = vec![table.into_table_with_joins(joins)];
-
-        let mut limit_by_cols = relkeys
-            .iter()
-            .map(|relkey| {
-                Ok(Expr::CompoundIdentifier(vec![
-                    Ident::new_quoted("_origin"),
-                    self.column_ident(relkey),
-                ]))
-            })
-            .collect::<Result<Vec<_>, QueryBuilderError>>()?;
-
-        if self.request.variables.is_some() {
-            limit_by_cols.push(Expr::CompoundIdentifier(vec![
-                Ident::new_quoted("_vars"),
-                Ident::new_quoted("_varset_id"),
-            ]));
-        }
-
-        let (limit_by, limit, offset) = if limit_by_cols.is_empty() {
-            (
-                None,
-                query.limit.map(|limit| limit as u64),
-                query.offset.map(|offset| offset as u64),
-            )
-        } else {
-            let limit_by = match (query.limit, query.offset) {
-                (None, None) => None,
-                (None, Some(offset)) => {
-                    Some(LimitByExpr::new(None, Some(offset as u64), limit_by_cols))
-                }
-                (Some(limit), None) => {
-                    Some(LimitByExpr::new(Some(limit as u64), None, limit_by_cols))
-                }
-                (Some(limit), Some(offset)) => Some(LimitByExpr::new(
-                    Some(limit as u64),
-                    Some(offset as u64),
-                    limit_by_cols,
-                )),
-            };
-
-            (limit_by, None, None)
-        };
-
-        Ok(Query::new()
-            .select(select)
-            .from(from)
-            .predicate(predicate)
-            .order_by(order_by_exprs)
-            .limit_by(limit_by)
-            .limit(limit)
-            .offset(offset))
+        Ok((order_by_exprs, order_by_joins))
     }
     fn field_relationship(
         &self,
