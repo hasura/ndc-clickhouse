@@ -1,0 +1,15 @@
+{
+    "$schema": "../../request.schema.json",
+    "collection": "q11",
+    "query": {
+        "fields": {
+            "revenue": {
+                "type": "column",
+                "column": "revenue",
+                "fields": null
+            }
+        }
+    },
+    "arguments": {},
+    "collection_relationships": {}
+}

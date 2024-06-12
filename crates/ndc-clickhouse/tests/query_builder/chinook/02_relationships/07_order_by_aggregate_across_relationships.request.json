@@ -1,0 +1,116 @@
+{
+    "$schema": "../../request.schema.json",
+    "collection": "Chinook_Track",
+    "query": {
+        "fields": {
+            "trackId": {
+                "type": "column",
+                "column": "TrackId",
+                "fields": null
+            },
+            "name": {
+                "type": "column",
+                "column": "Name",
+                "fields": null
+            }
+        },
+        "order_by": {
+            "elements": [
+                {
+                    "order_direction": "asc",
+                    "target": {
+                        "type": "column",
+                        "name": "Name",
+                        "path": [
+                            {
+                                "relationship": "[{\"subgraph\":\"app\",\"name\":\"ChinookTrack\"},\"Album\"]",
+                                "arguments": {},
+                                "predicate": {
+                                    "type": "and",
+                                    "expressions": []
+                                }
+                            },
+                            {
+                                "relationship": "[{\"subgraph\":\"app\",\"name\":\"ChinookAlbum\"},\"Artist\"]",
+                                "arguments": {},
+                                "predicate": {
+                                    "type": "and",
+                                    "expressions": []
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "order_direction": "asc",
+                    "target": {
+                        "type": "star_count_aggregate",
+                        "path": [
+                            {
+                                "relationship": "[{\"subgraph\":\"app\",\"name\":\"ChinookTrack\"},\"Album\"]",
+                                "arguments": {},
+                                "predicate": {
+                                    "type": "and",
+                                    "expressions": []
+                                }
+                            },
+                            {
+                                "relationship": "[{\"subgraph\":\"app\",\"name\":\"ChinookAlbum\"},\"Artist\"]",
+                                "arguments": {},
+                                "predicate": {
+                                    "type": "and",
+                                    "expressions": []
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "order_direction": "asc",
+                    "target": {
+                        "type": "single_column_aggregate",
+                        "column": "Name",
+                        "function": "max",
+                        "path": [
+                            {
+                                "relationship": "[{\"subgraph\":\"app\",\"name\":\"ChinookTrack\"},\"Album\"]",
+                                "arguments": {},
+                                "predicate": {
+                                    "type": "and",
+                                    "expressions": []
+                                }
+                            },
+                            {
+                                "relationship": "[{\"subgraph\":\"app\",\"name\":\"ChinookAlbum\"},\"Artist\"]",
+                                "arguments": {},
+                                "predicate": {
+                                    "type": "and",
+                                    "expressions": []
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "arguments": {},
+    "collection_relationships": {
+        "[{\"subgraph\":\"app\",\"name\":\"ChinookAlbum\"},\"Artist\"]": {
+            "column_mapping": {
+                "ArtistId": "ArtistId"
+            },
+            "relationship_type": "object",
+            "target_collection": "Chinook_Artist",
+            "arguments": {}
+        },
+        "[{\"subgraph\":\"app\",\"name\":\"ChinookTrack\"},\"Album\"]": {
+            "column_mapping": {
+                "AlbumId": "AlbumId"
+            },
+            "relationship_type": "object",
+            "target_collection": "Chinook_Album",
+            "arguments": {}
+        }
+    }
+}
