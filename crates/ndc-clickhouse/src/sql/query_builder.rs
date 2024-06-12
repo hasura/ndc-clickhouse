@@ -319,35 +319,20 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             for (alias, field) in fields {
                 match field {
                     models::Field::Column { column, fields } => {
-                        let column_type = self
-                            .configuration
-                            .tables
-                            .get(current_collection.alias())
-                            .and_then(|table| {
-                                self.configuration.table_types.get(&table.return_type)
-                            })
-                            .and_then(|table_type| table_type.columns.get(column))
-                            .map(|datatype| {
-                                ClickHouseTypeDefinition::from_table_column(
-                                    datatype,
-                                    &column,
-                                    current_collection.alias(),
-                                    &self.configuration.namespace_separator,
-                                )
-                            })
-                            .ok_or_else(|| {
-                                QueryBuilderError::UnknownColumn(
-                                    column.to_owned(),
-                                    current_collection.alias().to_string(),
-                                )
-                            })?;
+                        let data_type = self.column_data_type(column, current_collection)?;
+                        let column_definition = ClickHouseTypeDefinition::from_table_column(
+                            &data_type,
+                            &column,
+                            current_collection.alias(),
+                            &self.configuration.namespace_separator,
+                        );
 
                         let column_ident =
                             vec![Ident::new_quoted("_origin"), self.column_ident(column)];
 
                         if let Some((expr, mut joins)) = self.column_accessor(
                             column_ident,
-                            &column_type,
+                            &column_definition,
                             false,
                             fields.as_ref(),
                             &mut rel_index,
