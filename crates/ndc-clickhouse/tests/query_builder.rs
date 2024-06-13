@@ -11,7 +11,7 @@ mod test_utils {
         connector::read_server_config,
         sql::{QueryBuilder, QueryBuilderError},
     };
-    use ndc_sdk::models::{self, QueryRequest};
+    use ndc_sdk::models;
     use std::{env, error::Error, path::PathBuf};
     use tokio::fs;
 
@@ -45,7 +45,7 @@ mod test_utils {
         schema_dir: &str,
         group_dir: &str,
         test_name: &str,
-    ) -> Result<QueryRequest, Box<dyn Error>> {
+    ) -> Result<models::QueryRequest, Box<dyn Error>> {
         let request_path =
             tests_dir_path(schema_dir, group_dir).join(format!("{test_name}.request.json"));
 
@@ -89,7 +89,7 @@ mod test_utils {
     }
     fn generate_sql(
         configuration: &ServerConfig,
-        request: &QueryRequest,
+        request: &models::QueryRequest,
     ) -> Result<String, QueryBuilderError> {
         let generated_statement = pretty_print_sql(
             &QueryBuilder::new(&request, &configuration)

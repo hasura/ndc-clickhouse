@@ -32,6 +32,9 @@ FROM
             WHERE
               TRUE
               AND TRUE
+            GROUP BY
+              "_order_by_0"."AlbumId",
+              "_order_by_1"."Name"
             LIMIT
               1 BY "_order_by_0"."AlbumId"
           ) AS "_order_by_0" ON "_origin"."AlbumId" = "_order_by_0"."_relkey_AlbumId"
