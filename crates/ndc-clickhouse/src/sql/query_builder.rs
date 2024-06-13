@@ -1,27 +1,25 @@
-use std::str::FromStr;
-
-use common::{
-    clickhouse_parser::{
-        datatype::{ClickHouseDataType, Identifier},
-        parameterized_query::ParameterizedQueryElement,
-    },
-    config::ServerConfig,
-};
-use indexmap::IndexMap;
-
 mod collection_context;
 mod comparison_column;
 mod error;
 mod typecasting;
 
+use self::{collection_context::CollectionContext, typecasting::RowsetTypeString};
+use super::ast::*;
+use crate::schema::{
+    ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction,
+    ClickHouseTypeDefinition,
+};
+use common::{
+    clickhouse_parser::{
+        datatype::ClickHouseDataType, parameterized_query::ParameterizedQueryElement,
+    },
+    config::ServerConfig,
+};
 use comparison_column::ComparisonColumn;
 pub use error::QueryBuilderError;
+use indexmap::IndexMap;
 use ndc_sdk::models;
-
-use self::{collection_context::CollectionContext, typecasting::RowsetTypeString};
-
-use super::ast::*;
-use crate::schema::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
+use std::{collections::BTreeMap, iter, str::FromStr};
 
 pub struct QueryBuilder<'r, 'c> {
     request: &'r models::QueryRequest,
@@ -58,6 +56,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 &self.request.collection_relationships,
                                 &self.configuration,
                             )?
+                            .into_cast_type()
                             .to_string(),
                         ))
                         .into_arg(),
@@ -298,28 +297,74 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         relkeys: &Vec<&String>,
         query: &models::Query,
     ) -> Result<Query, QueryBuilderError> {
+        let (table, mut base_joins) = if self.request.variables.is_some() {
+            let table = ObjectName(vec![Ident::new_quoted("_vars")])
+                .into_table_factor()
+                .alias("_vars");
+
+            let joins = vec![Join {
+                relation: self.collection_ident(current_collection)?.alias("_origin"),
+                join_operator: JoinOperator::CrossJoin,
+            }];
+            (table, joins)
+        } else {
+            let table = self.collection_ident(current_collection)?.alias("_origin");
+            (table, vec![])
+        };
+
         let mut select = vec![];
 
         if let Some(fields) = &query.fields {
+            let mut rel_index = 0;
             for (alias, field) in fields {
-                let expr = match field {
+                match field {
                     models::Field::Column { column, fields } => {
-                        if fields.is_some() {
-                            return Err(QueryBuilderError::NotSupported(
-                                "nested field selector".into(),
-                            ));
+                        let data_type = self.column_data_type(column, current_collection)?;
+                        let column_definition = ClickHouseTypeDefinition::from_table_column(
+                            &data_type,
+                            &column,
+                            current_collection.alias(),
+                            &self.configuration.namespace_separator,
+                        );
+
+                        let column_ident =
+                            vec![Ident::new_quoted("_origin"), self.column_ident(column)];
+
+                        if let Some((expr, mut joins)) = self.column_accessor(
+                            column_ident,
+                            &column_definition,
+                            false,
+                            fields.as_ref(),
+                            &mut rel_index,
+                        )? {
+                            select.push(expr.into_select(Some(format!("_field_{alias}"))));
+                            base_joins.append(&mut joins);
+                        } else {
+                            let expr = Expr::CompoundIdentifier(vec![
+                                Ident::new_quoted("_origin"),
+                                self.column_ident(column),
+                            ]);
+                            select.push(expr.into_select(Some(format!("_field_{alias}"))));
                         }
-                        Expr::CompoundIdentifier(vec![
-                            Ident::new_quoted("_origin"),
-                            self.column_ident(column, current_collection)?,
-                        ])
                     }
-                    models::Field::Relationship { .. } => Expr::CompoundIdentifier(vec![
-                        Ident::new_quoted(format!("_rel_{alias}")),
-                        Ident::new_quoted("_rowset"),
-                    ]),
-                };
-                select.push(expr.into_select(Some(format!("_field_{alias}"))))
+                    models::Field::Relationship {
+                        query,
+                        relationship,
+                        arguments,
+                    } => {
+                        let (expr, join) = self.field_relationship(
+                            alias,
+                            &mut rel_index,
+                            &vec![Ident::new_quoted("_origin")],
+                            query,
+                            relationship,
+                            arguments,
+                        )?;
+
+                        select.push(expr.into_select(Some(format!("_field_{alias}"))));
+                        base_joins.push(join);
+                    }
+                }
             }
         }
 
@@ -330,7 +375,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 {
                     let expr = Expr::CompoundIdentifier(vec![
                         Ident::new_quoted("_origin"),
-                        self.column_ident(column, current_collection)?,
+                        self.column_ident(column),
                     ]);
                     select.push(expr.into_select(Some(format!("_agg_{alias}"))))
                 }
@@ -341,7 +386,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             select.push(
                 Expr::CompoundIdentifier(vec![
                     Ident::new_quoted("_origin"),
-                    self.column_ident(relkey, current_collection)?,
+                    self.column_ident(relkey),
                 ])
                 .into_select(Some(format!("_relkey_{relkey}"))),
             )
@@ -361,90 +406,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             select.push(Expr::Value(Value::Null).into_select::<String>(None))
         }
 
-        let (table, mut base_joins) = if self.request.variables.is_some() {
-            let table = ObjectName(vec![Ident::new_quoted("_vars")])
-                .into_table_factor()
-                .alias("_vars");
-
-            let joins = vec![Join {
-                relation: self.collection_ident(current_collection)?.alias("_origin"),
-                join_operator: JoinOperator::CrossJoin,
-            }];
-            (table, joins)
-        } else {
-            let table = self.collection_ident(current_collection)?.alias("_origin");
-            (table, vec![])
-        };
-
-        if let Some(fields) = &query.fields {
-            for (alias, field) in fields {
-                if let models::Field::Relationship {
-                    query,
-                    relationship,
-                    arguments,
-                } = field
-                {
-                    let relationship = self.collection_relationship(relationship)?;
-                    let relationship_collection =
-                        CollectionContext::from_relationship(&relationship, arguments);
-
-                    let mut join_expr = relationship
-                        .column_mapping
-                        .iter()
-                        .map(|(source_col, target_col)| {
-                            Ok(Expr::BinaryOp {
-                                left: Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_origin"),
-                                    self.column_ident(source_col, current_collection)?,
-                                ])
-                                .into_box(),
-                                op: BinaryOperator::Eq,
-                                right: Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted(format!("_rel_{alias}")),
-                                    Ident::new_quoted(format!("_relkey_{target_col}")),
-                                ])
-                                .into_box(),
-                            })
-                        })
-                        .collect::<Result<Vec<_>, QueryBuilderError>>()?;
-
-                    if self.request.variables.is_some() {
-                        join_expr.push(Expr::BinaryOp {
-                            left: Expr::CompoundIdentifier(vec![
-                                Ident::new_quoted("_vars"),
-                                Ident::new_quoted("_varset_id"),
-                            ])
-                            .into_box(),
-                            op: BinaryOperator::Eq,
-                            right: Expr::CompoundIdentifier(vec![
-                                Ident::new_quoted(format!("_rel_{alias}")),
-                                Ident::new_quoted("_varset_id"),
-                            ])
-                            .into_box(),
-                        })
-                    }
-
-                    let join_operator = join_expr
-                        .into_iter()
-                        .reduce(and_reducer)
-                        .map(|expr| JoinOperator::LeftOuter(JoinConstraint::On(expr)))
-                        .unwrap_or(JoinOperator::CrossJoin);
-
-                    let relkeys = relationship.column_mapping.values().collect();
-
-                    let join = Join {
-                        relation: self
-                            .rowset_subquery(&relationship_collection, &relkeys, query)?
-                            .into_table_factor()
-                            .alias(format!("_rel_{alias}")),
-                        join_operator,
-                    };
-
-                    base_joins.push(join)
-                }
-            }
-        }
-
         let (predicate, predicate_joins) = if let Some(predicate) = &query.predicate {
             self.filter_expression(
                 predicate,
@@ -458,10 +419,75 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             (None, vec![])
         };
 
+        let (order_by_exprs, order_by_joins) = self.order_by(&query.order_by)?;
+
+        let joins = base_joins
+            .into_iter()
+            .chain(predicate_joins)
+            .chain(order_by_joins)
+            .collect();
+
+        let from = vec![table.into_table_with_joins(joins)];
+
+        let mut limit_by_cols = relkeys
+            .iter()
+            .map(|relkey| {
+                Ok(Expr::CompoundIdentifier(vec![
+                    Ident::new_quoted("_origin"),
+                    self.column_ident(relkey),
+                ]))
+            })
+            .collect::<Result<Vec<_>, QueryBuilderError>>()?;
+
+        if self.request.variables.is_some() {
+            limit_by_cols.push(Expr::CompoundIdentifier(vec![
+                Ident::new_quoted("_vars"),
+                Ident::new_quoted("_varset_id"),
+            ]));
+        }
+
+        let (limit_by, limit, offset) = if limit_by_cols.is_empty() {
+            (
+                None,
+                query.limit.map(|limit| limit as u64),
+                query.offset.map(|offset| offset as u64),
+            )
+        } else {
+            let limit_by = match (query.limit, query.offset) {
+                (None, None) => None,
+                (None, Some(offset)) => {
+                    Some(LimitByExpr::new(None, Some(offset as u64), limit_by_cols))
+                }
+                (Some(limit), None) => {
+                    Some(LimitByExpr::new(Some(limit as u64), None, limit_by_cols))
+                }
+                (Some(limit), Some(offset)) => Some(LimitByExpr::new(
+                    Some(limit as u64),
+                    Some(offset as u64),
+                    limit_by_cols,
+                )),
+            };
+
+            (limit_by, None, None)
+        };
+
+        Ok(Query::new()
+            .select(select)
+            .from(from)
+            .predicate(predicate)
+            .order_by(order_by_exprs)
+            .limit_by(limit_by)
+            .limit(limit)
+            .offset(offset))
+    }
+    fn order_by(
+        &self,
+        order_by: &Option<models::OrderBy>,
+    ) -> Result<(Vec<OrderByExpr>, Vec<Join>), QueryBuilderError> {
         let mut order_by_exprs = vec![];
         let mut order_by_joins = vec![];
 
-        if let Some(order_by) = &query.order_by {
+        if let Some(order_by) = &order_by {
             let mut order_by_index = 0;
 
             for element in &order_by.elements {
@@ -469,7 +495,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     models::OrderByTarget::Column { name, path } if path.is_empty() => {
                         let expr = Expr::CompoundIdentifier(vec![
                             Ident::new_quoted("_origin"),
-                            self.column_ident(name, current_collection)?,
+                            self.column_ident(name),
                         ]);
                         let asc = match &element.order_direction {
                             models::OrderDirection::Asc => Some(true),
@@ -493,6 +519,16 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                         let relationship =
                             self.collection_relationship(&first_element.relationship)?;
+
+                        if let (
+                            models::RelationshipType::Array,
+                            models::OrderByTarget::Column { .. },
+                        ) = (&relationship.relationship_type, &element.target)
+                        {
+                            return Err(QueryBuilderError::NotSupported(
+                                "order by column across array relationship".to_string(),
+                            ));
+                        }
                         let relationship_collection = CollectionContext::from_relationship(
                             relationship,
                             &first_element.arguments,
@@ -509,17 +545,17 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 select.push(
                                     Expr::CompoundIdentifier(vec![
                                         join_alias.clone(),
-                                        self.column_ident(target_col, &relationship_collection)?,
+                                        self.column_ident(target_col),
                                     ])
                                     .into_select(Some(format!("_relkey_{target_col}"))),
                                 );
                                 group_by.push(Expr::CompoundIdentifier(vec![
                                     join_alias.clone(),
-                                    self.column_ident(target_col, &relationship_collection)?,
+                                    self.column_ident(target_col),
                                 ]));
                                 limit_by.push(Expr::CompoundIdentifier(vec![
                                     join_alias.clone(),
-                                    self.column_ident(target_col, &relationship_collection)?,
+                                    self.column_ident(target_col),
                                 ]));
                             }
 
@@ -580,7 +616,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             }
 
                             let mut last_join_alias = join_alias;
-                            let mut last_collection_context = relationship_collection;
 
                             for path_element in path.iter().skip(1) {
                                 let join_alias =
@@ -589,6 +624,17 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                                 let relationship =
                                     self.collection_relationship(&path_element.relationship)?;
+
+                                if let (
+                                    models::RelationshipType::Array,
+                                    models::OrderByTarget::Column { .. },
+                                ) = (&relationship.relationship_type, &element.target)
+                                {
+                                    return Err(QueryBuilderError::NotSupported(
+                                        "order by column across array relationship".to_string(),
+                                    ));
+                                }
+
                                 let relationship_collection = CollectionContext::from_relationship(
                                     relationship,
                                     &path_element.arguments,
@@ -601,19 +647,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         Ok(Expr::BinaryOp {
                                             left: Expr::CompoundIdentifier(vec![
                                                 last_join_alias.clone(),
-                                                self.column_ident(
-                                                    source_col,
-                                                    &last_collection_context,
-                                                )?,
+                                                self.column_ident(source_col),
                                             ])
                                             .into_box(),
                                             op: BinaryOperator::Eq,
                                             right: Expr::CompoundIdentifier(vec![
                                                 join_alias.clone(),
-                                                self.column_ident(
-                                                    target_col,
-                                                    &relationship_collection,
-                                                )?,
+                                                self.column_ident(target_col),
                                             ])
                                             .into_box(),
                                         })
@@ -655,16 +695,16 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 }
 
                                 last_join_alias = join_alias;
-                                last_collection_context = relationship_collection;
                             }
 
                             match &element.target {
                                 models::OrderByTarget::Column { name, path: _ } => {
                                     let column = Expr::CompoundIdentifier(vec![
                                         last_join_alias,
-                                        self.column_ident(name, &last_collection_context)?,
+                                        self.column_ident(name),
                                     ]);
-                                    select.push(column.into_select(Some("_order_by_value")))
+                                    group_by.push(column.clone());
+                                    select.push(column.into_select(Some("_order_by_value")));
                                 }
                                 models::OrderByTarget::SingleColumnAggregate {
                                     column,
@@ -673,21 +713,20 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 } => {
                                     let column = Expr::CompoundIdentifier(vec![
                                         last_join_alias,
-                                        self.column_ident(column, &last_collection_context)?,
+                                        self.column_ident(column),
                                     ]);
                                     select.push(
                                         aggregate_function(function)?
                                             .as_expr(column)
                                             .into_select(Some("_order_by_value")),
-                                    )
+                                    );
                                 }
                                 models::OrderByTarget::StarCountAggregate { path: _ } => {
-                                    if select.is_empty() {
-                                        select.push(
-                                            Expr::Value(Value::Number("1".to_string()))
-                                                .into_select(Some("_order_by_value")),
-                                        )
-                                    }
+                                    let count = Function::new_unquoted("COUNT")
+                                        .args(vec![FunctionArgExpr::Wildcard.into_arg()]);
+                                    select.push(
+                                        count.into_expr().into_select(Some("_order_by_value")),
+                                    );
                                 }
                             }
 
@@ -718,7 +757,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     Ok(Expr::BinaryOp {
                                         left: Expr::CompoundIdentifier(vec![
                                             Ident::new_quoted("_origin"),
-                                            self.column_ident(source_col, &current_collection)?,
+                                            self.column_ident(source_col),
                                         ])
                                         .into_box(),
                                         op: BinaryOperator::Eq,
@@ -780,64 +819,85 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             }
         }
 
-        let joins = base_joins
-            .into_iter()
-            .chain(predicate_joins)
-            .chain(order_by_joins)
-            .collect();
+        Ok((order_by_exprs, order_by_joins))
+    }
+    fn field_relationship(
+        &self,
+        field_alias: &str,
+        name_index: &mut u32,
+        target_path: &Vec<Ident>,
+        query: &models::Query,
+        relationship: &str,
+        arguments: &BTreeMap<String, models::RelationshipArgument>,
+    ) -> Result<(Expr, Join), QueryBuilderError> {
+        let join_alias = format!("_rel_{name_index}_{field_alias}");
+        *name_index += 1;
 
-        let from = vec![table.into_table_with_joins(joins)];
+        let relationship = self.collection_relationship(relationship)?;
+        let relationship_collection =
+            CollectionContext::from_relationship(&relationship, &arguments);
 
-        let mut limit_by_cols = relkeys
+        let mut join_expr = relationship
+            .column_mapping
             .iter()
-            .map(|relkey| {
-                Ok(Expr::CompoundIdentifier(vec![
-                    Ident::new_quoted("_origin"),
-                    self.column_ident(relkey, current_collection)?,
-                ]))
+            .map(|(source_col, target_col)| {
+                Ok(Expr::BinaryOp {
+                    left: Expr::CompoundIdentifier(
+                        target_path
+                            .clone()
+                            .into_iter()
+                            .chain(iter::once(Ident::new_quoted(source_col)))
+                            .collect(),
+                    )
+                    .into_box(),
+                    op: BinaryOperator::Eq,
+                    right: Expr::CompoundIdentifier(vec![
+                        Ident::new_quoted(&join_alias),
+                        Ident::new_quoted(format!("_relkey_{target_col}")),
+                    ])
+                    .into_box(),
+                })
             })
             .collect::<Result<Vec<_>, QueryBuilderError>>()?;
 
         if self.request.variables.is_some() {
-            limit_by_cols.push(Expr::CompoundIdentifier(vec![
-                Ident::new_quoted("_vars"),
-                Ident::new_quoted("_varset_id"),
-            ]));
+            join_expr.push(Expr::BinaryOp {
+                left: Expr::CompoundIdentifier(vec![
+                    Ident::new_quoted("_vars"),
+                    Ident::new_quoted("_varset_id"),
+                ])
+                .into_box(),
+                op: BinaryOperator::Eq,
+                right: Expr::CompoundIdentifier(vec![
+                    Ident::new_quoted(&join_alias),
+                    Ident::new_quoted("_varset_id"),
+                ])
+                .into_box(),
+            })
         }
 
-        let (limit_by, limit, offset) = if limit_by_cols.is_empty() {
-            (
-                None,
-                query.limit.map(|limit| limit as u64),
-                query.offset.map(|offset| offset as u64),
-            )
-        } else {
-            let limit_by = match (query.limit, query.offset) {
-                (None, None) => None,
-                (None, Some(offset)) => {
-                    Some(LimitByExpr::new(None, Some(offset as u64), limit_by_cols))
-                }
-                (Some(limit), None) => {
-                    Some(LimitByExpr::new(Some(limit as u64), None, limit_by_cols))
-                }
-                (Some(limit), Some(offset)) => Some(LimitByExpr::new(
-                    Some(limit as u64),
-                    Some(offset as u64),
-                    limit_by_cols,
-                )),
-            };
+        let join_operator = join_expr
+            .into_iter()
+            .reduce(and_reducer)
+            .map(|expr| JoinOperator::LeftOuter(JoinConstraint::On(expr)))
+            .unwrap_or(JoinOperator::CrossJoin);
 
-            (limit_by, None, None)
+        let relkeys = relationship.column_mapping.values().collect();
+
+        let join = Join {
+            relation: self
+                .rowset_subquery(&relationship_collection, &relkeys, query)?
+                .into_table_factor()
+                .alias(&join_alias),
+            join_operator,
         };
 
-        Ok(Query::new()
-            .select(select)
-            .from(from)
-            .predicate(predicate)
-            .order_by(order_by_exprs)
-            .limit_by(limit_by)
-            .limit(limit)
-            .offset(offset))
+        let expr = Expr::CompoundIdentifier(vec![
+            Ident::new_quoted(&join_alias),
+            Ident::new_quoted("_rowset"),
+        ]);
+
+        Ok((expr, join))
     }
     fn filter_expression(
         &self,
@@ -1016,7 +1076,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 in_collection,
                 predicate,
                 current_join_alias,
-                current_collection,
                 name_index,
             ),
         }
@@ -1026,7 +1085,6 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         in_collection: &models::ExistsInCollection,
         expression: &Option<Box<models::Expression>>,
         previous_join_alias: &Ident,
-        previous_collection: &CollectionContext,
         name_index: &mut u32,
     ) -> Result<(Expr, Vec<Join>), QueryBuilderError> {
         let exists_join_ident = Ident::new_quoted(format!("_exists_{}", name_index));
@@ -1099,13 +1157,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     select.push(
                         Expr::CompoundIdentifier(vec![
                             subquery_origin_alias.clone(),
-                            self.column_ident(target_col, &target_collection)?,
+                            self.column_ident(target_col),
                         ])
                         .into_select(Some(format!("_relkey_{target_col}"))),
                     );
                     limit_by.push(Expr::CompoundIdentifier(vec![
                         subquery_origin_alias.clone(),
-                        self.column_ident(target_col, &target_collection)?,
+                        self.column_ident(target_col),
                     ]));
                 }
             }
@@ -1152,7 +1210,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     .map(|(source_col, target_col)| {
                         let left = Expr::CompoundIdentifier(vec![
                             previous_join_alias.clone(),
-                            self.column_ident(source_col, previous_collection)?,
+                            self.column_ident(source_col),
                         ])
                         .into_box();
                         let right = Expr::CompoundIdentifier(vec![
@@ -1254,16 +1312,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     select.push(
                                         Expr::CompoundIdentifier(vec![
                                             join_alias.clone(),
-                                            self.column_ident(
-                                                target_col,
-                                                &relationship_collection,
-                                            )?,
+                                            self.column_ident(target_col),
                                         ])
                                         .into_select(Some(format!("_relkey_{target_col}"))),
                                     );
                                     group_by.push(Expr::CompoundIdentifier(vec![
                                         join_alias.clone(),
-                                        self.column_ident(target_col, &relationship_collection)?,
+                                        self.column_ident(target_col),
                                     ]))
                                 }
 
@@ -1342,19 +1397,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                             Ok(Expr::BinaryOp {
                                                 left: Expr::CompoundIdentifier(vec![
                                                     last_join_alias.clone(),
-                                                    self.column_ident(
-                                                        source_col,
-                                                        &last_collection_context,
-                                                    )?,
+                                                    self.column_ident(source_col),
                                                 ])
                                                 .into_box(),
                                                 op: BinaryOperator::Eq,
                                                 right: Expr::CompoundIdentifier(vec![
                                                     join_alias.clone(),
-                                                    self.column_ident(
-                                                        target_col,
-                                                        &relationship_collection,
-                                                    )?,
+                                                    self.column_ident(target_col),
                                                 ])
                                                 .into_box(),
                                             })
@@ -1403,10 +1452,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     Function::new_unquoted("groupArray")
                                         .args(vec![Expr::CompoundIdentifier(vec![
                                             last_join_alias,
-                                            self.column_ident(
-                                                comparison_column_name,
-                                                &last_collection_context,
-                                            )?,
+                                            self.column_ident(comparison_column_name),
                                         ])
                                         .into_arg()])
                                         .into_expr()
@@ -1438,7 +1484,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     Ok(Expr::BinaryOp {
                                         left: Expr::CompoundIdentifier(vec![
                                             previous_join_alias.clone(),
-                                            self.column_ident(source_col, &current_collection)?,
+                                            self.column_ident(source_col),
                                         ])
                                         .into_box(),
                                         op: BinaryOperator::Eq,
@@ -1526,19 +1572,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     Ok(Expr::BinaryOp {
                                         left: Expr::CompoundIdentifier(vec![
                                             last_join_alias.clone(),
-                                            self.column_ident(
-                                                source_col,
-                                                &last_collection_context,
-                                            )?,
+                                            self.column_ident(source_col),
                                         ])
                                         .into_box(),
                                         op: BinaryOperator::Eq,
                                         right: Expr::CompoundIdentifier(vec![
                                             join_alias.clone(),
-                                            self.column_ident(
-                                                target_col,
-                                                &relationship_collection,
-                                            )?,
+                                            self.column_ident(target_col),
                                         ])
                                         .into_box(),
                                     })
@@ -1585,7 +1625,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                         let column_ident = Expr::CompoundIdentifier(vec![
                             last_join_alias,
-                            self.column_ident(comparison_column_name, &last_collection_context)?,
+                            self.column_ident(comparison_column_name),
                         ]);
 
                         Ok(ComparisonColumn::new_flat(
@@ -1601,7 +1641,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 } else {
                     let column_ident = Expr::CompoundIdentifier(vec![
                         current_join_alias.clone(),
-                        self.column_ident(comparison_column_name, current_collection)?,
+                        self.column_ident(comparison_column_name),
                     ]);
                     Ok(ComparisonColumn::new_simple(
                         column_ident,
@@ -1613,7 +1653,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 if current_is_origin {
                     let column_ident = Expr::CompoundIdentifier(vec![
                         current_join_alias.clone(),
-                        self.column_ident(name, current_collection)?,
+                        self.column_ident(name),
                     ]);
                     Ok(ComparisonColumn::new_simple(
                         column_ident,
@@ -1798,26 +1838,18 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     ParameterizedQueryElement::String(s) => {
                         Ok(NativeQueryElement::String(s.to_owned()))
                     }
-                    ParameterizedQueryElement::Parameter(p) => {
-                        let arg_alias = match &p.name {
-                            Identifier::DoubleQuoted(n)
-                            | Identifier::BacktickQuoted(n)
-                            | Identifier::Unquoted(n) => n,
-                        };
-
-                        get_argument(arg_alias)
-                            .transpose()?
-                            .map(|value| {
-                                NativeQueryElement::Parameter(Parameter::new(
-                                    value.into(),
-                                    p.r#type.clone(),
-                                ))
-                            })
-                            .ok_or_else(|| QueryBuilderError::MissingNativeQueryArgument {
-                                query: collection.alias().to_owned(),
-                                argument: arg_alias.to_owned(),
-                            })
-                    }
+                    ParameterizedQueryElement::Parameter(p) => get_argument(p.name.value())
+                        .transpose()?
+                        .map(|value| {
+                            NativeQueryElement::Parameter(Parameter::new(
+                                value.into(),
+                                p.r#type.clone(),
+                            ))
+                        })
+                        .ok_or_else(|| QueryBuilderError::MissingNativeQueryArgument {
+                            query: collection.alias().to_owned(),
+                            argument: p.name.value().to_owned(),
+                        }),
                 })
                 .collect::<Result<_, _>>()?;
 
@@ -1828,12 +1860,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             ))
         }
     }
-    fn column_ident(
-        &self,
-        column_alias: &str,
-        _collection: &CollectionContext,
-    ) -> Result<Ident, QueryBuilderError> {
-        Ok(Ident::new_quoted(column_alias))
+    fn column_ident(&self, column_alias: &str) -> Ident {
+        Ident::new_quoted(column_alias)
     }
     fn column_data_type(
         &self,
@@ -1864,6 +1892,153 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         })?;
 
         Ok(column_type.to_owned())
+    }
+    fn column_accessor(
+        &self,
+        column_ident: Vec<Ident>,
+        type_definition: &ClickHouseTypeDefinition,
+        traversed_array: bool,
+        field_selector: Option<&models::NestedField>,
+        rel_index: &mut u32,
+    ) -> Result<Option<(Expr, Vec<Join>)>, QueryBuilderError> {
+        if let Some(fields) = field_selector {
+            match fields {
+                models::NestedField::Array(inner) => {
+                    let element_type = match type_definition.non_nullable() {
+                        ClickHouseTypeDefinition::Array { element_type } => &**element_type,
+                        _ => {
+                            return Err(QueryBuilderError::ColumnTypeMismatch {
+                                expected: "Array".to_string(),
+                                got: type_definition.cast_type().to_string(),
+                            });
+                        }
+                    };
+
+                    let ident = Ident::new_unquoted("_value");
+
+                    if let Some((expr, joins)) = self.column_accessor(
+                        vec![ident.clone()],
+                        element_type,
+                        true,
+                        Some(&inner.fields),
+                        rel_index,
+                    )? {
+                        if !joins.is_empty() {
+                            return Err(QueryBuilderError::Unexpected("column accessor should not return relationship joins after array traversal".to_string()));
+                        }
+
+                        let expr = Function::new_unquoted("arrayMap")
+                            .args(vec![
+                                Lambda::new(vec![ident], expr).into_expr().into_arg(),
+                                Expr::CompoundIdentifier(column_ident).into_arg(),
+                            ])
+                            .into_expr();
+
+                        Ok(Some((expr, joins)))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                models::NestedField::Object(inner) => {
+                    let object_type_fields = match type_definition.non_nullable() {
+                        ClickHouseTypeDefinition::Object { name: _, fields } => fields,
+                        _ => {
+                            return Err(QueryBuilderError::ColumnTypeMismatch {
+                                expected: "Tuple/Object".to_string(),
+                                got: type_definition.cast_type().to_string(),
+                            });
+                        }
+                    };
+
+                    let chain_ident = |i: &str| -> Vec<Ident> {
+                        column_ident
+                            .clone()
+                            .into_iter()
+                            .chain(iter::once(Ident::new_quoted(i)))
+                            .collect()
+                    };
+
+                    let mut required_joins = vec![];
+                    let mut column_accessors = vec![];
+                    let mut required_columns = vec![];
+                    let mut accessor_required = false;
+                    for (alias, field) in &inner.fields {
+                        match field {
+                            models::Field::Column { column, fields } => {
+                                required_columns.push(column);
+
+                                let type_definition =
+                                    object_type_fields.get(column).ok_or_else(|| {
+                                        QueryBuilderError::UnknownSubField {
+                                            field_name: column.to_owned(),
+                                            data_type: type_definition.cast_type().to_string(),
+                                        }
+                                    })?;
+
+                                let column_ident = chain_ident(column);
+                                if let Some((expr, mut joins)) = self.column_accessor(
+                                    column_ident.clone(),
+                                    type_definition,
+                                    traversed_array,
+                                    fields.as_ref(),
+                                    rel_index,
+                                )? {
+                                    accessor_required = true;
+                                    required_joins.append(&mut joins);
+                                    column_accessors.push(expr);
+                                } else {
+                                    column_accessors.push(Expr::CompoundIdentifier(column_ident));
+                                }
+                            }
+                            models::Field::Relationship {
+                                query,
+                                relationship,
+                                arguments,
+                            } => {
+                                if traversed_array {
+                                    return Err(QueryBuilderError::NotSupported(
+                                        "Relationships with fields nested in arrays".to_string(),
+                                    ));
+                                }
+
+                                let (expr, join) = self.field_relationship(
+                                    alias,
+                                    rel_index,
+                                    &column_ident,
+                                    query,
+                                    relationship,
+                                    arguments,
+                                )?;
+
+                                required_joins.push(join);
+                                column_accessors.push(expr);
+                            }
+                        }
+                    }
+
+                    let all_columns: Vec<_> = object_type_fields.keys().collect();
+                    if !accessor_required
+                        && required_joins.is_empty()
+                        && required_columns == all_columns
+                    {
+                        Ok(None)
+                    } else {
+                        let expr = Function::new_unquoted("tuple")
+                            .args(
+                                column_accessors
+                                    .into_iter()
+                                    .map(|expr| expr.into_arg())
+                                    .collect(),
+                            )
+                            .into_expr();
+
+                        Ok(Some((expr, required_joins)))
+                    }
+                }
+            }
+        } else {
+            Ok(None)
+        }
     }
 }
 

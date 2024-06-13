@@ -1,57 +1,50 @@
-use std::collections::BTreeMap;
-
 use common::clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
+use indexmap::IndexMap;
 use ndc_sdk::models;
+use std::iter;
 
 use super::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
 
-#[derive(Debug, Clone, strum::Display)]
-pub enum ClickHouseScalar {
-    Bool,
-    String,
-    UInt8,
-    UInt16,
-    UInt32,
-    UInt64,
-    UInt128,
-    UInt256,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    Int128,
-    Int256,
-    Float32,
-    Float64,
-    Decimal,
-    Decimal32,
-    Decimal64,
-    Decimal128,
-    Decimal256,
-    Date,
-    Date32,
-    DateTime,
-    DateTime64,
-    #[strum(to_string = "JSON")]
-    Json,
-    #[strum(to_string = "UUID")]
-    Uuid,
-    IPv4,
-    IPv6,
-    #[strum(to_string = "{name}")]
-    Enum {
-        name: String,
-        variants: Vec<String>,
-    },
+#[derive(Debug, Clone)]
+struct NameSpace<'a> {
+    separator: &'a str,
+    path: Vec<&'a str>,
 }
+
+impl<'a> NameSpace<'a> {
+    pub fn new(path: Vec<&'a str>, separator: &'a str) -> Self {
+        Self { separator, path }
+    }
+    pub fn value(&self) -> String {
+        self.path.join(&self.separator)
+    }
+    pub fn child(&self, path_element: &'a str) -> Self {
+        Self {
+            separator: self.separator,
+            path: self
+                .path
+                .clone()
+                .into_iter()
+                .chain(iter::once(path_element))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ClickHouseScalar(ClickHouseDataType);
 
 impl ClickHouseScalar {
     fn type_name(&self) -> String {
-        self.to_string()
+        self.0.to_string()
+    }
+    fn cast_type(&self) -> ClickHouseDataType {
+        // todo: recusively map large number types to string here
+        self.0.clone()
     }
     fn type_definition(&self) -> models::ScalarType {
         models::ScalarType {
-            representation: Some(self.json_representation()),
+            representation: self.json_representation(),
             aggregate_functions: self
                 .aggregate_functions()
                 .into_iter()
@@ -60,7 +53,7 @@ impl ClickHouseScalar {
                         function.to_string(),
                         models::AggregateFunctionDefinition {
                             result_type: models::Type::Named {
-                                name: result_type.type_name(),
+                                name: result_type.to_string(),
                             },
                         },
                     )
@@ -108,319 +101,310 @@ impl ClickHouseScalar {
                 .collect(),
         }
     }
-    fn json_representation(&self) -> models::TypeRepresentation {
+    fn json_representation(&self) -> Option<models::TypeRepresentation> {
         use models::TypeRepresentation as Rep;
-        use ClickHouseScalar as ST;
-        match self {
-            ST::Bool => Rep::Boolean,
-            ST::String => Rep::String,
-            ST::UInt8 => Rep::Integer,
-            ST::UInt16 => Rep::Integer,
-            ST::UInt32 => Rep::Integer,
-            ST::UInt64 => Rep::Integer,
-            ST::UInt128 => Rep::Integer,
-            ST::UInt256 => Rep::Integer,
-            ST::Int8 => Rep::Integer,
-            ST::Int16 => Rep::Integer,
-            ST::Int32 => Rep::Integer,
-            ST::Int64 => Rep::Integer,
-            ST::Int128 => Rep::Integer,
-            ST::Int256 => Rep::Integer,
-            ST::Float32 => Rep::Number,
-            ST::Float64 => Rep::Number,
-            ST::Decimal => Rep::Number,
-            ST::Decimal32 => Rep::String,
-            ST::Decimal64 => Rep::String,
-            ST::Decimal128 => Rep::String,
-            ST::Decimal256 => Rep::String,
-            ST::Date => Rep::String,
-            ST::Date32 => Rep::String,
-            ST::DateTime => Rep::String,
-            ST::DateTime64 => Rep::String,
-            ST::Json => Rep::String,
-            ST::Uuid => Rep::String,
-            ST::IPv4 => Rep::String,
-            ST::IPv6 => Rep::String,
-            ST::Enum { name: _, variants } => Rep::Enum {
-                one_of: variants.to_owned(),
-            },
+        match &self.0 {
+            ClickHouseDataType::Bool => Some(Rep::Boolean),
+            ClickHouseDataType::String => Some(Rep::String),
+            ClickHouseDataType::UInt8 => Some(Rep::Integer),
+            ClickHouseDataType::UInt16 => Some(Rep::Integer),
+            ClickHouseDataType::UInt32 => Some(Rep::Integer),
+            ClickHouseDataType::UInt64 => Some(Rep::Integer),
+            ClickHouseDataType::UInt128 => Some(Rep::Integer),
+            ClickHouseDataType::UInt256 => Some(Rep::Integer),
+            ClickHouseDataType::Int8 => Some(Rep::Integer),
+            ClickHouseDataType::Int16 => Some(Rep::Integer),
+            ClickHouseDataType::Int32 => Some(Rep::Integer),
+            ClickHouseDataType::Int64 => Some(Rep::Integer),
+            ClickHouseDataType::Int128 => Some(Rep::Integer),
+            ClickHouseDataType::Int256 => Some(Rep::Integer),
+            ClickHouseDataType::Float32 => Some(Rep::Number),
+            ClickHouseDataType::Float64 => Some(Rep::Number),
+            ClickHouseDataType::Decimal { .. } => Some(Rep::Number),
+            ClickHouseDataType::Decimal32 { .. } => Some(Rep::String),
+            ClickHouseDataType::Decimal64 { .. } => Some(Rep::String),
+            ClickHouseDataType::Decimal128 { .. } => Some(Rep::String),
+            ClickHouseDataType::Decimal256 { .. } => Some(Rep::String),
+            ClickHouseDataType::Date => Some(Rep::String),
+            ClickHouseDataType::Date32 => Some(Rep::String),
+            ClickHouseDataType::DateTime { .. } => Some(Rep::String),
+            ClickHouseDataType::DateTime64 { .. } => Some(Rep::String),
+            ClickHouseDataType::Json => Some(Rep::String),
+            ClickHouseDataType::Uuid => Some(Rep::String),
+            ClickHouseDataType::IPv4 => Some(Rep::String),
+            ClickHouseDataType::IPv6 => Some(Rep::String),
+            ClickHouseDataType::Enum(variants) => {
+                let variants = variants
+                    .iter()
+                    .map(|(SingleQuotedString(variant), _)| variant.to_owned())
+                    .collect();
+
+                Some(Rep::Enum { one_of: variants })
+            }
+            _ => None,
         }
     }
     fn aggregate_functions(
         &self,
-    ) -> Vec<(ClickHouseSingleColumnAggregateFunction, ClickHouseScalar)> {
-        use ClickHouseScalar as ST;
+    ) -> Vec<(ClickHouseSingleColumnAggregateFunction, ClickHouseDataType)> {
         use ClickHouseSingleColumnAggregateFunction as AF;
 
-        match self {
-            ST::Bool => vec![],
-            ST::String => vec![],
-            ST::UInt8 => vec![
-                (AF::Max, ST::UInt8),
-                (AF::Min, ST::UInt8),
-                (AF::Sum, ST::UInt64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+        match self.0 {
+            ClickHouseDataType::Bool => vec![],
+            ClickHouseDataType::String => vec![],
+            ClickHouseDataType::UInt8 => vec![
+                (AF::Max, ClickHouseDataType::UInt8),
+                (AF::Min, ClickHouseDataType::UInt8),
+                (AF::Sum, ClickHouseDataType::UInt64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::UInt16 => vec![
-                (AF::Max, ST::UInt16),
-                (AF::Min, ST::UInt16),
-                (AF::Sum, ST::UInt64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::UInt16 => vec![
+                (AF::Max, ClickHouseDataType::UInt16),
+                (AF::Min, ClickHouseDataType::UInt16),
+                (AF::Sum, ClickHouseDataType::UInt64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::UInt32 => vec![
-                (AF::Max, ST::UInt32),
-                (AF::Min, ST::UInt32),
-                (AF::Sum, ST::UInt64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::UInt32 => vec![
+                (AF::Max, ClickHouseDataType::UInt32),
+                (AF::Min, ClickHouseDataType::UInt32),
+                (AF::Sum, ClickHouseDataType::UInt64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::UInt64 => vec![
-                (AF::Max, ST::UInt64),
-                (AF::Min, ST::UInt64),
-                (AF::Sum, ST::UInt64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::UInt64 => vec![
+                (AF::Max, ClickHouseDataType::UInt64),
+                (AF::Min, ClickHouseDataType::UInt64),
+                (AF::Sum, ClickHouseDataType::UInt64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::UInt128 => vec![
-                (AF::Max, ST::UInt128),
-                (AF::Min, ST::UInt128),
-                (AF::Sum, ST::UInt128),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::UInt128 => vec![
+                (AF::Max, ClickHouseDataType::UInt128),
+                (AF::Min, ClickHouseDataType::UInt128),
+                (AF::Sum, ClickHouseDataType::UInt128),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::UInt256 => vec![
-                (AF::Max, ST::UInt256),
-                (AF::Min, ST::UInt256),
-                (AF::Sum, ST::UInt256),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::UInt256 => vec![
+                (AF::Max, ClickHouseDataType::UInt256),
+                (AF::Min, ClickHouseDataType::UInt256),
+                (AF::Sum, ClickHouseDataType::UInt256),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Int8 => vec![
-                (AF::Max, ST::Int8),
-                (AF::Min, ST::Int8),
-                (AF::Sum, ST::Int64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Int8 => vec![
+                (AF::Max, ClickHouseDataType::Int8),
+                (AF::Min, ClickHouseDataType::Int8),
+                (AF::Sum, ClickHouseDataType::Int64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Int16 => vec![
-                (AF::Max, ST::Int16),
-                (AF::Min, ST::Int16),
-                (AF::Sum, ST::Int64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Int16 => vec![
+                (AF::Max, ClickHouseDataType::Int16),
+                (AF::Min, ClickHouseDataType::Int16),
+                (AF::Sum, ClickHouseDataType::Int64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Int32 => vec![
-                (AF::Max, ST::Int32),
-                (AF::Min, ST::Int32),
-                (AF::Sum, ST::Int64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Int32 => vec![
+                (AF::Max, ClickHouseDataType::Int32),
+                (AF::Min, ClickHouseDataType::Int32),
+                (AF::Sum, ClickHouseDataType::Int64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Int64 => vec![
-                (AF::Max, ST::Int64),
-                (AF::Min, ST::Int64),
-                (AF::Sum, ST::Int64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Int64 => vec![
+                (AF::Max, ClickHouseDataType::Int64),
+                (AF::Min, ClickHouseDataType::Int64),
+                (AF::Sum, ClickHouseDataType::Int64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Int128 => vec![
-                (AF::Max, ST::Int128),
-                (AF::Min, ST::Int128),
-                (AF::Sum, ST::Int128),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Int128 => vec![
+                (AF::Max, ClickHouseDataType::Int128),
+                (AF::Min, ClickHouseDataType::Int128),
+                (AF::Sum, ClickHouseDataType::Int128),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Int256 => vec![
-                (AF::Max, ST::Int256),
-                (AF::Min, ST::Int256),
-                (AF::Sum, ST::Int256),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Int256 => vec![
+                (AF::Max, ClickHouseDataType::Int256),
+                (AF::Min, ClickHouseDataType::Int256),
+                (AF::Sum, ClickHouseDataType::Int256),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Float32 => vec![
-                (AF::Max, ST::Float64),
-                (AF::Min, ST::Float32),
-                (AF::Sum, ST::Float32),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float32),
-                (AF::StddevSamp, ST::Float32),
-                (AF::VarPop, ST::Float32),
-                (AF::VarSamp, ST::Float32),
+            ClickHouseDataType::Float32 => vec![
+                (AF::Max, ClickHouseDataType::Float64),
+                (AF::Min, ClickHouseDataType::Float32),
+                (AF::Sum, ClickHouseDataType::Float32),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float32),
+                (AF::StddevSamp, ClickHouseDataType::Float32),
+                (AF::VarPop, ClickHouseDataType::Float32),
+                (AF::VarSamp, ClickHouseDataType::Float32),
             ],
-            ST::Float64 => vec![
-                (AF::Max, ST::Float64),
-                (AF::Min, ST::Float64),
-                (AF::Sum, ST::Float64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Float64 => vec![
+                (AF::Max, ClickHouseDataType::Float64),
+                (AF::Min, ClickHouseDataType::Float64),
+                (AF::Sum, ClickHouseDataType::Float64),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Decimal => vec![
-                (AF::Max, ST::Decimal),
-                (AF::Min, ST::Decimal),
-                (AF::Sum, ST::Decimal),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Decimal { .. } => vec![
+                (AF::Max, self.0.to_owned()),
+                (AF::Min, self.0.to_owned()),
+                (AF::Sum, self.0.to_owned()),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Decimal32 => vec![
-                (AF::Max, ST::Decimal32),
-                (AF::Min, ST::Decimal32),
-                (AF::Sum, ST::Decimal32),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Decimal32 { .. } => vec![
+                (AF::Max, self.0.to_owned()),
+                (AF::Min, self.0.to_owned()),
+                (AF::Sum, self.0.to_owned()),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Decimal64 => vec![
-                (AF::Max, ST::Decimal64),
-                (AF::Min, ST::Decimal64),
-                (AF::Sum, ST::Decimal64),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Decimal64 { .. } => vec![
+                (AF::Max, self.0.to_owned()),
+                (AF::Min, self.0.to_owned()),
+                (AF::Sum, self.0.to_owned()),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Decimal128 => vec![
-                (AF::Max, ST::Decimal128),
-                (AF::Min, ST::Decimal128),
-                (AF::Sum, ST::Decimal128),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Decimal128 { .. } => vec![
+                (AF::Max, self.0.to_owned()),
+                (AF::Min, self.0.to_owned()),
+                (AF::Sum, self.0.to_owned()),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Decimal256 => vec![
-                (AF::Max, ST::Decimal256),
-                (AF::Min, ST::Decimal256),
-                (AF::Sum, ST::Decimal256),
-                (AF::Avg, ST::Float64),
-                (AF::StddevPop, ST::Float64),
-                (AF::StddevSamp, ST::Float64),
-                (AF::VarPop, ST::Float64),
-                (AF::VarSamp, ST::Float64),
+            ClickHouseDataType::Decimal256 { .. } => vec![
+                (AF::Max, self.0.to_owned()),
+                (AF::Min, self.0.to_owned()),
+                (AF::Sum, self.0.to_owned()),
+                (AF::Avg, ClickHouseDataType::Float64),
+                (AF::StddevPop, ClickHouseDataType::Float64),
+                (AF::StddevSamp, ClickHouseDataType::Float64),
+                (AF::VarPop, ClickHouseDataType::Float64),
+                (AF::VarSamp, ClickHouseDataType::Float64),
             ],
-            ST::Date => vec![(AF::Max, ST::Date), (AF::Min, ST::Date)],
-            ST::Date32 => vec![(AF::Max, ST::Date32), (AF::Min, ST::Date32)],
-            ST::DateTime => vec![(AF::Max, ST::DateTime), (AF::Min, ST::DateTime)],
-            ST::DateTime64 => vec![(AF::Max, ST::DateTime64), (AF::Min, ST::DateTime64)],
-            ST::Json => vec![],
-            ST::Uuid => vec![],
-            ST::IPv4 => vec![],
-            ST::IPv6 => vec![],
-            ST::Enum { .. } => vec![],
+            ClickHouseDataType::Date => vec![
+                (AF::Max, ClickHouseDataType::Date),
+                (AF::Min, ClickHouseDataType::Date),
+            ],
+            ClickHouseDataType::Date32 => vec![
+                (AF::Max, ClickHouseDataType::Date32),
+                (AF::Min, ClickHouseDataType::Date32),
+            ],
+            ClickHouseDataType::DateTime { .. } => {
+                vec![(AF::Max, self.0.to_owned()), (AF::Min, self.0.to_owned())]
+            }
+            ClickHouseDataType::DateTime64 { .. } => {
+                vec![(AF::Max, self.0.to_owned()), (AF::Min, self.0.to_owned())]
+            }
+            _ => vec![],
         }
     }
     fn comparison_operators(&self) -> Vec<ClickHouseBinaryComparisonOperator> {
         use ClickHouseBinaryComparisonOperator as BC;
-        use ClickHouseScalar as ST;
 
         let equality_operators = vec![BC::Eq, BC::NotEq, BC::In, BC::NotIn];
         let ordering_operators = vec![BC::Gt, BC::Lt, BC::GtEq, BC::LtEq];
         let string_operators = vec![BC::Like, BC::NotLike, BC::ILike, BC::NotILike, BC::Match];
 
-        match self {
-            ST::Bool => equality_operators,
-            ST::String => [equality_operators, ordering_operators, string_operators].concat(),
-            ST::UInt8 | ST::UInt16 | ST::UInt32 | ST::UInt64 | ST::UInt128 | ST::UInt256 => {
+        match self.0 {
+            ClickHouseDataType::Bool => equality_operators,
+            ClickHouseDataType::String => {
+                [equality_operators, ordering_operators, string_operators].concat()
+            }
+            ClickHouseDataType::UInt8
+            | ClickHouseDataType::UInt16
+            | ClickHouseDataType::UInt32
+            | ClickHouseDataType::UInt64
+            | ClickHouseDataType::UInt128
+            | ClickHouseDataType::UInt256 => [equality_operators, ordering_operators].concat(),
+            ClickHouseDataType::Int8
+            | ClickHouseDataType::Int16
+            | ClickHouseDataType::Int32
+            | ClickHouseDataType::Int64
+            | ClickHouseDataType::Int128
+            | ClickHouseDataType::Int256 => [equality_operators, ordering_operators].concat(),
+            ClickHouseDataType::Float32 | ClickHouseDataType::Float64 => {
                 [equality_operators, ordering_operators].concat()
             }
-            ST::Int8 | ST::Int16 | ST::Int32 | ST::Int64 | ST::Int128 | ST::Int256 => {
+            ClickHouseDataType::Decimal { .. }
+            | ClickHouseDataType::Decimal32 { .. }
+            | ClickHouseDataType::Decimal64 { .. }
+            | ClickHouseDataType::Decimal128 { .. }
+            | ClickHouseDataType::Decimal256 { .. } => {
                 [equality_operators, ordering_operators].concat()
             }
-            ST::Float32 | ST::Float64 => [equality_operators, ordering_operators].concat(),
-            ST::Decimal | ST::Decimal32 | ST::Decimal64 | ST::Decimal128 | ST::Decimal256 => {
+            ClickHouseDataType::Date | ClickHouseDataType::Date32 => {
                 [equality_operators, ordering_operators].concat()
             }
-            ST::Date | ST::Date32 => [equality_operators, ordering_operators].concat(),
-            ST::DateTime | ST::DateTime64 => [equality_operators, ordering_operators].concat(),
-            ST::Json => [equality_operators, ordering_operators].concat(),
-            ST::Uuid => [equality_operators, ordering_operators].concat(),
-            ST::IPv4 => [equality_operators, ordering_operators].concat(),
-            ST::IPv6 => [equality_operators, ordering_operators].concat(),
-            ST::Enum { .. } => equality_operators,
-        }
-    }
-    /// returns the type we can cast this type to
-    /// this may not be the same as the underlying real type
-    /// for examples, enums are cast to strings, and fixed strings cast to strings
-    fn cast_type(&self) -> ClickHouseDataType {
-        match self {
-            ClickHouseScalar::Bool => ClickHouseDataType::Bool,
-            ClickHouseScalar::String => ClickHouseDataType::String,
-            ClickHouseScalar::UInt8 => ClickHouseDataType::UInt8,
-            ClickHouseScalar::UInt16 => ClickHouseDataType::UInt16,
-            ClickHouseScalar::UInt32 => ClickHouseDataType::UInt32,
-            ClickHouseScalar::UInt64 => ClickHouseDataType::UInt64,
-            ClickHouseScalar::UInt128 => ClickHouseDataType::UInt128,
-            ClickHouseScalar::UInt256 => ClickHouseDataType::UInt256,
-            ClickHouseScalar::Int8 => ClickHouseDataType::Int8,
-            ClickHouseScalar::Int16 => ClickHouseDataType::Int16,
-            ClickHouseScalar::Int32 => ClickHouseDataType::Int32,
-            ClickHouseScalar::Int64 => ClickHouseDataType::Int64,
-            ClickHouseScalar::Int128 => ClickHouseDataType::Int128,
-            ClickHouseScalar::Int256 => ClickHouseDataType::Int256,
-            ClickHouseScalar::Float32 => ClickHouseDataType::Float32,
-            ClickHouseScalar::Float64 => ClickHouseDataType::Float64,
-            ClickHouseScalar::Decimal => ClickHouseDataType::String,
-            ClickHouseScalar::Decimal32 => ClickHouseDataType::String,
-            ClickHouseScalar::Decimal64 => ClickHouseDataType::String,
-            ClickHouseScalar::Decimal128 => ClickHouseDataType::String,
-            ClickHouseScalar::Decimal256 => ClickHouseDataType::String,
-            ClickHouseScalar::Date => ClickHouseDataType::String,
-            ClickHouseScalar::Date32 => ClickHouseDataType::String,
-            ClickHouseScalar::DateTime => ClickHouseDataType::String,
-            ClickHouseScalar::DateTime64 => ClickHouseDataType::String,
-            ClickHouseScalar::Json => ClickHouseDataType::Json,
-            ClickHouseScalar::Uuid => ClickHouseDataType::Uuid,
-            ClickHouseScalar::IPv4 => ClickHouseDataType::IPv4,
-            ClickHouseScalar::IPv6 => ClickHouseDataType::IPv6,
-            ClickHouseScalar::Enum { .. } => ClickHouseDataType::String,
+            ClickHouseDataType::DateTime { .. } | ClickHouseDataType::DateTime64 { .. } => {
+                [equality_operators, ordering_operators].concat()
+            }
+            ClickHouseDataType::Json => [equality_operators, ordering_operators].concat(),
+            ClickHouseDataType::Uuid => [equality_operators, ordering_operators].concat(),
+            ClickHouseDataType::IPv4 => [equality_operators, ordering_operators].concat(),
+            ClickHouseDataType::IPv6 => [equality_operators, ordering_operators].concat(),
+            ClickHouseDataType::Enum { .. } => equality_operators,
+            _ => vec![],
         }
     }
 }
@@ -435,13 +419,7 @@ pub enum ClickHouseTypeDefinition {
     },
     Object {
         name: String,
-        fields: BTreeMap<String, ClickHouseTypeDefinition>,
-    },
-    /// Stand-in for data types that either cannot be represented in graphql,
-    /// (such as maps or tuples with anonymous memebers)
-    /// or cannot be known ahead of time (such as the return type of aggregate function columns)
-    Unknown {
-        name: String,
+        fields: IndexMap<String, ClickHouseTypeDefinition>,
     },
 }
 
@@ -451,116 +429,77 @@ impl ClickHouseTypeDefinition {
         data_type: &ClickHouseDataType,
         column_alias: &str,
         table_alias: &str,
+        separator: &str,
     ) -> Self {
-        let namespace = format!("{table_alias}.{column_alias}");
+        let namespace = NameSpace::new(vec![table_alias, column_alias], separator);
         Self::new(data_type, &namespace)
     }
     pub fn from_query_return_type(
         data_type: &ClickHouseDataType,
         field_alias: &str,
         query_alias: &str,
+        separator: &str,
     ) -> Self {
-        let namespace = format!("{query_alias}.{field_alias}");
+        let namespace = NameSpace::new(vec![query_alias, field_alias], separator);
         Self::new(data_type, &namespace)
     }
     pub fn from_query_argument(
         data_type: &ClickHouseDataType,
         argument_alias: &str,
         query_alias: &str,
+        separator: &str,
     ) -> Self {
-        let namespace = format!("{query_alias}.arg.{argument_alias}");
+        let namespace = NameSpace::new(vec![query_alias, "_arg", argument_alias], separator);
         Self::new(data_type, &namespace)
     }
-    fn new(data_type: &ClickHouseDataType, namespace: &str) -> Self {
+    fn new(data_type: &ClickHouseDataType, namespace: &NameSpace) -> Self {
         match data_type {
             ClickHouseDataType::Nullable(inner) => Self::Nullable {
                 inner: Box::new(Self::new(inner, namespace)),
             },
-            ClickHouseDataType::Bool => Self::Scalar(ClickHouseScalar::Bool),
             ClickHouseDataType::String | ClickHouseDataType::FixedString(_) => {
-                Self::Scalar(ClickHouseScalar::String)
+                Self::Scalar(ClickHouseScalar(ClickHouseDataType::String))
             }
-            ClickHouseDataType::UInt8 => Self::Scalar(ClickHouseScalar::UInt8),
-            ClickHouseDataType::UInt16 => Self::Scalar(ClickHouseScalar::UInt16),
-            ClickHouseDataType::UInt32 => Self::Scalar(ClickHouseScalar::UInt32),
-            ClickHouseDataType::UInt64 => Self::Scalar(ClickHouseScalar::UInt64),
-            ClickHouseDataType::UInt128 => Self::Scalar(ClickHouseScalar::UInt128),
-            ClickHouseDataType::UInt256 => Self::Scalar(ClickHouseScalar::UInt256),
-            ClickHouseDataType::Int8 => Self::Scalar(ClickHouseScalar::Int8),
-            ClickHouseDataType::Int16 => Self::Scalar(ClickHouseScalar::Int16),
-            ClickHouseDataType::Int32 => Self::Scalar(ClickHouseScalar::Int32),
-            ClickHouseDataType::Int64 => Self::Scalar(ClickHouseScalar::Int64),
-            ClickHouseDataType::Int128 => Self::Scalar(ClickHouseScalar::Int128),
-            ClickHouseDataType::Int256 => Self::Scalar(ClickHouseScalar::Int256),
-            ClickHouseDataType::Float32 => Self::Scalar(ClickHouseScalar::Float32),
-            ClickHouseDataType::Float64 => Self::Scalar(ClickHouseScalar::Float64),
-            ClickHouseDataType::Decimal { .. } => Self::Scalar(ClickHouseScalar::Decimal),
-            ClickHouseDataType::Decimal32 { .. } => Self::Scalar(ClickHouseScalar::Decimal32),
-            ClickHouseDataType::Decimal64 { .. } => Self::Scalar(ClickHouseScalar::Decimal64),
-            ClickHouseDataType::Decimal128 { .. } => Self::Scalar(ClickHouseScalar::Decimal128),
-            ClickHouseDataType::Decimal256 { .. } => Self::Scalar(ClickHouseScalar::Decimal256),
-            ClickHouseDataType::Date => Self::Scalar(ClickHouseScalar::Date),
-            ClickHouseDataType::Date32 => Self::Scalar(ClickHouseScalar::Date32),
-            ClickHouseDataType::DateTime { .. } => Self::Scalar(ClickHouseScalar::DateTime),
-            ClickHouseDataType::DateTime64 { .. } => Self::Scalar(ClickHouseScalar::DateTime64),
-            ClickHouseDataType::Json => Self::Scalar(ClickHouseScalar::Json),
-            ClickHouseDataType::Uuid => Self::Scalar(ClickHouseScalar::Uuid),
-            ClickHouseDataType::IPv4 => Self::Scalar(ClickHouseScalar::IPv4),
-            ClickHouseDataType::IPv6 => Self::Scalar(ClickHouseScalar::IPv6),
             ClickHouseDataType::LowCardinality(inner) => Self::new(inner, namespace),
             ClickHouseDataType::Nested(entries) => {
-                let mut fields = BTreeMap::new();
+                let mut fields = IndexMap::new();
 
                 for (name, field_data_type) in entries {
-                    let field_name = match name {
-                        Identifier::DoubleQuoted(n) => n,
-                        Identifier::BacktickQuoted(n) => n,
-                        Identifier::Unquoted(n) => n,
-                    };
-
-                    let field_namespace = format!("{namespace}_{field_name}");
+                    let field_namespace = namespace.child(name.value());
 
                     let field_definition = Self::new(field_data_type, &field_namespace);
 
                     if fields
-                        .insert(field_name.to_owned(), field_definition)
+                        .insert(name.value().to_owned(), field_definition)
                         .is_some()
                     {
                         // on duplicate field names, fall back to unknown type
-                        return Self::Unknown {
-                            name: namespace.to_owned(),
-                        };
+                        return Self::Scalar(ClickHouseScalar(data_type.to_owned()));
                     }
                 }
 
-                Self::Object {
-                    name: namespace.to_owned(),
-                    fields,
+                Self::Array {
+                    element_type: Box::new(Self::Object {
+                        name: namespace.value(),
+                        fields,
+                    }),
                 }
             }
             ClickHouseDataType::Array(element) => Self::Array {
                 element_type: Box::new(Self::new(element, namespace)),
             },
-            ClickHouseDataType::Map { .. } => Self::Unknown {
-                name: namespace.to_owned(),
-            },
             ClickHouseDataType::Tuple(entries) => {
-                let mut fields = BTreeMap::new();
+                let mut fields = IndexMap::new();
 
                 for (name, field_data_type) in entries {
                     let field_name = if let Some(name) = name {
-                        match name {
-                            Identifier::DoubleQuoted(n) => n,
-                            Identifier::BacktickQuoted(n) => n,
-                            Identifier::Unquoted(n) => n,
-                        }
+                        name.value()
                     } else {
-                        return Self::Unknown {
-                            name: namespace.to_owned(),
-                        };
+                        // anonymous tuples treated as scalar types
+                        return Self::Scalar(ClickHouseScalar(data_type.to_owned()));
                     };
 
-                    let field_namespace = format!("{namespace}.{field_name}");
+                    let field_namespace = namespace.child(&field_name);
 
                     let field_definition = Self::new(field_data_type, &field_namespace);
 
@@ -569,27 +508,15 @@ impl ClickHouseTypeDefinition {
                         .is_some()
                     {
                         // on duplicate field names, fall back to unknown type
-                        return Self::Unknown {
-                            name: namespace.to_owned(),
-                        };
+                        return Self::Scalar(ClickHouseScalar(data_type.to_owned()));
                     }
                 }
 
                 Self::Object {
-                    name: namespace.to_owned(),
+                    name: namespace.value(),
                     fields,
                 }
             }
-            ClickHouseDataType::Enum(variants) => {
-                let name = namespace.to_owned();
-                let variants = variants
-                    .iter()
-                    .map(|(SingleQuotedString(variant), _)| variant.to_owned())
-                    .collect();
-
-                Self::Scalar(ClickHouseScalar::Enum { name, variants })
-            }
-
             ClickHouseDataType::SimpleAggregateFunction {
                 function: _,
                 arguments,
@@ -597,9 +524,7 @@ impl ClickHouseTypeDefinition {
                 if let (Some(data_type), 1) = (arguments.first(), arguments.len()) {
                     Self::new(data_type, namespace)
                 } else {
-                    Self::Unknown {
-                        name: namespace.to_owned(),
-                    }
+                    Self::Scalar(ClickHouseScalar(data_type.to_owned()))
                 }
             }
             ClickHouseDataType::AggregateFunction {
@@ -608,26 +533,18 @@ impl ClickHouseTypeDefinition {
             } => {
                 let arg_len = arguments.len();
                 let first = arguments.first();
-                let agg_fn_name = match &function.name {
-                    Identifier::DoubleQuoted(n) => n,
-                    Identifier::BacktickQuoted(n) => n,
-                    Identifier::Unquoted(n) => n,
-                };
 
                 if let (Some(data_type), 1) = (first, arg_len) {
                     Self::new(data_type, namespace)
-                } else if let (Some(data_type), 2, "anyIf") = (first, arg_len, agg_fn_name.as_str())
+                } else if let (Some(data_type), 2, "anyIf") =
+                    (first, arg_len, function.name.value())
                 {
                     Self::new(data_type, namespace)
                 } else {
-                    Self::Unknown {
-                        name: namespace.to_owned(),
-                    }
+                    Self::Scalar(ClickHouseScalar(data_type.to_owned()))
                 }
             }
-            ClickHouseDataType::Nothing => Self::Unknown {
-                name: namespace.to_owned(),
-            },
+            _ => Self::Scalar(ClickHouseScalar(data_type.to_owned())),
         }
     }
     pub fn type_identifier(&self) -> models::Type {
@@ -644,9 +561,31 @@ impl ClickHouseTypeDefinition {
             ClickHouseTypeDefinition::Object { name, fields: _ } => models::Type::Named {
                 name: name.to_owned(),
             },
-            ClickHouseTypeDefinition::Unknown { name } => models::Type::Named {
-                name: name.to_owned(),
-            },
+        }
+    }
+    pub fn cast_type(&self) -> ClickHouseDataType {
+        match self {
+            ClickHouseTypeDefinition::Scalar(scalar) => scalar.cast_type(),
+            ClickHouseTypeDefinition::Nullable { inner } => {
+                ClickHouseDataType::Nullable(Box::new(inner.cast_type()))
+            }
+            ClickHouseTypeDefinition::Array { element_type } => {
+                ClickHouseDataType::Array(Box::new(element_type.cast_type()))
+            }
+            ClickHouseTypeDefinition::Object { name: _, fields } => {
+                ClickHouseDataType::Tuple(
+                    fields
+                        .iter()
+                        .map(|(key, value)| {
+                            // todo: prevent issues where the key contains unescaped double quotes
+                            (
+                                Some(Identifier::DoubleQuoted(key.to_owned())),
+                                value.cast_type(),
+                            )
+                        })
+                        .collect(),
+                )
+            }
         }
     }
     /// returns the schema type definitions for this type
@@ -696,48 +635,25 @@ impl ClickHouseTypeDefinition {
 
                 (scalar_type_definitions, object_type_definitions)
             }
-            ClickHouseTypeDefinition::Unknown { name } => {
-                let definition = models::ScalarType {
-                    representation: None,
-                    aggregate_functions: BTreeMap::new(),
-                    comparison_operators: BTreeMap::new(),
-                };
-                (vec![(name.to_owned(), definition)], vec![])
-            }
-        }
-    }
-    pub fn cast_type(&self) -> ClickHouseDataType {
-        match self {
-            ClickHouseTypeDefinition::Scalar(scalar) => scalar.cast_type(),
-            ClickHouseTypeDefinition::Nullable { inner } => {
-                ClickHouseDataType::Nullable(Box::new(inner.cast_type()))
-            }
-            ClickHouseTypeDefinition::Array { element_type } => {
-                ClickHouseDataType::Array(Box::new(element_type.cast_type()))
-            }
-            ClickHouseTypeDefinition::Object { name: _, fields } => {
-                ClickHouseDataType::Nested(
-                    fields
-                        .iter()
-                        .map(|(key, value)| {
-                            // todo: prevent issues where the key contains unescaped double quotes
-                            (Identifier::DoubleQuoted(key.to_owned()), value.cast_type())
-                        })
-                        .collect(),
-                )
-            }
-            ClickHouseTypeDefinition::Unknown { .. } => ClickHouseDataType::Json,
         }
     }
     pub fn aggregate_functions(
         &self,
-    ) -> Vec<(ClickHouseSingleColumnAggregateFunction, ClickHouseScalar)> {
+    ) -> Vec<(ClickHouseSingleColumnAggregateFunction, ClickHouseDataType)> {
         match self {
             ClickHouseTypeDefinition::Scalar(scalar) => scalar.aggregate_functions(),
             ClickHouseTypeDefinition::Nullable { inner } => inner.aggregate_functions(),
             ClickHouseTypeDefinition::Array { .. } => vec![],
             ClickHouseTypeDefinition::Object { .. } => vec![],
-            ClickHouseTypeDefinition::Unknown { .. } => vec![],
+        }
+    }
+    /// the underlying non-nullable type, with any wrapping nullable variants removed
+    pub fn non_nullable(&self) -> &Self {
+        match self {
+            ClickHouseTypeDefinition::Nullable { inner } => inner.non_nullable(),
+            ClickHouseTypeDefinition::Scalar(_) => self,
+            ClickHouseTypeDefinition::Array { .. } => self,
+            ClickHouseTypeDefinition::Object { .. } => self,
         }
     }
 }

@@ -1,9 +1,5 @@
 use common::{client::execute_query, config::ServerConfig};
-use ndc_sdk::{
-    connector::QueryError,
-    json_response::JsonResponse,
-    models::{self, QueryResponse},
-};
+use ndc_sdk::{connector::QueryError, json_response::JsonResponse, models};
 use tracing::{Instrument, Level};
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};

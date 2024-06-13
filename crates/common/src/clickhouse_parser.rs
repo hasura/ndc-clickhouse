@@ -56,6 +56,8 @@ peg::parser! {
         / map()
         / tuple()
         / r#enum()
+        / aggregate_function()
+        / simple_aggregate_function()
         / nothing()
     rule nullable() -> DT = "Nullable(" t:data_type() ")" { DT::Nullable(Box::new(t)) }
     rule uint8() -> DT = "UInt8" { DT::UInt8 }
@@ -180,6 +182,16 @@ fn can_parse_clickhouse_data_type() {
                 (Some(Identifier::DoubleQuoted("i".to_string())), DT::Int32),
                 (Some(Identifier::BacktickQuoted("u".to_string())), DT::UInt8),
             ]),
+        ),
+        (
+            "SimpleAggregateFunction(sum, UInt64)",
+            DT::SimpleAggregateFunction {
+                function: AggregateFunctionDefinition {
+                    name: Identifier::Unquoted("sum".to_string()),
+                    parameters: None,
+                },
+                arguments: vec![DT::UInt64],
+            },
         ),
     ];
 

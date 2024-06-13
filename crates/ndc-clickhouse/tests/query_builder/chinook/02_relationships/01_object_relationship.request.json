@@ -1,0 +1,53 @@
+{
+    "$schema": "../../request.schema.json",
+    "collection": "Chinook_Album",
+    "query": {
+        "fields": {
+            "albumId": {
+                "type": "column",
+                "column": "AlbumId",
+                "fields": null
+            },
+            "artistId": {
+                "type": "column",
+                "column": "ArtistId",
+                "fields": null
+            },
+            "title": {
+                "type": "column",
+                "column": "Title",
+                "fields": null
+            },
+            "Artist": {
+                "type": "relationship",
+                "query": {
+                    "fields": {
+                        "artistId": {
+                            "type": "column",
+                            "column": "ArtistId",
+                            "fields": null
+                        },
+                        "name": {
+                            "type": "column",
+                            "column": "Name",
+                            "fields": null
+                        }
+                    }
+                },
+                "relationship": "[{\"subgraph\":\"app\",\"name\":\"ChinookAlbum\"},\"Artist\"]",
+                "arguments": {}
+            }
+        }
+    },
+    "arguments": {},
+    "collection_relationships": {
+        "[{\"subgraph\":\"app\",\"name\":\"ChinookAlbum\"},\"Artist\"]": {
+            "column_mapping": {
+                "ArtistId": "ArtistId"
+            },
+            "relationship_type": "object",
+            "target_collection": "Chinook_Artist",
+            "arguments": {}
+        }
+    }
+}

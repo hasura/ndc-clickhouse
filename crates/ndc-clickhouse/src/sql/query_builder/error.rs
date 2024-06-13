@@ -4,7 +4,7 @@ use ndc_sdk::connector::{ExplainError, QueryError};
 
 use super::typecasting::TypeStringError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum QueryBuilderError {
     /// A relationship referenced in the query is missing from the collection_relationships map
     MissingRelationship(String),
@@ -20,6 +20,11 @@ pub enum QueryBuilderError {
     UnknownTableType(String),
     /// A column was referenced but not found in configuration
     UnknownColumn(String, String),
+    /// A field was referenced but not found in configuration
+    UnknownSubField {
+        field_name: String,
+        data_type: String,
+    },
     /// Unable to serialize variables into a json string
     CannotSerializeVariables(String),
     /// An unknown single column aggregate function was referenced
@@ -32,6 +37,8 @@ pub enum QueryBuilderError {
     Unexpected(String),
     /// There was an issue creating typecasting strings
     Typecasting(TypeStringError),
+    /// Column type did not match type asserted by request
+    ColumnTypeMismatch { expected: String, got: String },
 }
 
 impl fmt::Display for QueryBuilderError {
@@ -56,6 +63,12 @@ impl fmt::Display for QueryBuilderError {
             QueryBuilderError::UnknownColumn(c, t) => {
                 write!(f, "Unable to find column {c} for table {t} in config")
             }
+            QueryBuilderError::UnknownSubField {
+                field_name,
+                data_type,
+            } => {
+                write!(f, "Unknown field {field_name} in type {data_type}")
+            }
             QueryBuilderError::CannotSerializeVariables(e) => {
                 write!(f, "Unable to serialize variables into a json string: {e}")
             }
@@ -68,6 +81,9 @@ impl fmt::Display for QueryBuilderError {
             QueryBuilderError::NotSupported(e) => write!(f, "Not supported: {e}"),
             QueryBuilderError::Unexpected(e) => write!(f, "Unexpected: {e}"),
             QueryBuilderError::Typecasting(e) => write!(f, "Typecasting: {e}"),
+            QueryBuilderError::ColumnTypeMismatch { expected, got } => {
+                write!(f, "Column Type Mismatch: expected {expected}, got {got}")
+            }
         }
     }
 }
@@ -84,11 +100,13 @@ impl From<QueryBuilderError> for QueryError {
             | QueryBuilderError::UnknownQueryArgument { .. }
             | QueryBuilderError::UnknownTableType(_)
             | QueryBuilderError::UnknownColumn(_, _)
+            | QueryBuilderError::UnknownSubField { .. }
             | QueryBuilderError::CannotSerializeVariables(_)
             | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
-            | QueryBuilderError::Typecasting(_) => {
-                QueryError::UnprocessableContent(value.to_string())
+            | QueryBuilderError::Typecasting(_)
+            | QueryBuilderError::ColumnTypeMismatch { .. } => {
+                QueryError::InvalidRequest(value.to_string())
             }
             QueryBuilderError::NotSupported(_) => {
                 QueryError::UnsupportedOperation(value.to_string())
@@ -108,11 +126,13 @@ impl From<QueryBuilderError> for ExplainError {
             | QueryBuilderError::UnknownQueryArgument { .. }
             | QueryBuilderError::UnknownTableType(_)
             | QueryBuilderError::UnknownColumn(_, _)
+            | QueryBuilderError::UnknownSubField { .. }
             | QueryBuilderError::CannotSerializeVariables(_)
             | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
-            | QueryBuilderError::Typecasting(_) => {
-                ExplainError::UnprocessableContent(value.to_string())
+            | QueryBuilderError::Typecasting(_)
+            | QueryBuilderError::ColumnTypeMismatch { .. } => {
+                ExplainError::InvalidRequest(value.to_string())
             }
             QueryBuilderError::NotSupported(_) => {
                 ExplainError::UnsupportedOperation(value.to_string())

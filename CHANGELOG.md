@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.9]
+
+- Change namespaceing to use `.` separator instead of `_`. We assume table names are less likely to contain periods, so this reduces likelyhood of naming conflicts.This will change generated type names and will thus manifest as a breaking change for some users
+- Support `Nested` column types correctly, (previously these were treated as essentially Tuple columns)
+- Support subfield selection on complex column types.
+- Add support for relationships on column subfields, if the path to the subfield does not include lists
+- Fix datatype parser: add ability to parse SimpleAggregateFunction and AggregateFunction columns
+
 ## [0.2.8]
 
 - Make spans visible to cloud console users (tag spans with `internal.visibility = 'user'`)

@@ -20,6 +20,16 @@ pub enum Identifier {
     Unquoted(String),
 }
 
+impl Identifier {
+    pub fn value(&self) -> &str {
+        match self {
+            Identifier::DoubleQuoted(s)
+            | Identifier::BacktickQuoted(s)
+            | Identifier::Unquoted(s) => s,
+        }
+    }
+}
+
 impl Display for Identifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

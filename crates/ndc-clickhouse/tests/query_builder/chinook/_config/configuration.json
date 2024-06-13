@@ -1,0 +1,246 @@
+{
+  "$schema": "../../configuration.schema.json",
+  "tables": {
+    "Chinook_Album": {
+      "name": "Album",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "AlbumId",
+        "columns": [
+          "AlbumId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "AlbumId": "Int32",
+          "ArtistId": "Int32",
+          "Title": "String"
+        }
+      }
+    },
+    "Chinook_Artist": {
+      "name": "Artist",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "ArtistId",
+        "columns": [
+          "ArtistId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "ArtistId": "Int32",
+          "Name": "Nullable(String)"
+        }
+      }
+    },
+    "Chinook_Customer": {
+      "name": "Customer",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "CustomerId",
+        "columns": [
+          "CustomerId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "Address": "Nullable(String)",
+          "City": "Nullable(String)",
+          "Company": "Nullable(String)",
+          "Country": "Nullable(String)",
+          "CustomerId": "Int32",
+          "Email": "String",
+          "Fax": "Nullable(String)",
+          "FirstName": "String",
+          "LastName": "String",
+          "Phone": "Nullable(String)",
+          "PostalCode": "Nullable(String)",
+          "State": "Nullable(String)",
+          "SupportRepId": "Nullable(Int32)"
+        }
+      }
+    },
+    "Chinook_Employee": {
+      "name": "Employee",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "EmployeeId",
+        "columns": [
+          "EmployeeId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "Address": "Nullable(String)",
+          "BirthDate": "Nullable(Date32)",
+          "City": "Nullable(String)",
+          "Country": "Nullable(String)",
+          "Email": "Nullable(String)",
+          "EmployeeId": "Int32",
+          "Fax": "Nullable(String)",
+          "FirstName": "String",
+          "HireDate": "Nullable(Date32)",
+          "LastName": "String",
+          "Phone": "Nullable(String)",
+          "PostalCode": "Nullable(String)",
+          "ReportsTo": "Nullable(Int32)",
+          "State": "Nullable(String)",
+          "Title": "Nullable(String)"
+        }
+      }
+    },
+    "Chinook_Genre": {
+      "name": "Genre",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "GenreId",
+        "columns": [
+          "GenreId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "GenreId": "Int32",
+          "Name": "Nullable(String)"
+        }
+      }
+    },
+    "Chinook_Invoice": {
+      "name": "Invoice",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "InvoiceId",
+        "columns": [
+          "InvoiceId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "BillingAddress": "Nullable(String)",
+          "BillingCity": "Nullable(String)",
+          "BillingCountry": "Nullable(String)",
+          "BillingPostalCode": "Nullable(String)",
+          "BillingState": "Nullable(String)",
+          "CustomerId": "Int32",
+          "InvoiceDate": "DateTime64(9)",
+          "InvoiceId": "Int32",
+          "Total": "Float64"
+        }
+      }
+    },
+    "Chinook_InvoiceLine": {
+      "name": "InvoiceLine",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "InvoiceLineId",
+        "columns": [
+          "InvoiceLineId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "InvoiceId": "Int32",
+          "InvoiceLineId": "Int32",
+          "Quantity": "Int32",
+          "TrackId": "Int32",
+          "UnitPrice": "Float64"
+        }
+      }
+    },
+    "Chinook_MediaType": {
+      "name": "MediaType",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "MediaTypeId",
+        "columns": [
+          "MediaTypeId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "MediaTypeId": "Int32",
+          "Name": "Nullable(String)"
+        }
+      }
+    },
+    "Chinook_Playlist": {
+      "name": "Playlist",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "PlaylistId",
+        "columns": [
+          "PlaylistId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "Name": "Nullable(String)",
+          "PlaylistId": "Int32"
+        }
+      }
+    },
+    "Chinook_PlaylistTrack": {
+      "name": "PlaylistTrack",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "PlaylistId, TrackId",
+        "columns": [
+          "PlaylistId",
+          "TrackId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "PlaylistId": "Int32",
+          "TrackId": "Int32"
+        }
+      }
+    },
+    "Chinook_Track": {
+      "name": "Track",
+      "schema": "Chinook",
+      "comment": "",
+      "primary_key": {
+        "name": "TrackId",
+        "columns": [
+          "TrackId"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "AlbumId": "Nullable(Int32)",
+          "Bytes": "Nullable(Int32)",
+          "Composer": "Nullable(String)",
+          "GenreId": "Nullable(Int32)",
+          "MediaTypeId": "Int32",
+          "Milliseconds": "Int32",
+          "Name": "String",
+          "TrackId": "Int32",
+          "UnitPrice": "Float64"
+        }
+      }
+    }
+  }
+}

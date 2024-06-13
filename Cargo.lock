@@ -340,7 +340,7 @@ checksum = "97af0562545a7d7f3d9222fcf909963bec36dcb502afaacab98c6ffac8da47ce"
 
 [[package]]
 name = "common"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "bytes",
  "peg",
@@ -1065,7 +1065,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1074,6 +1074,7 @@ dependencies = [
  "ndc-sdk",
  "prometheus",
  "reqwest 0.12.3",
+ "schemars",
  "serde",
  "serde_json",
  "sqlformat",
@@ -1084,7 +1085,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse-cli"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "clap",
  "common",

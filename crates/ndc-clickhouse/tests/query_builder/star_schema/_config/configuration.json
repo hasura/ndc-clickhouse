@@ -1,0 +1,322 @@
+{
+  "$schema": "../../configuration.schema.json",
+  "tables": {
+    "star_customer": {
+      "name": "customer",
+      "schema": "star",
+      "comment": "",
+      "primary_key": {
+        "name": "C_CUSTKEY",
+        "columns": [
+          "C_CUSTKEY"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "C_ADDRESS": "String",
+          "C_CITY": "LowCardinality(String)",
+          "C_CUSTKEY": "UInt32",
+          "C_MKTSEGMENT": "LowCardinality(String)",
+          "C_NAME": "String",
+          "C_NATION": "LowCardinality(String)",
+          "C_PHONE": "String",
+          "C_REGION": "LowCardinality(String)"
+        }
+      }
+    },
+    "star_lineorder": {
+      "name": "lineorder",
+      "schema": "star",
+      "comment": "",
+      "primary_key": {
+        "name": "LO_ORDERDATE, LO_ORDERKEY",
+        "columns": [
+          "LO_ORDERKEY",
+          "LO_ORDERDATE"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "LO_COMMITDATE": "Date",
+          "LO_CUSTKEY": "UInt32",
+          "LO_DISCOUNT": "UInt8",
+          "LO_EXTENDEDPRICE": "UInt32",
+          "LO_LINENUMBER": "UInt8",
+          "LO_ORDERDATE": "Date",
+          "LO_ORDERKEY": "UInt32",
+          "LO_ORDERPRIORITY": "LowCardinality(String)",
+          "LO_ORDTOTALPRICE": "UInt32",
+          "LO_PARTKEY": "UInt32",
+          "LO_QUANTITY": "UInt8",
+          "LO_REVENUE": "UInt32",
+          "LO_SHIPMODE": "LowCardinality(String)",
+          "LO_SHIPPRIORITY": "UInt8",
+          "LO_SUPPKEY": "UInt32",
+          "LO_SUPPLYCOST": "UInt32",
+          "LO_TAX": "UInt8"
+        }
+      }
+    },
+    "star_lineorder_flat": {
+      "name": "lineorder_flat",
+      "schema": "star",
+      "comment": "",
+      "primary_key": {
+        "name": "LO_ORDERDATE, LO_ORDERKEY",
+        "columns": [
+          "LO_ORDERKEY",
+          "LO_ORDERDATE"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "C_ADDRESS": "String",
+          "C_CITY": "LowCardinality(String)",
+          "C_MKTSEGMENT": "LowCardinality(String)",
+          "C_NAME": "String",
+          "C_NATION": "LowCardinality(String)",
+          "C_PHONE": "String",
+          "C_REGION": "LowCardinality(String)",
+          "LO_COMMITDATE": "Date",
+          "LO_CUSTKEY": "UInt32",
+          "LO_DISCOUNT": "UInt8",
+          "LO_EXTENDEDPRICE": "UInt32",
+          "LO_LINENUMBER": "UInt8",
+          "LO_ORDERDATE": "Date",
+          "LO_ORDERKEY": "UInt32",
+          "LO_ORDERPRIORITY": "LowCardinality(String)",
+          "LO_ORDTOTALPRICE": "UInt32",
+          "LO_PARTKEY": "UInt32",
+          "LO_QUANTITY": "UInt8",
+          "LO_REVENUE": "UInt32",
+          "LO_SHIPMODE": "LowCardinality(String)",
+          "LO_SHIPPRIORITY": "UInt8",
+          "LO_SUPPKEY": "UInt32",
+          "LO_SUPPLYCOST": "UInt32",
+          "LO_TAX": "UInt8",
+          "P_BRAND": "LowCardinality(String)",
+          "P_CATEGORY": "LowCardinality(String)",
+          "P_COLOR": "LowCardinality(String)",
+          "P_CONTAINER": "LowCardinality(String)",
+          "P_MFGR": "LowCardinality(String)",
+          "P_NAME": "String",
+          "P_SIZE": "UInt8",
+          "P_TYPE": "LowCardinality(String)",
+          "S_ADDRESS": "String",
+          "S_CITY": "LowCardinality(String)",
+          "S_NAME": "String",
+          "S_NATION": "LowCardinality(String)",
+          "S_PHONE": "String",
+          "S_REGION": "LowCardinality(String)"
+        }
+      }
+    },
+    "star_part": {
+      "name": "part",
+      "schema": "star",
+      "comment": "",
+      "primary_key": {
+        "name": "P_PARTKEY",
+        "columns": [
+          "P_PARTKEY"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "P_BRAND": "LowCardinality(String)",
+          "P_CATEGORY": "LowCardinality(String)",
+          "P_COLOR": "LowCardinality(String)",
+          "P_CONTAINER": "LowCardinality(String)",
+          "P_MFGR": "LowCardinality(String)",
+          "P_NAME": "String",
+          "P_PARTKEY": "UInt32",
+          "P_SIZE": "UInt8",
+          "P_TYPE": "LowCardinality(String)"
+        }
+      }
+    },
+    "star_supplier": {
+      "name": "supplier",
+      "schema": "star",
+      "comment": "",
+      "primary_key": {
+        "name": "S_SUPPKEY",
+        "columns": [
+          "S_SUPPKEY"
+        ]
+      },
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "S_ADDRESS": "String",
+          "S_CITY": "LowCardinality(String)",
+          "S_NAME": "String",
+          "S_NATION": "LowCardinality(String)",
+          "S_PHONE": "String",
+          "S_REGION": "LowCardinality(String)",
+          "S_SUPPKEY": "UInt32"
+        }
+      }
+    }
+  },
+  "queries": {
+    "q11": {
+      "exposed_as": "collection",
+      "file": "./queries/q1.1.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "revenue": "UInt64"
+        }
+      }
+    },
+    "q12": {
+      "exposed_as": "collection",
+      "file": "./queries/q1.2.sql",
+      "return_type": {
+        "kind": "query_reference",
+        "query_name": "q11"
+      }
+    },
+    "q13": {
+      "exposed_as": "collection",
+      "file": "./queries/q1.3.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "revenue": "UInt64"
+        }
+      }
+    },
+    "q21": {
+      "exposed_as": "collection",
+      "file": "./queries/q2.1.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "P_BRAND": "LowCardinality(String)",
+          "sum(LO_REVENUE)": "UInt64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q22": {
+      "exposed_as": "collection",
+      "file": "./queries/q2.2.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "P_BRAND": "LowCardinality(String)",
+          "sum(LO_REVENUE)": "UInt64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q23": {
+      "exposed_as": "collection",
+      "file": "./queries/q2.3.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "P_BRAND": "LowCardinality(String)",
+          "sum(LO_REVENUE)": "UInt64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q31": {
+      "exposed_as": "collection",
+      "file": "./queries/q3.1.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "C_NATION": "LowCardinality(String)",
+          "S_NATION": "LowCardinality(String)",
+          "revenue": "UInt64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q32": {
+      "exposed_as": "collection",
+      "file": "./queries/q3.2.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "C_NATION": "LowCardinality(String)",
+          "S_NATION": "LowCardinality(String)",
+          "revenue": "UInt64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q33": {
+      "exposed_as": "collection",
+      "file": "./queries/q3.3.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "C_NATION": "LowCardinality(String)",
+          "S_NATION": "LowCardinality(String)",
+          "revenue": "UInt64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q34": {
+      "exposed_as": "collection",
+      "file": "./queries/q3.4.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "C_NATION": "LowCardinality(String)",
+          "S_NATION": "LowCardinality(String)",
+          "revenue": "UInt64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q41": {
+      "exposed_as": "collection",
+      "file": "./queries/q4.1.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "C_NATION": "LowCardinality(String)",
+          "profit": "Int64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q42": {
+      "exposed_as": "collection",
+      "file": "./queries/q4.2.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "P_CATEGORY": "LowCardinality(String)",
+          "S_NATION": "LowCardinality(String)",
+          "profit": "Int64",
+          "year": "UInt16"
+        }
+      }
+    },
+    "q43": {
+      "exposed_as": "collection",
+      "file": "./queries/q4.3.sql",
+      "return_type": {
+        "kind": "definition",
+        "columns": {
+          "P_BRAND": "LowCardinality(String)",
+          "S_CITY": "LowCardinality(String)",
+          "profit": "Int64",
+          "year": "UInt16"
+        }
+      }
+    }
+  }
+}

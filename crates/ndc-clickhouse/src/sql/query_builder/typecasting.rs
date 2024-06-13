@@ -1,8 +1,11 @@
 use std::{collections::BTreeMap, fmt::Display, str::FromStr};
 
-use common::{clickhouse_parser::datatype::ClickHouseDataType, config::ServerConfig};
+use common::{
+    clickhouse_parser::datatype::{ClickHouseDataType, Identifier},
+    config::ServerConfig,
+};
 use indexmap::IndexMap;
-use ndc_sdk::models;
+use ndc_sdk::models::{self, NestedField};
 
 use crate::schema::{ClickHouseSingleColumnAggregateFunction, ClickHouseTypeDefinition};
 
@@ -10,20 +13,22 @@ use super::QueryBuilderError;
 
 /// Tuple(rows <RowsCastString>, aggregates <RowsCastString>)
 pub struct RowsetTypeString {
-    rows: Option<RowsTypeString>,
+    rows: Option<RowTypeString>,
     aggregates: Option<AggregatesTypeString>,
 }
 /// Tuple("a1" T1, "a2" T2)
 pub struct AggregatesTypeString {
-    aggregates: Vec<(String, String)>,
+    aggregates: Vec<(String, ClickHouseDataType)>,
 }
 /// Tuple("f1" T1, "f2" <RowSetTypeString>)
-pub struct RowsTypeString {
+pub struct RowTypeString {
     fields: Vec<(String, FieldTypeString)>,
 }
 pub enum FieldTypeString {
     Relationship(RowsetTypeString),
-    Column(String),
+    Array(Box<FieldTypeString>),
+    Object(Vec<(String, FieldTypeString)>),
+    Scalar(ClickHouseDataType),
 }
 
 impl RowsetTypeString {
@@ -34,7 +39,7 @@ impl RowsetTypeString {
         config: &ServerConfig,
     ) -> Result<Self, TypeStringError> {
         let rows = if let Some(fields) = &query.fields {
-            Some(RowsTypeString::new(
+            Some(RowTypeString::new(
                 table_alias,
                 fields,
                 relationships,
@@ -51,10 +56,36 @@ impl RowsetTypeString {
 
         Ok(Self { rows, aggregates })
     }
+    pub fn into_cast_type(self) -> ClickHouseDataType {
+        match (self.rows, self.aggregates) {
+            (None, None) => ClickHouseDataType::Map {
+                key: Box::new(ClickHouseDataType::Nothing),
+                value: Box::new(ClickHouseDataType::Nothing),
+            },
+            (None, Some(aggregates)) => ClickHouseDataType::Tuple(vec![(
+                Some(Identifier::Unquoted("aggregates".to_string())),
+                aggregates.into_cast_type(),
+            )]),
+            (Some(rows), None) => ClickHouseDataType::Tuple(vec![(
+                Some(Identifier::Unquoted("rows".to_string())),
+                ClickHouseDataType::Array(Box::new(rows.into_cast_type())),
+            )]),
+            (Some(rows), Some(aggregates)) => ClickHouseDataType::Tuple(vec![
+                (
+                    Some(Identifier::Unquoted("rows".to_string())),
+                    ClickHouseDataType::Array(Box::new(rows.into_cast_type())),
+                ),
+                (
+                    Some(Identifier::Unquoted("aggregates".to_string())),
+                    aggregates.into_cast_type(),
+                ),
+            ]),
+        }
+    }
 }
 
 impl AggregatesTypeString {
-    pub fn new(
+    fn new(
         table_alias: &str,
         aggregates: &IndexMap<String, models::Aggregate>,
         config: &ServerConfig,
@@ -64,7 +95,7 @@ impl AggregatesTypeString {
                 .iter()
                 .map(|(alias, aggregate)| match aggregate {
                     models::Aggregate::StarCount {} | models::Aggregate::ColumnCount { .. } => {
-                        Ok((alias.to_string(), "UInt32".to_string()))
+                        Ok((alias.to_string(), ClickHouseDataType::UInt32))
                     }
                     models::Aggregate::SingleColumn {
                         column: column_alias,
@@ -75,6 +106,7 @@ impl AggregatesTypeString {
                             &column_type,
                             column_alias,
                             table_alias,
+                            &config.namespace_separator,
                         );
 
                         let aggregate_function =
@@ -100,16 +132,31 @@ impl AggregatesTypeString {
                                 function: function.to_owned(),
                             })?;
 
-                        Ok((alias.to_string(), result_type.to_string()))
+                        Ok((alias.to_owned(), result_type.to_owned()))
                     }
                 })
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }
+    fn into_cast_type(self) -> ClickHouseDataType {
+        if self.aggregates.is_empty() {
+            ClickHouseDataType::Map {
+                key: Box::new(ClickHouseDataType::Nothing),
+                value: Box::new(ClickHouseDataType::Nothing),
+            }
+        } else {
+            ClickHouseDataType::Tuple(
+                self.aggregates
+                    .into_iter()
+                    .map(|(alias, t)| (Some(Identifier::DoubleQuoted(alias)), t))
+                    .collect(),
+            )
+        }
+    }
 }
 
-impl RowsTypeString {
-    pub fn new(
+impl RowTypeString {
+    fn new(
         table_alias: &str,
         fields: &IndexMap<String, models::Field>,
         relationships: &BTreeMap<String, models::Relationship>,
@@ -126,18 +173,20 @@ impl RowsTypeString {
                                 column: column_alias,
                                 fields,
                             } => {
-                                if fields.is_some() {
-                                    return Err(TypeStringError::NotSupported(
-                                        "subfield selector".into(),
-                                    ));
-                                }
                                 let column_type = get_column(column_alias, table_alias, config)?;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
                                     &column_type,
                                     column_alias,
                                     table_alias,
+                                    &config.namespace_separator,
                                 );
-                                FieldTypeString::Column(type_definition.cast_type().to_string())
+
+                                FieldTypeString::new(
+                                    &type_definition,
+                                    fields.as_ref(),
+                                    relationships,
+                                    config,
+                                )?
                             }
                             models::Field::Relationship {
                                 query,
@@ -166,70 +215,166 @@ impl RowsTypeString {
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }
-}
-
-impl Display for RowsetTypeString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match (&self.rows, &self.aggregates) {
-            (None, None) => write!(f, "Map(Nothing, Nothing)"),
-            (None, Some(aggregates)) => write!(f, "Tuple(aggregates {aggregates})"),
-            (Some(rows), None) => write!(f, "Tuple(rows {rows})"),
-            (Some(rows), Some(aggregates)) => {
-                write!(f, "Tuple(rows {rows}, aggregates {aggregates})")
-            }
-        }
-    }
-}
-impl Display for AggregatesTypeString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.aggregates.is_empty() {
-            write!(f, "Map(Nothing, Nothing)")
-        } else {
-            write!(f, "Tuple(")?;
-            let mut first = true;
-
-            for (alias, t) in &self.aggregates {
-                if first {
-                    first = false;
-                } else {
-                    write!(f, ", ")?;
-                }
-
-                write!(f, "\"{alias}\" {t}")?;
-            }
-
-            write!(f, ")")
-        }
-    }
-}
-impl Display for RowsTypeString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn into_cast_type(self) -> ClickHouseDataType {
         if self.fields.is_empty() {
-            write!(f, "Array(Map(Nothing, Nothing))")
+            ClickHouseDataType::Map {
+                key: Box::new(ClickHouseDataType::Nothing),
+                value: Box::new(ClickHouseDataType::Nothing),
+            }
         } else {
-            write!(f, "Array(Tuple(")?;
-            let mut first = true;
+            ClickHouseDataType::Tuple(
+                self.fields
+                    .into_iter()
+                    .map(|(alias, field)| {
+                        (
+                            Some(Identifier::DoubleQuoted(alias)),
+                            field.into_cast_type(),
+                        )
+                    })
+                    .collect(),
+            )
+        }
+    }
+}
 
-            for (alias, field) in &self.fields {
-                if first {
-                    first = false;
-                } else {
-                    write!(f, ", ")?;
+impl FieldTypeString {
+    fn new(
+        type_definition: &ClickHouseTypeDefinition,
+        fields: Option<&NestedField>,
+        relationships: &BTreeMap<String, models::Relationship>,
+        config: &ServerConfig,
+    ) -> Result<Self, TypeStringError> {
+        if let Some(fields) = fields {
+            match (type_definition.non_nullable(), fields) {
+                (
+                    ClickHouseTypeDefinition::Array { element_type },
+                    NestedField::Array(subfield_selector),
+                ) => {
+                    let type_definition = &**element_type;
+                    let fields = Some(&*subfield_selector.fields);
+                    let underlying_typestring =
+                        FieldTypeString::new(type_definition, fields, relationships, config)?;
+                    Ok(FieldTypeString::Array(Box::new(underlying_typestring)))
                 }
+                (
+                    ClickHouseTypeDefinition::Object { name: _, fields },
+                    NestedField::Object(subfield_selector),
+                ) => {
+                    let subfields = subfield_selector
+                        .fields
+                        .iter()
+                        .map(|(alias, field)| {
+                            match field {
+                                models::Field::Column {
+                                    column,
+                                    fields: subfield_selector,
+                                } => {
+                                    let type_definition = fields.get(column).ok_or_else(|| {
+                                        TypeStringError::MissingNestedField {
+                                            field_name: column.to_owned(),
+                                            object_type: type_definition.cast_type().to_string(),
+                                        }
+                                    })?;
 
-                write!(f, "\"{alias}\" ")?;
+                                    Ok((
+                                        alias.to_owned(),
+                                        FieldTypeString::new(
+                                            &type_definition,
+                                            subfield_selector.as_ref(),
+                                            relationships,
+                                            config,
+                                        )?,
+                                    ))
+                                }
+                                models::Field::Relationship {
+                                    query,
+                                    relationship,
+                                    arguments: _,
+                                } => {
+                                    let relationship =
+                                        relationships.get(relationship).ok_or_else(|| {
+                                            TypeStringError::MissingRelationship(
+                                                relationship.to_owned(),
+                                            )
+                                        })?;
 
-                match field {
-                    FieldTypeString::Column(c) => {
-                        write!(f, "{c}")?;
-                    }
-                    FieldTypeString::Relationship(r) => {
-                        write!(f, "{r}")?;
-                    }
+                                    let table_alias = &relationship.target_collection;
+
+                                    Ok((
+                                        alias.to_owned(),
+                                        FieldTypeString::Relationship(RowsetTypeString::new(
+                                            table_alias,
+                                            query,
+                                            relationships,
+                                            config,
+                                        )?),
+                                    ))
+                                }
+                            }
+                            // Ok((alias, FieldTypeString::new(type_definition, fields)))
+                        })
+                        .collect::<Result<_, _>>()?;
+                    Ok(FieldTypeString::Object(subfields))
+                }
+                (ClickHouseTypeDefinition::Scalar(_), NestedField::Object(_)) => {
+                    Err(TypeStringError::NestedFieldTypeMismatch {
+                        expected: "Object".to_owned(),
+                        got: type_definition.cast_type().to_string(),
+                    })
+                }
+                (ClickHouseTypeDefinition::Scalar(_), NestedField::Array(_)) => {
+                    Err(TypeStringError::NestedFieldTypeMismatch {
+                        expected: "Array".to_owned(),
+                        got: type_definition.cast_type().to_string(),
+                    })
+                }
+                (ClickHouseTypeDefinition::Nullable { .. }, NestedField::Object(_)) => {
+                    Err(TypeStringError::NestedFieldTypeMismatch {
+                        expected: "Object".to_owned(),
+                        got: type_definition.cast_type().to_string(),
+                    })
+                }
+                (ClickHouseTypeDefinition::Nullable { .. }, NestedField::Array(_)) => {
+                    Err(TypeStringError::NestedFieldTypeMismatch {
+                        expected: "Array".to_owned(),
+                        got: type_definition.cast_type().to_string(),
+                    })
+                }
+                (ClickHouseTypeDefinition::Array { .. }, NestedField::Object(_)) => {
+                    Err(TypeStringError::NestedFieldTypeMismatch {
+                        expected: "Object".to_owned(),
+                        got: type_definition.cast_type().to_string(),
+                    })
+                }
+                (ClickHouseTypeDefinition::Object { .. }, NestedField::Array(_)) => {
+                    Err(TypeStringError::NestedFieldTypeMismatch {
+                        expected: "Array".to_owned(),
+                        got: type_definition.cast_type().to_string(),
+                    })
                 }
             }
-
-            write!(f, "))")
+        } else {
+            Ok(FieldTypeString::Scalar(type_definition.cast_type()))
+        }
+    }
+    fn into_cast_type(self) -> ClickHouseDataType {
+        match self {
+            FieldTypeString::Relationship(rel) => rel.into_cast_type(),
+            FieldTypeString::Array(inner) => {
+                ClickHouseDataType::Array(Box::new(inner.into_cast_type()))
+            }
+            FieldTypeString::Object(fields) => ClickHouseDataType::Tuple(
+                fields
+                    .into_iter()
+                    .map(|(alias, field)| {
+                        (
+                            Some(Identifier::DoubleQuoted(alias)),
+                            field.into_cast_type(),
+                        )
+                    })
+                    .collect(),
+            ),
+            FieldTypeString::Scalar(inner) => inner,
         }
     }
 }
@@ -273,7 +418,7 @@ fn get_column<'a>(
     Ok(column)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TypeStringError {
     UnknownTable {
         table: String,
@@ -293,6 +438,14 @@ pub enum TypeStringError {
     },
     MissingRelationship(String),
     NotSupported(String),
+    NestedFieldTypeMismatch {
+        expected: String,
+        got: String,
+    },
+    MissingNestedField {
+        field_name: String,
+        object_type: String,
+    },
 }
 
 impl Display for TypeStringError {
@@ -311,6 +464,8 @@ impl Display for TypeStringError {
             } => write!(f, "Unknown aggregate function: {function} for column {column} of type: {data_type} in table {table}"),
             TypeStringError::MissingRelationship(rel) => write!(f, "Missing relationship: {rel}"),
             TypeStringError::NotSupported(feature) => write!(f, "Not supported: {feature}"),
+            TypeStringError::NestedFieldTypeMismatch { expected, got } => write!(f, "Nested field selector type mismatch, expected: {expected}, got {got}"),
+            TypeStringError::MissingNestedField { field_name, object_type } => write!(f, "Missing field {field_name} in object type {object_type}"),
         }
     }
 }

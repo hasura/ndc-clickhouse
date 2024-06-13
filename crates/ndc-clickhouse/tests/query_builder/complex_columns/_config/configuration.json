@@ -1,0 +1,32 @@
+{
+    "$schema": "../../configuration.schema.json",
+    "tables": {
+        "TableOne": {
+            "name": "Table1",
+            "schema": "Schema1",
+            "return_type": {
+                "kind": "definition",
+                "columns": {
+                    "ColumnA": "String",
+                    "ColumnB": "Array(Tuple(field1 String, field2 String))",
+                    "ColumnC": "Nested(field1 String, field1 String)",
+                    "ColumnD": "Tuple(child Tuple(id UInt32, name String))",
+                    "ColumnE": "Tuple(child Array(Tuple(id UInt32, name String)))",
+                    "ColumnF": "Tuple(child Tuple(id UInt32, name String, toys Nested(id UInt32, name String)))",
+                    "ColumnG": "Tuple(a Nullable(String), b Map(String, String), c Array(Tuple(a String, b Tuple(String, String))), d Tuple(a String, b String))"
+                }
+            }
+        },
+        "TableTwo": {
+            "name": "Table2",
+            "schema": "Schema1",
+            "return_type": {
+                "kind": "definition",
+                "columns": {
+                    "Id": "UInt32",
+                    "Name": "String"
+                }
+            }
+        }
+    }
+}
