@@ -234,6 +234,24 @@ mod relationships {
 }
 
 #[cfg(test)]
+mod variables {
+    use super::*;
+
+    async fn test_generated_sql(name: &str) -> Result<(), Box<dyn Error>> {
+        super::test_utils::test_generated_sql("chinook", "03_variables", name).await
+    }
+
+    #[tokio::test]
+    async fn simple_predicate() -> Result<(), Box<dyn Error>> {
+        test_generated_sql("01_simple_predicate").await
+    }
+    #[tokio::test]
+    async fn empty_variable_sets() -> Result<(), Box<dyn Error>> {
+        test_generated_sql("02_empty_variable_sets").await
+    }
+}
+
+#[cfg(test)]
 mod native_queries {
     use super::*;
 

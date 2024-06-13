@@ -1,6 +1,11 @@
 {
     "$schema": "../../request.schema.json",
     "collection": "Chinook_Album",
+    "variables": [
+        {
+            "ArtistId": 1
+        }
+    ],
     "query": {
         "fields": {
             "albumId": {
@@ -34,8 +39,8 @@
                             },
                             "operator": "_eq",
                             "value": {
-                                "type": "scalar",
-                                "value": "1"
+                                "type": "variable",
+                                "name": "ArtistId"
                             }
                         }
                     ]
