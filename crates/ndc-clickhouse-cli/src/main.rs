@@ -60,16 +60,6 @@ struct CliArgs {
         env = "HASURA_PLUGIN_CONNECTOR_CONTEXT_PATH"
     )]
     context_path: Option<PathBuf>,
-    #[arg(long = "clickhouse-url", value_name = "URL", env = "CLICKHOUSE_URL")]
-    clickhouse_url: String,
-    #[arg(long = "clickhouse-username", value_name = "USERNAME", env = "CLICKHOUSE_USERNAME", default_value_t = String::from("default"))]
-    clickhouse_username: String,
-    #[arg(
-        long = "clickhouse-password",
-        value_name = "PASSWORD",
-        env = "CLICKHOUSE_PASSWORD"
-    )]
-    clickhouse_password: String,
     #[command(subcommand)]
     command: Command,
 }
@@ -77,7 +67,18 @@ struct CliArgs {
 #[derive(Clone, Subcommand)]
 enum Command {
     Init {},
-    Update {},
+    Update {
+        #[arg(long = "clickhouse-url", value_name = "URL", env = "CLICKHOUSE_URL")]
+        url: String,
+        #[arg(long = "clickhouse-username", value_name = "USERNAME", env = "CLICKHOUSE_USERNAME", default_value_t = String::from("default"))]
+        username: String,
+        #[arg(
+            long = "clickhouse-password",
+            value_name = "PASSWORD",
+            env = "CLICKHOUSE_PASSWORD"
+        )]
+        password: String,
+    },
     Validate {},
     Watch {},
 }
@@ -93,11 +94,6 @@ enum LogLevel {
     Trace,
 }
 
-struct Context {
-    context_path: PathBuf,
-    connection: ConnectionConfig,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = CliArgs::parse();
@@ -107,33 +103,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Some(path) => path,
     };
 
-    let connection = ConnectionConfig {
-        url: args.clickhouse_url,
-        username: args.clickhouse_username,
-        password: args.clickhouse_password,
-    };
-
-    let context = Context {
-        context_path,
-        connection,
-    };
-
     match args.command {
         Command::Init {} => {
-            let introspection = introspect_database(&context.connection).await?;
-            let config = update_tables_config(&context.context_path, &introspection).await?;
-            validate_table_config(&context.context_path, &config).await?;
+            let config = ServerConfigFile::default();
+            let config_schema = schema_for!(ServerConfigFile);
+
+            let file_path = context_path.join(CONFIG_FILE_NAME);
+            let schema_file_path = context_path.join(CONFIG_SCHEMA_FILE_NAME);
+
+            fs::write(&file_path, serde_json::to_string_pretty(&config)?).await?;
+            fs::write(
+                &schema_file_path,
+                serde_json::to_string_pretty(&config_schema)?,
+            )
+            .await?;
         }
-        Command::Update {} => {
-            let introspection = introspect_database(&context.connection).await?;
-            let config = update_tables_config(&context.context_path, &introspection).await?;
-            validate_table_config(&context.context_path, &config).await?;
+        Command::Update {
+            url,
+            username,
+            password,
+        } => {
+            let connection = ConnectionConfig {
+                url,
+                username,
+                password,
+            };
+
+            let introspection = introspect_database(&connection).await?;
+            let config = update_tables_config(&context_path, &introspection).await?;
+            validate_table_config(&context_path, &config).await?;
         }
         Command::Validate {} => {
-            let file_path = context.context_path.join(CONFIG_FILE_NAME);
+            let file_path = context_path.join(CONFIG_FILE_NAME);
             let config = read_config_file(&file_path).await?;
             if let Some(config) = config {
-                validate_table_config(&context.context_path, &config).await?;
+                validate_table_config(&context_path, &config).await?;
             }
         }
         Command::Watch {} => {
@@ -157,7 +161,7 @@ async fn read_config_file(file_path: &PathBuf) -> Result<Option<ServerConfigFile
 
 async fn update_tables_config(
     configuration_dir: impl AsRef<Path> + Send,
-    introspection: &Vec<TableInfo>,
+    introspection: &[TableInfo],
 ) -> Result<ServerConfigFile, Box<dyn Error>> {
     let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
     let schema_file_path = configuration_dir.as_ref().join(CONFIG_SCHEMA_FILE_NAME);
@@ -206,7 +210,7 @@ async fn update_tables_config(
                     table,
                     &old_table_config,
                     &old_config,
-                    &introspection,
+                    introspection,
                 ),
             };
 
@@ -216,7 +220,7 @@ async fn update_tables_config(
 
     let config = ServerConfigFile {
         schema: CONFIG_SCHEMA_FILE_NAME.to_owned(),
-        tables: tables,
+        tables,
         queries: old_config
             .as_ref()
             .map(|old_config| old_config.queries.to_owned())
@@ -295,7 +299,7 @@ async fn validate_table_config(
             ReturnType::Definition { columns } => {
                 for (column_alias, column_data_type) in columns {
                     let _data_type =
-                        ClickHouseDataType::from_str(&column_data_type).map_err(|err| {
+                        ClickHouseDataType::from_str(column_data_type).map_err(|err| {
                             format!(
                                 "Unable to parse data type \"{}\" for column {} in table {}: {}",
                                 column_data_type, column_alias, table_alias, err
@@ -368,7 +372,7 @@ async fn validate_table_config(
             ReturnType::Definition { columns } => {
                 for (column_name, column_data_type) in columns {
                     let _data_type =
-                        ClickHouseDataType::from_str(&column_data_type).map_err(|err| {
+                        ClickHouseDataType::from_str(column_data_type).map_err(|err| {
                             format!(
                                 "Unable to parse data type \"{}\" for field {} in query {}: {}",
                                 column_data_type, column_name, query_alias, err
@@ -435,7 +439,7 @@ fn get_table_return_type(
     table: &TableInfo,
     old_table: &Option<(&String, &TableConfigFile)>,
     old_config: &Option<ServerConfigFile>,
-    introspection: &Vec<TableInfo>,
+    introspection: &[TableInfo],
 ) -> ReturnType {
     let new_columns = get_return_type_columns(table);
 
@@ -495,7 +499,7 @@ fn get_table_return_type(
             },
         );
 
-    old_return_type.unwrap_or_else(|| ReturnType::Definition {
+    old_return_type.unwrap_or(ReturnType::Definition {
         columns: new_columns,
     })
 }
