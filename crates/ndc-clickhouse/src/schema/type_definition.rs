@@ -1,7 +1,7 @@
 use common::clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
 use indexmap::IndexMap;
 use ndc_sdk::models;
-use std::iter;
+use std::{collections::BTreeMap, iter};
 
 use super::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
 
@@ -621,6 +621,7 @@ impl ClickHouseTypeDefinition {
                         models::ObjectField {
                             description: None,
                             r#type: field.type_identifier(),
+                            arguments: BTreeMap::new(),
                         },
                     ));
                 }

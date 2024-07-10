@@ -12,8 +12,7 @@ pub async fn query(
     #[cfg(debug_assertions)]
     {
         // this block only present in debug builds, to avoid leaking sensitive information
-        let request_string = serde_json::to_string(&request)
-            .map_err(|err| QueryError::Other(err.to_string().into()))?;
+        let request_string = serde_json::to_string(&request).map_err(QueryError::new)?;
 
         tracing::event!(Level::DEBUG, "Incoming IR" = request_string);
     }
@@ -39,10 +38,7 @@ pub async fn query(
             },
         )?;
 
-    let client = state
-        .client(configuration)
-        .await
-        .map_err(|err| QueryError::Other(err.to_string().into()))?;
+    let client = state.client(configuration).await.map_err(QueryError::new)?;
 
     let execution_span = tracing::info_span!(
         "Execute SQL query",
@@ -60,13 +56,12 @@ pub async fn query(
     )
     .instrument(execution_span)
     .await
-    .map_err(|err| QueryError::UnprocessableContent(err.to_string().into()))?;
+    .map_err(|err| QueryError::new(err))?;
 
     #[cfg(debug_assertions)]
     {
         // this block only present in debug builds, to avoid leaking sensitive information
-        let result_string =
-            std::str::from_utf8(&rowsets).map_err(|err| QueryError::Other(err.into()))?;
+        let result_string = std::str::from_utf8(&rowsets).map_err(QueryError::new)?;
 
         tracing::event!(Level::DEBUG, "Response" = result_string);
     }

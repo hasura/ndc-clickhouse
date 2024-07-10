@@ -8,7 +8,7 @@ async-trait = "0.1.78"
 bytes = "1.6.0"
 common = { path = "../common" }
 indexmap = "2.1.0"
-ndc-sdk = { git = "https://github.com/hasura/ndc-sdk-rs", rev = "972dba6", package = "ndc-sdk" }
+ndc-sdk = { git = "https://github.com/hasura/ndc-sdk-rs", tag = "v0.1.5", package = "ndc-sdk" }
 prometheus = "0.13.3"
 reqwest = { version = "0.12.3", features = [
   "json",

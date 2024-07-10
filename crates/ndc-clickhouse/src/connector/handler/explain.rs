@@ -24,10 +24,7 @@ pub async fn explain(
 
     let statement_string = statement.to_parameterized_sql_string();
 
-    let client = state
-        .client(configuration)
-        .await
-        .map_err(|err| ExplainError::Other(err.to_string().into()))?;
+    let client = state.client(configuration).await?;
 
     let explain = execute_json_query::<ExplainRow>(
         &client,
@@ -58,7 +55,7 @@ pub async fn explain(
         ),
         (
             "Parameters".to_string(),
-            serde_json::to_string(&parameters).map_err(|err| ExplainError::Other(Box::new(err)))?,
+            serde_json::to_string(&parameters).map_err(ExplainError::new)?,
         ),
         ("Execution Plan".to_string(), explain),
     ]);

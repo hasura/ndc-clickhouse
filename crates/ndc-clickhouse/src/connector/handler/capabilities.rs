@@ -8,6 +8,11 @@ pub fn capabilities() -> models::CapabilitiesResponse {
                 aggregates: Some(LeafCapability {}),
                 variables: Some(LeafCapability {}),
                 explain: Some(LeafCapability {}),
+                nested_fields: models::NestedFieldCapabilities {
+                    filter_by: None,
+                    order_by: None,
+                    aggregates: None,
+                },
             },
             mutation: models::MutationCapabilities {
                 transactional: None,
