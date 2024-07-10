@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 /// the main configuration file
 pub struct ServerConfigFile {
     #[serde(rename = "$schema")]
@@ -20,6 +20,16 @@ pub struct ServerConfigFile {
     /// Note the names must not match table names
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub queries: BTreeMap<String, ParameterizedQueryConfigFile>,
+}
+
+impl Default for ServerConfigFile {
+    fn default() -> Self {
+        Self {
+            schema: CONFIG_SCHEMA_FILE_NAME.to_string(),
+            tables: Default::default(),
+            queries: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
