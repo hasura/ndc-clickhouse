@@ -1,12 +1,7 @@
 pub mod handler;
 pub mod state;
 
-use std::{
-    collections::BTreeMap,
-    env,
-    path::Path,
-    str::FromStr,
-};
+use std::{collections::BTreeMap, env, path::Path, str::FromStr};
 use tokio::fs;
 
 use async_trait::async_trait;

@@ -849,8 +849,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         *name_index += 1;
 
         let relationship = self.collection_relationship(relationship)?;
-        let relationship_collection =
-            CollectionContext::from_relationship(relationship, arguments);
+        let relationship_collection = CollectionContext::from_relationship(relationship, arguments);
 
         let mut join_expr = relationship
             .column_mapping
