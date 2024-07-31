@@ -4,7 +4,7 @@ pub mod state;
 use std::{
     collections::BTreeMap,
     env,
-    path::{Path, PathBuf},
+    path::Path,
     str::FromStr,
 };
 use tokio::fs;
@@ -164,14 +164,14 @@ pub async fn read_server_config(
                 &file_path,
                 &["tables", &table_alias, "return_type"],
             )?
-            .and_then(|columns| {
-                Some((
+            .map(|columns| {
+                (
                     table_alias.to_owned(),
                     TableType {
                         comment: table_config.comment.to_owned(),
                         columns,
                     },
-                ))
+                )
             });
 
             Ok(table_type)
@@ -183,14 +183,14 @@ pub async fn read_server_config(
                 &file_path,
                 &["query", &query_alias, "return_type"],
             )?
-            .and_then(|columns| {
-                Some((
+            .map(|columns| {
+                (
                     query_alias.to_owned(),
                     TableType {
                         comment: query_config.comment.to_owned(),
                         columns,
                     },
-                ))
+                )
             });
 
             Ok(table_type)
@@ -223,7 +223,7 @@ pub async fn read_server_config(
                         .iter()
                         .map(|(name, r#type)| {
                             let data_type =
-                                ClickHouseDataType::from_str(&r#type).map_err(|_err| {
+                                ClickHouseDataType::from_str(r#type).map_err(|_err| {
                                     ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
                                         file_path: file_path.to_owned(),
                                         node_path: vec![
@@ -318,7 +318,7 @@ fn get_connection_config() -> Result<ConnectionConfig, ParseError> {
 fn validate_and_parse_return_type(
     return_type: &ReturnType,
     config: &ServerConfigFile,
-    file_path: &PathBuf,
+    file_path: &Path,
     node_path: &[&str],
 ) -> Result<Option<BTreeMap<String, ClickHouseDataType>>, ParseError> {
     let get_node_path = |extra_segments: &[&str]| {
@@ -338,7 +338,7 @@ fn validate_and_parse_return_type(
                 Some(_) => {
                     Err(ParseError::ValidateError(InvalidNodes(vec![
                         InvalidNode {
-                            file_path: file_path.clone(),
+                            file_path: file_path.to_path_buf(),
                             node_path: get_node_path(&["table_name"]),
                             message: format!(
                             "Invalid reference: referenced table {} which does not have a return type definition",
@@ -348,16 +348,16 @@ fn validate_and_parse_return_type(
                     ])))
                 }
                 None => {
-                    return Err(ParseError::ValidateError(InvalidNodes(vec![
+                    Err(ParseError::ValidateError(InvalidNodes(vec![
                         InvalidNode {
-                            file_path: file_path.clone(),
+                            file_path: file_path.to_path_buf(),
                             node_path: get_node_path(&["table_name"]),
                             message: format!(
                             "Orphan reference: cannot find referenced table {}",
                             table_name,
                         ),
                         },
-                    ])));
+                    ])))
                 }
             }
         }
@@ -370,7 +370,7 @@ fn validate_and_parse_return_type(
                 Some(_) => {
                     Err(ParseError::ValidateError(InvalidNodes(vec![
                         InvalidNode {
-                            file_path: file_path.clone(),
+                            file_path: file_path.to_path_buf(),
                             node_path: get_node_path(&["query_name"]),
                             message: format!(
                                 "Invalid reference: referenced query {} which does not have a return type definition",
@@ -382,7 +382,7 @@ fn validate_and_parse_return_type(
                 None => {
                     Err(ParseError::ValidateError(InvalidNodes(vec![
                         InvalidNode {
-                            file_path: file_path.clone(),
+                            file_path: file_path.to_path_buf(),
                             node_path: get_node_path(&["query_name"]),
                             message: format!(
                                 "Orphan reference: cannot find referenced query {}",
@@ -398,9 +398,9 @@ fn validate_and_parse_return_type(
             columns
             .iter()
             .map(|(field_alias, field_type)| {
-                let data_type = ClickHouseDataType::from_str(&field_type).map_err(|err| {
+                let data_type = ClickHouseDataType::from_str(field_type).map_err(|err| {
                     ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
-                        file_path: file_path.clone(),
+                        file_path: file_path.to_path_buf(),
                         node_path: get_node_path(&["columns", field_alias]),
                         message: format!(
                             "Unable to parse data type \"{}\": {}",

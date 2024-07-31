@@ -226,7 +226,7 @@ fn can_parse_parameterized_query() {
             }),
         ],
     };
-    let parsed = clickhouse_parser::parameterized_query(&query);
+    let parsed = clickhouse_parser::parameterized_query(query);
     assert_eq!(parsed, Ok(expected), "can parse parameterized query");
 }
 
@@ -234,7 +234,7 @@ fn can_parse_parameterized_query() {
 fn can_parse_empty_parameterized_query() {
     let query = r#""#;
     let expected = ParameterizedQuery { elements: vec![] };
-    let parsed = clickhouse_parser::parameterized_query(&query);
+    let parsed = clickhouse_parser::parameterized_query(query);
     assert_eq!(parsed, Ok(expected), "can parse parameterized query");
 }
 
@@ -259,6 +259,6 @@ fn does_not_parse_parameters_insides_quoted_strings() {
             ParameterizedQueryElement::String(" AND Name = '{ArtistName: String}'".to_string()),
         ],
     };
-    let parsed = clickhouse_parser::parameterized_query(&query);
+    let parsed = clickhouse_parser::parameterized_query(query);
     assert_eq!(parsed, Ok(expected), "can parse parameterized query");
 }

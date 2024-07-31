@@ -54,7 +54,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 collection.alias(),
                                 query,
                                 &self.request.collection_relationships,
-                                &self.configuration,
+                                self.configuration,
                             )?
                             .into_cast_type()
                             .to_string(),
@@ -135,7 +135,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 .into_box(),
                 op: BinaryOperator::Eq,
                 right: Expr::CompoundIdentifier(vec![
-                    Ident::new_quoted(format!("_rowset")),
+                    Ident::new_quoted("_rowset".to_owned()),
                     Ident::new_quoted("_varset_id"),
                 ])
                 .into_box(),
@@ -286,7 +286,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         }
 
         let from = vec![self
-            .row_subquery(&current_collection, relkeys, query)?
+            .row_subquery(current_collection, relkeys, query)?
             .into_table_factor()
             .alias("_row")
             .into_table_with_joins(vec![])];
@@ -328,7 +328,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         let data_type = self.column_data_type(column, current_collection)?;
                         let column_definition = ClickHouseTypeDefinition::from_table_column(
                             &data_type,
-                            &column,
+                            column,
                             current_collection.alias(),
                             &self.configuration.namespace_separator,
                         );
@@ -361,7 +361,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         let (expr, join) = self.field_relationship(
                             alias,
                             &mut rel_index,
-                            &vec![Ident::new_quoted("_origin")],
+                            &[Ident::new_quoted("_origin")],
                             query,
                             relationship,
                             arguments,
@@ -840,7 +840,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         &self,
         field_alias: &str,
         name_index: &mut u32,
-        target_path: &Vec<Ident>,
+        target_path: &[Ident],
         query: &models::Query,
         relationship: &str,
         arguments: &BTreeMap<String, models::RelationshipArgument>,
@@ -850,7 +850,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
         let relationship = self.collection_relationship(relationship)?;
         let relationship_collection =
-            CollectionContext::from_relationship(&relationship, &arguments);
+            CollectionContext::from_relationship(relationship, arguments);
 
         let mut join_expr = relationship
             .column_mapping
@@ -859,8 +859,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 Ok(Expr::BinaryOp {
                     left: Expr::CompoundIdentifier(
                         target_path
-                            .clone()
-                            .into_iter()
+                            .iter()
+                            .cloned()
                             .chain(iter::once(Ident::new_quoted(source_col)))
                             .collect(),
                     )
@@ -1117,7 +1117,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 models::ExistsInCollection::Unrelated {
                     collection,
                     arguments,
-                } => CollectionContext::new_unrelated(&collection, arguments),
+                } => CollectionContext::new_unrelated(collection, arguments),
             };
 
             let subquery_origin_alias = Ident::new_quoted(format!("_exists_{}", name_index));
@@ -1711,7 +1711,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 })
             };
             let variable_argument = |arg_name: &String, variable_name: &String| {
-                let argument_type = table_argument_type(&arg_name)?;
+                let argument_type = table_argument_type(arg_name)?;
                 let column_ident = Expr::CompoundIdentifier(vec![
                     Ident::new_quoted("_vars"),
                     Ident::new_quoted(format!("_var_{variable_name}")),

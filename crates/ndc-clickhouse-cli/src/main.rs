@@ -157,7 +157,7 @@ async fn read_config_file(file_path: &PathBuf) -> Result<Option<ServerConfigFile
 
 async fn update_tables_config(
     configuration_dir: impl AsRef<Path> + Send,
-    introspection: &Vec<TableInfo>,
+    introspection: &[TableInfo],
 ) -> Result<ServerConfigFile, Box<dyn Error>> {
     let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
     let schema_file_path = configuration_dir.as_ref().join(CONFIG_SCHEMA_FILE_NAME);
@@ -206,7 +206,7 @@ async fn update_tables_config(
                     table,
                     &old_table_config,
                     &old_config,
-                    &introspection,
+                    introspection,
                 ),
             };
 
@@ -216,7 +216,7 @@ async fn update_tables_config(
 
     let config = ServerConfigFile {
         schema: CONFIG_SCHEMA_FILE_NAME.to_owned(),
-        tables: tables,
+        tables,
         queries: old_config
             .as_ref()
             .map(|old_config| old_config.queries.to_owned())
@@ -295,7 +295,7 @@ async fn validate_table_config(
             ReturnType::Definition { columns } => {
                 for (column_alias, column_data_type) in columns {
                     let _data_type =
-                        ClickHouseDataType::from_str(&column_data_type).map_err(|err| {
+                        ClickHouseDataType::from_str(column_data_type).map_err(|err| {
                             format!(
                                 "Unable to parse data type \"{}\" for column {} in table {}: {}",
                                 column_data_type, column_alias, table_alias, err
@@ -368,7 +368,7 @@ async fn validate_table_config(
             ReturnType::Definition { columns } => {
                 for (column_name, column_data_type) in columns {
                     let _data_type =
-                        ClickHouseDataType::from_str(&column_data_type).map_err(|err| {
+                        ClickHouseDataType::from_str(column_data_type).map_err(|err| {
                             format!(
                                 "Unable to parse data type \"{}\" for field {} in query {}: {}",
                                 column_data_type, column_name, query_alias, err
@@ -435,7 +435,7 @@ fn get_table_return_type(
     table: &TableInfo,
     old_table: &Option<(&String, &TableConfigFile)>,
     old_config: &Option<ServerConfigFile>,
-    introspection: &Vec<TableInfo>,
+    introspection: &[TableInfo],
 ) -> ReturnType {
     let new_columns = get_return_type_columns(table);
 
@@ -495,7 +495,7 @@ fn get_table_return_type(
             },
         );
 
-    old_return_type.unwrap_or_else(|| ReturnType::Definition {
+    old_return_type.unwrap_or(ReturnType::Definition {
         columns: new_columns,
     })
 }

@@ -104,14 +104,14 @@ impl AggregatesTypeString {
                     } => {
                         let column_type = get_column(column_alias, table_alias, config)?;
                         let type_definition = ClickHouseTypeDefinition::from_table_column(
-                            &column_type,
+                            column_type,
                             column_alias,
                             table_alias,
                             &config.namespace_separator,
                         );
 
                         let aggregate_function =
-                            ClickHouseSingleColumnAggregateFunction::from_str(&function).map_err(
+                            ClickHouseSingleColumnAggregateFunction::from_str(function).map_err(
                                 |_err| TypeStringError::UnknownAggregateFunction {
                                     table: table_alias.to_owned(),
                                     column: column_alias.to_owned(),
@@ -177,7 +177,7 @@ impl RowTypeString {
                             } => {
                                 let column_type = get_column(column_alias, table_alias, config)?;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
-                                    &column_type,
+                                    column_type,
                                     column_alias,
                                     table_alias,
                                     &config.namespace_separator,
@@ -282,7 +282,7 @@ impl FieldTypeString {
                                     Ok((
                                         alias.to_owned(),
                                         FieldTypeString::new(
-                                            &type_definition,
+                                            type_definition,
                                             subfield_selector.as_ref(),
                                             relationships,
                                             config,

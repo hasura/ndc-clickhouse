@@ -60,7 +60,7 @@ pub async fn query(
     )
     .instrument(execution_span)
     .await
-    .map_err(|err| QueryError::UnprocessableContent(err.to_string().into()))?;
+    .map_err(|err| QueryError::UnprocessableContent(err.to_string()))?;
 
     #[cfg(debug_assertions)]
     {

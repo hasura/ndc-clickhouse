@@ -16,7 +16,7 @@ impl<'a> NameSpace<'a> {
         Self { separator, path }
     }
     pub fn value(&self) -> String {
-        self.path.join(&self.separator)
+        self.path.join(self.separator)
     }
     pub fn child(&self, path_element: &'a str) -> Self {
         Self {
@@ -499,7 +499,7 @@ impl ClickHouseTypeDefinition {
                         return Self::Scalar(ClickHouseScalar(data_type.to_owned()));
                     };
 
-                    let field_namespace = namespace.child(&field_name);
+                    let field_namespace = namespace.child(field_name);
 
                     let field_definition = Self::new(field_data_type, &field_namespace);
 
@@ -590,16 +590,12 @@ impl ClickHouseTypeDefinition {
     }
     /// returns the schema type definitions for this type
     /// note that ScalarType definitions may be duplicated
-    pub fn type_definitions(
-        &self,
-    ) -> (
-        Vec<(String, models::ScalarType)>,
-        Vec<(String, models::ObjectType)>,
-    ) {
+    pub fn type_definitions(&self) -> SchemaTypeDefinitions {
         match self {
-            ClickHouseTypeDefinition::Scalar(scalar) => {
-                (vec![(scalar.type_name(), scalar.type_definition())], vec![])
-            }
+            ClickHouseTypeDefinition::Scalar(scalar) => SchemaTypeDefinitions {
+                scalars: vec![(scalar.type_name(), scalar.type_definition())],
+                objects: vec![],
+            },
             ClickHouseTypeDefinition::Nullable { inner } => inner.type_definitions(),
             ClickHouseTypeDefinition::Array { element_type } => element_type.type_definitions(),
             ClickHouseTypeDefinition::Object {
@@ -611,7 +607,10 @@ impl ClickHouseTypeDefinition {
                 let mut scalar_type_definitions = vec![];
 
                 for (field_name, field) in fields {
-                    let (mut scalars, mut objects) = field.type_definitions();
+                    let SchemaTypeDefinitions {
+                        mut scalars,
+                        mut objects,
+                    } = field.type_definitions();
 
                     scalar_type_definitions.append(&mut scalars);
                     object_type_definitions.append(&mut objects);
@@ -634,7 +633,10 @@ impl ClickHouseTypeDefinition {
                     },
                 ));
 
-                (scalar_type_definitions, object_type_definitions)
+                SchemaTypeDefinitions {
+                    scalars: scalar_type_definitions,
+                    objects: object_type_definitions,
+                }
             }
         }
     }
@@ -657,4 +659,9 @@ impl ClickHouseTypeDefinition {
             ClickHouseTypeDefinition::Object { .. } => self,
         }
     }
+}
+
+pub struct SchemaTypeDefinitions {
+    pub scalars: Vec<(String, models::ScalarType)>,
+    pub objects: Vec<(String, models::ObjectType)>,
 }

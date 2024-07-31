@@ -72,7 +72,7 @@ mod test_utils {
     ) -> Result<(), Box<dyn Error>> {
         let statement_path =
             tests_dir_path(schema_dir, group_dir).join(format!("{test_name}.statement.sql"));
-        let pretty_statement = pretty_print_sql(&generated_statement);
+        let pretty_statement = pretty_print_sql(generated_statement);
         fs::write(&statement_path, &pretty_statement).await?;
         Ok(())
     }
@@ -92,7 +92,7 @@ mod test_utils {
         request: &models::QueryRequest,
     ) -> Result<String, QueryBuilderError> {
         let generated_statement = pretty_print_sql(
-            &QueryBuilder::new(&request, &configuration)
+            &QueryBuilder::new(request, configuration)
                 .build()?
                 .to_unsafe_sql_string(),
         );

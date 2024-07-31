@@ -1,4 +1,4 @@
-use crate::schema::ClickHouseTypeDefinition;
+use crate::schema::{ClickHouseTypeDefinition, SchemaTypeDefinitions};
 use common::{
     clickhouse_parser::{
         datatype::ClickHouseDataType,
@@ -20,13 +20,13 @@ pub async fn schema(
         let mut fields = vec![];
         for (column_alias, column_type) in &table_type.columns {
             let type_definition = ClickHouseTypeDefinition::from_table_column(
-                &column_type,
-                &column_alias,
-                &type_name,
+                column_type,
+                column_alias,
+                type_name,
                 &configuration.namespace_separator,
             );
 
-            let (scalars, objects) = type_definition.type_definitions();
+            let SchemaTypeDefinitions { scalars, objects } = type_definition.type_definitions();
 
             for (name, definition) in objects {
                 object_type_definitions.push((name, definition));
@@ -60,12 +60,12 @@ pub async fn schema(
     for (table_alias, table_config) in &configuration.tables {
         for (argument_name, argument_type) in &table_config.arguments {
             let type_definition = ClickHouseTypeDefinition::from_query_argument(
-                &argument_type,
-                &argument_name,
+                argument_type,
+                argument_name,
                 table_alias,
                 &configuration.namespace_separator,
             );
-            let (scalars, objects) = type_definition.type_definitions();
+            let SchemaTypeDefinitions { scalars, objects } = type_definition.type_definitions();
 
             for (name, definition) in objects {
                 object_type_definitions.push((name, definition));
@@ -93,7 +93,7 @@ pub async fn schema(
                     &configuration.namespace_separator,
                 );
 
-                let (scalars, objects) = type_definition.type_definitions();
+                let SchemaTypeDefinitions { scalars, objects } = type_definition.type_definitions();
 
                 for (name, definition) in objects {
                     object_type_definitions.push((name, definition));
@@ -119,8 +119,8 @@ pub async fn schema(
                 .iter()
                 .map(|(argument_name, argument_type)| {
                     let type_definition = ClickHouseTypeDefinition::from_query_argument(
-                        &argument_type,
-                        &argument_name,
+                        argument_type,
+                        argument_name,
                         table_alias,
                         &configuration.namespace_separator,
                     );
@@ -166,7 +166,7 @@ pub async fn schema(
                     ParameterizedQueryElement::Parameter(Parameter { name, r#type }) => {
                         let data_type = match r#type {
                             ParameterType::Identifier => &ClickHouseDataType::String,
-                            ParameterType::DataType(t) => &t,
+                            ParameterType::DataType(t) => t,
                         };
                         let type_definition = ClickHouseTypeDefinition::from_query_argument(
                             data_type,
