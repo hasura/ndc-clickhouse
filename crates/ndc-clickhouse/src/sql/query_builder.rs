@@ -361,7 +361,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         let (expr, join) = self.field_relationship(
                             alias,
                             &mut rel_index,
-                            &vec![Ident::new_quoted("_origin")],
+                            &[Ident::new_quoted("_origin")],
                             query,
                             relationship,
                             arguments,
@@ -840,7 +840,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         &self,
         field_alias: &str,
         name_index: &mut u32,
-        target_path: &Vec<Ident>,
+        target_path: &[Ident],
         query: &models::Query,
         relationship: &str,
         arguments: &BTreeMap<String, models::RelationshipArgument>,
@@ -858,8 +858,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 Ok(Expr::BinaryOp {
                     left: Expr::CompoundIdentifier(
                         target_path
-                            .clone()
-                            .into_iter()
+                            .iter()
+                            .cloned()
                             .chain(iter::once(Ident::new_quoted(source_col)))
                             .collect(),
                     )

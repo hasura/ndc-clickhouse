@@ -1,20 +1,23 @@
-use ndc_sdk::models::{self, LeafCapability, RelationshipCapabilities};
+use ndc_sdk::models::{
+    Capabilities, CapabilitiesResponse, LeafCapability, MutationCapabilities,
+    NestedFieldCapabilities, QueryCapabilities, RelationshipCapabilities,
+};
 
-pub fn capabilities() -> models::CapabilitiesResponse {
-    models::CapabilitiesResponse {
-        version: "^0.1.1".to_string(),
-        capabilities: models::Capabilities {
-            query: models::QueryCapabilities {
+pub fn capabilities() -> CapabilitiesResponse {
+    CapabilitiesResponse {
+        version: "0.1.4".to_owned(),
+        capabilities: Capabilities {
+            query: QueryCapabilities {
                 aggregates: Some(LeafCapability {}),
                 variables: Some(LeafCapability {}),
                 explain: Some(LeafCapability {}),
-                nested_fields: models::NestedFieldCapabilities {
+                nested_fields: NestedFieldCapabilities {
                     filter_by: None,
                     order_by: None,
                     aggregates: None,
                 },
             },
-            mutation: models::MutationCapabilities {
+            mutation: MutationCapabilities {
                 transactional: None,
                 explain: None,
             },
