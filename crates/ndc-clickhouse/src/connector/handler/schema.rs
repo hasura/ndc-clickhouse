@@ -43,6 +43,7 @@ pub async fn schema(
                 models::ObjectField {
                     description: None,
                     r#type: type_definition.type_identifier(),
+                    arguments: BTreeMap::new(),
                 },
             ));
         }

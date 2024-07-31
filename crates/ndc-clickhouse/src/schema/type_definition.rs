@@ -1,7 +1,7 @@
 use common::clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
 use indexmap::IndexMap;
 use ndc_sdk::models;
-use std::iter;
+use std::{collections::BTreeMap, iter};
 
 use super::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
 
@@ -106,21 +106,21 @@ impl ClickHouseScalar {
         match &self.0 {
             ClickHouseDataType::Bool => Some(Rep::Boolean),
             ClickHouseDataType::String => Some(Rep::String),
-            ClickHouseDataType::UInt8 => Some(Rep::Integer),
-            ClickHouseDataType::UInt16 => Some(Rep::Integer),
-            ClickHouseDataType::UInt32 => Some(Rep::Integer),
-            ClickHouseDataType::UInt64 => Some(Rep::Integer),
-            ClickHouseDataType::UInt128 => Some(Rep::Integer),
-            ClickHouseDataType::UInt256 => Some(Rep::Integer),
-            ClickHouseDataType::Int8 => Some(Rep::Integer),
-            ClickHouseDataType::Int16 => Some(Rep::Integer),
-            ClickHouseDataType::Int32 => Some(Rep::Integer),
-            ClickHouseDataType::Int64 => Some(Rep::Integer),
-            ClickHouseDataType::Int128 => Some(Rep::Integer),
-            ClickHouseDataType::Int256 => Some(Rep::Integer),
-            ClickHouseDataType::Float32 => Some(Rep::Number),
-            ClickHouseDataType::Float64 => Some(Rep::Number),
-            ClickHouseDataType::Decimal { .. } => Some(Rep::Number),
+            ClickHouseDataType::UInt8 => Some(Rep::Int16), // Unsigned int8 fits into signed int16
+            ClickHouseDataType::UInt16 => Some(Rep::Int32), // Unsigned int16 fits into signed int32
+            ClickHouseDataType::UInt32 => Some(Rep::Int64), // Unsigned int32 fits into signed int64
+            ClickHouseDataType::UInt64 => Some(Rep::BigInteger), // Unsigned int64 will have to go into BigInteger
+            ClickHouseDataType::UInt128 => Some(Rep::BigInteger), // Unsigned int128 will have to go into BigInteger
+            ClickHouseDataType::UInt256 => Some(Rep::BigInteger), // Unsigned int256 will have to go into BigInteger
+            ClickHouseDataType::Int8 => Some(Rep::Int8),
+            ClickHouseDataType::Int16 => Some(Rep::Int16),
+            ClickHouseDataType::Int32 => Some(Rep::Int32),
+            ClickHouseDataType::Int64 => Some(Rep::Int64),
+            ClickHouseDataType::Int128 => Some(Rep::BigInteger),
+            ClickHouseDataType::Int256 => Some(Rep::BigInteger),
+            ClickHouseDataType::Float32 => Some(Rep::Float32),
+            ClickHouseDataType::Float64 => Some(Rep::Float64),
+            ClickHouseDataType::Decimal { .. } => Some(Rep::BigDecimal),
             ClickHouseDataType::Decimal32 { .. } => Some(Rep::String),
             ClickHouseDataType::Decimal64 { .. } => Some(Rep::String),
             ClickHouseDataType::Decimal128 { .. } => Some(Rep::String),
@@ -129,7 +129,7 @@ impl ClickHouseScalar {
             ClickHouseDataType::Date32 => Some(Rep::String),
             ClickHouseDataType::DateTime { .. } => Some(Rep::String),
             ClickHouseDataType::DateTime64 { .. } => Some(Rep::String),
-            ClickHouseDataType::Json => Some(Rep::String),
+            ClickHouseDataType::Json => Some(Rep::JSON),
             ClickHouseDataType::Uuid => Some(Rep::String),
             ClickHouseDataType::IPv4 => Some(Rep::String),
             ClickHouseDataType::IPv6 => Some(Rep::String),
@@ -621,6 +621,7 @@ impl ClickHouseTypeDefinition {
                         models::ObjectField {
                             description: None,
                             r#type: field.type_identifier(),
+                            arguments: BTreeMap::new(),
                         },
                     ));
                 }

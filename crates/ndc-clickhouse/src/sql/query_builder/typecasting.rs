@@ -100,6 +100,7 @@ impl AggregatesTypeString {
                     models::Aggregate::SingleColumn {
                         column: column_alias,
                         function,
+                        field_path: _,
                     } => {
                         let column_type = get_column(column_alias, table_alias, config)?;
                         let type_definition = ClickHouseTypeDefinition::from_table_column(
@@ -172,6 +173,7 @@ impl RowTypeString {
                             models::Field::Column {
                                 column: column_alias,
                                 fields,
+                                arguments: _,
                             } => {
                                 let column_type = get_column(column_alias, table_alias, config)?;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
@@ -268,6 +270,7 @@ impl FieldTypeString {
                                 models::Field::Column {
                                     column,
                                     fields: subfield_selector,
+                                    arguments: _,
                                 } => {
                                     let type_definition = fields.get(column).ok_or_else(|| {
                                         TypeStringError::MissingNestedField {

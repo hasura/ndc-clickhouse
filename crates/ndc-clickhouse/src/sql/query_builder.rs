@@ -218,6 +218,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             models::Aggregate::ColumnCount {
                                 distinct,
                                 column: _,
+                                field_path: _,
                             } => {
                                 let column = Expr::CompoundIdentifier(vec![
                                     Ident::new_quoted("_row"),
@@ -231,6 +232,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             models::Aggregate::SingleColumn {
                                 function,
                                 column: _,
+                                field_path: _,
                             } => {
                                 let column = Expr::CompoundIdentifier(vec![
                                     Ident::new_quoted("_row"),
@@ -318,7 +320,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             let mut rel_index = 0;
             for (alias, field) in fields {
                 match field {
-                    models::Field::Column { column, fields } => {
+                    models::Field::Column {
+                        column,
+                        fields,
+                        arguments: _,
+                    } => {
                         let data_type = self.column_data_type(column, current_collection)?;
                         let column_definition = ClickHouseTypeDefinition::from_table_column(
                             &data_type,
@@ -492,7 +498,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
             for element in &order_by.elements {
                 match &element.target {
-                    models::OrderByTarget::Column { name, path } if path.is_empty() => {
+                    models::OrderByTarget::Column {
+                        name,
+                        path,
+                        field_path: _,
+                    } if path.is_empty() => {
                         let expr = Expr::CompoundIdentifier(vec![
                             Ident::new_quoted("_origin"),
                             self.column_ident(name),
@@ -698,7 +708,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             }
 
                             match &element.target {
-                                models::OrderByTarget::Column { name, path: _ } => {
+                                models::OrderByTarget::Column {
+                                    name,
+                                    path: _,
+                                    field_path: _,
+                                } => {
                                     let column = Expr::CompoundIdentifier(vec![
                                         last_join_alias,
                                         self.column_ident(name),
@@ -710,6 +724,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     column,
                                     function,
                                     path: _,
+                                    field_path: _,
                                 } => {
                                     let column = Expr::CompoundIdentifier(vec![
                                         last_join_alias,
@@ -1286,6 +1301,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             models::ComparisonTarget::Column {
                 name: comparison_column_name,
                 path,
+                field_path: _,
             } => {
                 if let Some(first_element) = path.first() {
                     if current_is_origin {
@@ -1649,7 +1665,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     ))
                 }
             }
-            models::ComparisonTarget::RootCollectionColumn { name } => {
+            models::ComparisonTarget::RootCollectionColumn {
+                name,
+                field_path: _,
+            } => {
                 if current_is_origin {
                     let column_ident = Expr::CompoundIdentifier(vec![
                         current_join_alias.clone(),
@@ -1964,7 +1983,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     let mut accessor_required = false;
                     for (alias, field) in &inner.fields {
                         match field {
-                            models::Field::Column { column, fields } => {
+                            models::Field::Column {
+                                column,
+                                fields,
+                                arguments: _,
+                            } => {
                                 required_columns.push(column);
 
                                 let type_definition =
