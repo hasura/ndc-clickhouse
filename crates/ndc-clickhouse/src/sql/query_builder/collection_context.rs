@@ -55,7 +55,7 @@ impl<'a, 'b> CollectionContext<'a, 'b> {
             }
             | CollectionContext::UnrelatedRelationship {
                 collection_alias, ..
-            } => &collection_alias,
+            } => collection_alias,
         }
     }
     pub fn has_arguments(&self) -> bool {
