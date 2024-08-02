@@ -93,3 +93,22 @@ where
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_escape_string() {
+        let test_cases = vec![
+            ("", ""),
+            ("foo", "foo"),
+            ("foo\nbar", "foo\\nbar"),
+            ("\\\n\t\r'", "\\\\\\n\\t\\r\\'"),
+        ];
+
+        for (raw, escaped) in test_cases {
+            assert_eq!(escape_string(raw).to_string().as_str(), escaped)
+        }
+    }
+}

@@ -87,7 +87,7 @@ impl Display for AggregateFunctionParameter {
 
 /// A parsed representation of a clickhouse datatype string
 /// This should support the full scope of clickhouse types
-/// To create one from a string slice, use try_from()
+/// To create one from a string slice, use from_str()
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClickHouseDataType {
     Nullable(Box<ClickHouseDataType>),

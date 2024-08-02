@@ -843,7 +843,7 @@ impl fmt::Display for Value {
                     "{{{}}}",
                     display_separated(obj, ",", |f, (key, value)| write!(
                         f,
-                        "'{}':{}",
+                        "'{}': {}",
                         escape_string(key),
                         value
                     ))
