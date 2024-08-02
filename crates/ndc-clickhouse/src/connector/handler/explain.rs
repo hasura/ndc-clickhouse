@@ -16,20 +16,20 @@ pub async fn explain(
     state: &ServerState,
     request: models::QueryRequest,
 ) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
-    let unsafe_statement = QueryBuilder::new(&request, configuration).build()?;
-
-    let unsafe_statement = unsafe_statement.explain();
-
-    let (statement, parameters) = unsafe_statement.clone().into_parameterized_statement();
-
-    let statement_string = statement.to_parameterized_sql_string();
+    let inlined_statement = QueryBuilder::new(&request, configuration)
+        .build_inlined()?
+        .explain()
+        .to_string();
+    let (parameterized_statement, parameters) =
+        QueryBuilder::new(&request, configuration).build_parameterized()?;
+    let parameterized_statement = parameterized_statement.explain().to_string();
 
     let client = state.client(configuration).await?;
 
     let explain = execute_json_query::<ExplainRow>(
         &client,
         &configuration.connection,
-        &statement_string,
+        &parameterized_statement,
         &parameters,
     )
     .await
@@ -44,14 +44,11 @@ pub async fn explain(
     let details = BTreeMap::from_iter(vec![
         (
             "SQL Query".to_string(),
-            add_variables_note(
-                &request,
-                &pretty_print_sql(&unsafe_statement.to_unsafe_sql_string()),
-            ),
+            add_variables_note(&request, &pretty_print_sql(&inlined_statement)),
         ),
         (
             "Parameterized SQL Query".to_string(),
-            add_variables_note(&request, &pretty_print_sql(&statement_string)),
+            add_variables_note(&request, &pretty_print_sql(&parameterized_statement)),
         ),
         (
             "Parameters".to_string(),

@@ -1,6 +1,7 @@
 mod collection_context;
 mod comparison_column;
 mod error;
+pub mod parameter;
 mod typecasting;
 
 use self::{collection_context::CollectionContext, typecasting::RowsetTypeString};
@@ -19,12 +20,15 @@ use comparison_column::ComparisonColumn;
 pub use error::QueryBuilderError;
 use indexmap::IndexMap;
 use ndc_sdk::models;
+use parameter::ParameterBuilder;
 use std::{collections::BTreeMap, iter, str::FromStr};
 
 pub struct QueryBuilder<'r, 'c> {
     request: &'r models::QueryRequest,
     configuration: &'c ServerConfig,
 }
+
+type Parameters = Vec<(String, String)>;
 
 impl<'r, 'c> QueryBuilder<'r, 'c> {
     pub fn new(request: &'r models::QueryRequest, configuration: &'c ServerConfig) -> Self {
@@ -33,10 +37,24 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             configuration,
         }
     }
-    pub fn build(&self) -> Result<UnsafeInlinedStatement, QueryBuilderError> {
-        self.root_query()
+    pub fn build_parameterized(&self) -> Result<(Statement, Parameters), QueryBuilderError> {
+        let mut parameters = ParameterBuilder::new(false);
+        let statement = self.root_query(&mut parameters)?;
+
+        let parameters = parameters.into_parameters();
+
+        Ok((statement, parameters))
     }
-    fn root_query(&self) -> Result<UnsafeInlinedStatement, QueryBuilderError> {
+    pub fn build_inlined(&self) -> Result<Statement, QueryBuilderError> {
+        let mut parameters = ParameterBuilder::new(true);
+        let statement = self.root_query(&mut parameters)?;
+
+        Ok(statement)
+    }
+    fn root_query(
+        &self,
+        parameters: &mut ParameterBuilder,
+    ) -> Result<Statement, QueryBuilderError> {
         let collection = CollectionContext::new(&self.request.collection, &self.request.arguments);
         let query = &self.request.query;
 
@@ -94,14 +112,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 }
             }
 
-            let variables_values =
-                Parameter::new(
-                    Value::SingleQuotedString(serde_json::to_string(&variable_values).map_err(
-                        |err| QueryBuilderError::CannotSerializeVariables(err.to_string()),
-                    )?),
-                    ClickHouseDataType::String.into(),
-                )
-                .into_expr();
+            let variables_values = parameters.bind_string(
+                &serde_json::to_string(&variable_values)
+                    .map_err(|err| QueryBuilderError::CannotSerializeVariables(err.to_string()))?,
+            );
 
             vec![Query::default()
                 .select(vec![SelectItem::Wildcard])
@@ -118,7 +132,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         };
 
         let rowset_subquery = self
-            .rowset_subquery(&collection, &vec![], query)?
+            .rowset_subquery(&collection, &vec![], query, parameters)?
             .into_table_factor()
             .alias("_rowset");
 
@@ -177,6 +191,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         current_collection: &CollectionContext,
         relkeys: &Vec<&String>,
         query: &models::Query,
+        parameters: &mut ParameterBuilder,
     ) -> Result<Query, QueryBuilderError> {
         let fields = if let Some(fields) = &query.fields {
             let row = if fields.is_empty() {
@@ -286,7 +301,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         }
 
         let from = vec![self
-            .row_subquery(current_collection, relkeys, query)?
+            .row_subquery(current_collection, relkeys, query, parameters)?
             .into_table_factor()
             .alias("_row")
             .into_table_with_joins(vec![])];
@@ -298,6 +313,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         current_collection: &CollectionContext,
         relkeys: &Vec<&String>,
         query: &models::Query,
+        parameters: &mut ParameterBuilder,
     ) -> Result<Query, QueryBuilderError> {
         let (table, mut base_joins) = if self.request.variables.is_some() {
             let table = ObjectName(vec![Ident::new_quoted("_vars")])
@@ -305,12 +321,16 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 .alias("_vars");
 
             let joins = vec![Join {
-                relation: self.collection_ident(current_collection)?.alias("_origin"),
+                relation: self
+                    .collection_ident(current_collection, parameters)?
+                    .alias("_origin"),
                 join_operator: JoinOperator::CrossJoin,
             }];
             (table, joins)
         } else {
-            let table = self.collection_ident(current_collection)?.alias("_origin");
+            let table = self
+                .collection_ident(current_collection, parameters)?
+                .alias("_origin");
             (table, vec![])
         };
 
@@ -342,6 +362,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             false,
                             fields.as_ref(),
                             &mut rel_index,
+                            parameters,
                         )? {
                             select.push(expr.into_select(Some(format!("_field_{alias}"))));
                             base_joins.append(&mut joins);
@@ -365,6 +386,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             query,
                             relationship,
                             arguments,
+                            parameters,
                         )?;
 
                         select.push(expr.into_select(Some(format!("_field_{alias}"))));
@@ -419,13 +441,14 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 current_collection,
                 true,
                 &mut 0,
+                parameters,
             )
             .map(|(expr, joins)| (Some(expr), joins))?
         } else {
             (None, vec![])
         };
 
-        let (order_by_exprs, order_by_joins) = self.order_by(&query.order_by)?;
+        let (order_by_exprs, order_by_joins) = self.order_by(&query.order_by, parameters)?;
 
         let joins = base_joins
             .into_iter()
@@ -489,6 +512,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     fn order_by(
         &self,
         order_by: &Option<models::OrderBy>,
+        parameters: &mut ParameterBuilder,
     ) -> Result<(Vec<OrderByExpr>, Vec<Join>), QueryBuilderError> {
         let mut order_by_exprs = vec![];
         let mut order_by_joins = vec![];
@@ -588,7 +612,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             }
 
                             let table = self
-                                .collection_ident(&relationship_collection)?
+                                .collection_ident(&relationship_collection, parameters)?
                                 .alias(&join_alias);
 
                             let (table, base_joins) = if self.request.variables.is_some() {
@@ -616,6 +640,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     &relationship_collection,
                                     false,
                                     &mut join_index,
+                                    parameters,
                                 )?;
 
                                 additional_predicate.push(predicate);
@@ -678,7 +703,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     .unwrap_or(JoinOperator::CrossJoin);
 
                                 let relation = self
-                                    .collection_ident(&relationship_collection)?
+                                    .collection_ident(&relationship_collection, parameters)?
                                     .alias(&join_alias);
 
                                 let join = Join {
@@ -695,6 +720,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         &relationship_collection,
                                         false,
                                         &mut join_index,
+                                        parameters,
                                     )?;
 
                                     additional_predicate.push(predicate);
@@ -836,6 +862,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
         Ok((order_by_exprs, order_by_joins))
     }
+    #[allow(clippy::too_many_arguments)]
     fn field_relationship(
         &self,
         field_alias: &str,
@@ -844,6 +871,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         query: &models::Query,
         relationship: &str,
         arguments: &BTreeMap<String, models::RelationshipArgument>,
+        parameters: &mut ParameterBuilder,
     ) -> Result<(Expr, Join), QueryBuilderError> {
         let join_alias = format!("_rel_{name_index}_{field_alias}");
         *name_index += 1;
@@ -900,7 +928,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
         let join = Join {
             relation: self
-                .rowset_subquery(&relationship_collection, &relkeys, query)?
+                .rowset_subquery(&relationship_collection, &relkeys, query, parameters)?
                 .into_table_factor()
                 .alias(&join_alias),
             join_operator,
@@ -920,6 +948,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         current_collection: &CollectionContext,
         current_is_origin: bool,
         name_index: &mut u32,
+        parameters: &mut ParameterBuilder,
     ) -> Result<(Expr, Vec<Join>), QueryBuilderError> {
         match expression {
             models::Expression::And { expressions } => {
@@ -932,6 +961,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             current_collection,
                             current_is_origin,
                             name_index,
+                            parameters,
                         )
                     })
                     .collect::<Result<Vec<_>, _>>()?
@@ -963,6 +993,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             current_collection,
                             current_is_origin,
                             name_index,
+                            parameters,
                         )
                     })
                     .collect::<Result<Vec<_>, _>>()?
@@ -991,6 +1022,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     current_collection,
                     current_is_origin,
                     name_index,
+                    parameters,
                 )?;
                 let not_expression = Expr::Not(expression.into_nested().into_box());
                 Ok((not_expression, joins))
@@ -1002,6 +1034,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     current_collection,
                     current_is_origin,
                     name_index,
+                    parameters,
                 )?;
 
                 let (expression, joins) = left_col.apply(|left_col| {
@@ -1033,6 +1066,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     current_collection,
                     current_is_origin,
                     name_index,
+                    parameters,
                 )?;
 
                 // special case: right hand data types is assumed to always be the same type as left hand,
@@ -1052,9 +1086,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         current_collection,
                         current_is_origin,
                         name_index,
+                        parameters,
                     )?,
                     models::ComparisonValue::Scalar { value } => ComparisonColumn::new_simple(
-                        Parameter::new(value.into(), right_col_type.clone().into()).into_expr(),
+                        parameters.bind_json(value, right_col_type.clone().into()),
                         right_col_type,
                     ),
 
@@ -1091,6 +1126,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 predicate,
                 current_join_alias,
                 name_index,
+                parameters,
             ),
         }
     }
@@ -1100,6 +1136,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         expression: &Option<Box<models::Expression>>,
         previous_join_alias: &Ident,
         name_index: &mut u32,
+        parameters: &mut ParameterBuilder,
     ) -> Result<(Expr, Vec<Join>), QueryBuilderError> {
         let exists_join_ident = Ident::new_quoted(format!("_exists_{}", name_index));
         *name_index += 1;
@@ -1130,6 +1167,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         &target_collection,
                         false,
                         name_index,
+                        parameters,
                     )?;
                     (Some(predicate), predicate_joins)
                 }
@@ -1137,7 +1175,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             };
 
             let table = self
-                .collection_ident(&target_collection)?
+                .collection_ident(&target_collection, parameters)?
                 .alias(&subquery_origin_alias);
 
             let (table, base_joins) = if self.request.variables.is_some() {
@@ -1295,6 +1333,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         current_collection: &CollectionContext,
         current_is_origin: bool,
         name_index: &mut u32,
+        parameters: &mut ParameterBuilder,
     ) -> Result<ComparisonColumn, QueryBuilderError> {
         match column {
             models::ComparisonTarget::Column {
@@ -1352,7 +1391,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 }
 
                                 let table = self
-                                    .collection_ident(&relationship_collection)?
+                                    .collection_ident(&relationship_collection, parameters)?
                                     .alias(&join_alias);
 
                                 let (table, base_joins) = if self.request.variables.is_some() {
@@ -1380,6 +1419,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         &relationship_collection,
                                         false,
                                         &mut join_index,
+                                        parameters,
                                     )?;
 
                                     additional_predicate.push(predicate);
@@ -1433,7 +1473,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         .unwrap_or(JoinOperator::CrossJoin);
 
                                     let relation = self
-                                        .collection_ident(&relationship_collection)?
+                                        .collection_ident(&relationship_collection, parameters)?
                                         .alias(&join_alias);
 
                                     let join = Join {
@@ -1450,6 +1490,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                             &relationship_collection,
                                             false,
                                             &mut join_index,
+                                            parameters,
                                         )?;
 
                                         additional_predicate.push(predicate);
@@ -1608,7 +1649,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                 .unwrap_or(JoinOperator::CrossJoin);
 
                             let table = self
-                                .collection_ident(&relationship_collection)?
+                                .collection_ident(&relationship_collection, parameters)?
                                 .alias(&join_alias);
 
                             let join = Join {
@@ -1625,6 +1666,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     &relationship_collection,
                                     false,
                                     name_index,
+                                    parameters,
                                 )?;
 
                                 additional_predicates.push(predicate);
@@ -1699,6 +1741,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     fn collection_ident(
         &self,
         collection: &CollectionContext,
+        parameters: &mut ParameterBuilder,
     ) -> Result<TableFactor, QueryBuilderError> {
         if let Some(table) = self.configuration.tables.get(collection.alias()) {
             let table_argument_type = |argument_name: &str| {
@@ -1725,13 +1768,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 };
                 Ok(column_ident.into_arg().name(Ident::new_quoted(arg_name)))
             };
-            let literal_argument = |arg_name: &String, value: &serde_json::Value| {
-                Ok(Expr::Parameter(Parameter::new(
-                    value.into(),
-                    table_argument_type(arg_name)?.to_owned().into(),
-                ))
-                .into_arg()
-                .name(Ident::new_quoted(arg_name)))
+            let mut literal_argument = |arg_name: &String, value: &serde_json::Value| {
+                Ok(parameters
+                    .bind_json(value, table_argument_type(arg_name)?.to_owned().into())
+                    .into_arg()
+                    .name(Ident::new_quoted(arg_name)))
             };
             let table_name = ObjectName(vec![
                 Ident::new_quoted(&table.schema),
@@ -1859,10 +1900,9 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     ParameterizedQueryElement::Parameter(p) => get_argument(p.name.value())
                         .transpose()?
                         .map(|value| {
-                            NativeQueryElement::Parameter(Parameter::new(
-                                value.into(),
-                                p.r#type.clone(),
-                            ))
+                            NativeQueryElement::Expr(
+                                parameters.bind_json(value, p.r#type.to_owned()),
+                            )
                         })
                         .ok_or_else(|| QueryBuilderError::MissingNativeQueryArgument {
                             query: collection.alias().to_owned(),
@@ -1918,6 +1958,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         traversed_array: bool,
         field_selector: Option<&models::NestedField>,
         rel_index: &mut u32,
+        parameters: &mut ParameterBuilder,
     ) -> Result<Option<(Expr, Vec<Join>)>, QueryBuilderError> {
         if let Some(fields) = field_selector {
             match fields {
@@ -1940,6 +1981,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         true,
                         Some(&inner.fields),
                         rel_index,
+                        parameters,
                     )? {
                         if !joins.is_empty() {
                             return Err(QueryBuilderError::Unexpected("column accessor should not return relationship joins after array traversal".to_string()));
@@ -2004,6 +2046,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     traversed_array,
                                     fields.as_ref(),
                                     rel_index,
+                                    parameters,
                                 )? {
                                     accessor_required = true;
                                     required_joins.append(&mut joins);
@@ -2030,6 +2073,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     query,
                                     relationship,
                                     arguments,
+                                    parameters,
                                 )?;
 
                                 required_joins.push(join);

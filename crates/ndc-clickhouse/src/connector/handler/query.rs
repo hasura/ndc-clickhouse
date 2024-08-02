@@ -20,19 +20,20 @@ pub async fn query(
     let (statement_string, parameters) =
         tracing::info_span!("Build SQL Query", internal.visibility = "user").in_scope(
             || -> Result<_, QueryError> {
-                let statement = QueryBuilder::new(&request, configuration).build()?;
+                let (statement, parameters) =
+                    QueryBuilder::new(&request, configuration).build_parameterized()?;
 
                 #[cfg(debug_assertions)]
                 {
                     // this block only present in debug builds, to avoid leaking sensitive information
-                    let unsafe_statement_string = statement.to_unsafe_sql_string();
+                    let unsafe_statement_string = QueryBuilder::new(&request, configuration)
+                        .build_inlined()?
+                        .to_string();
 
                     tracing::event!(Level::DEBUG, "Generated SQL" = unsafe_statement_string);
                 }
 
-                let (statement, parameters) = statement.into_parameterized_statement();
-
-                let statement_string = statement.to_parameterized_sql_string();
+                let statement_string = statement.to_string();
 
                 Ok((statement_string, parameters))
             },
@@ -56,7 +57,7 @@ pub async fn query(
     )
     .instrument(execution_span)
     .await
-    .map_err(|err| QueryError::new(err))?;
+    .map_err(QueryError::new)?;
 
     #[cfg(debug_assertions)]
     {
