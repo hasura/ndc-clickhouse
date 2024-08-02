@@ -60,16 +60,6 @@ struct CliArgs {
         env = "HASURA_PLUGIN_CONNECTOR_CONTEXT_PATH"
     )]
     context_path: Option<PathBuf>,
-    #[arg(long = "clickhouse-url", value_name = "URL", env = "CLICKHOUSE_URL")]
-    clickhouse_url: String,
-    #[arg(long = "clickhouse-username", value_name = "USERNAME", env = "CLICKHOUSE_USERNAME", default_value_t = String::from("default"))]
-    clickhouse_username: String,
-    #[arg(
-        long = "clickhouse-password",
-        value_name = "PASSWORD",
-        env = "CLICKHOUSE_PASSWORD"
-    )]
-    clickhouse_password: String,
     #[command(subcommand)]
     command: Command,
 }
@@ -77,7 +67,18 @@ struct CliArgs {
 #[derive(Clone, Subcommand)]
 enum Command {
     Init {},
-    Update {},
+    Update {
+        #[arg(long = "clickhouse-url", value_name = "URL", env = "CLICKHOUSE_URL")]
+        url: String,
+        #[arg(long = "clickhouse-username", value_name = "USERNAME", env = "CLICKHOUSE_USERNAME", default_value_t = String::from("default"))]
+        username: String,
+        #[arg(
+            long = "clickhouse-password",
+            value_name = "PASSWORD",
+            env = "CLICKHOUSE_PASSWORD"
+        )]
+        password: String,
+    },
     Validate {},
     Watch {},
 }
@@ -93,11 +94,6 @@ enum LogLevel {
     Trace,
 }
 
-struct Context {
-    context_path: PathBuf,
-    connection: ConnectionConfig,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = CliArgs::parse();
@@ -107,33 +103,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Some(path) => path,
     };
 
-    let connection = ConnectionConfig {
-        url: args.clickhouse_url,
-        username: args.clickhouse_username,
-        password: args.clickhouse_password,
-    };
-
-    let context = Context {
-        context_path,
-        connection,
-    };
-
     match args.command {
         Command::Init {} => {
-            let introspection = introspect_database(&context.connection).await?;
-            let config = update_tables_config(&context.context_path, &introspection).await?;
-            validate_table_config(&context.context_path, &config).await?;
+            let config = ServerConfigFile::default();
+            let config_schema = schema_for!(ServerConfigFile);
+
+            let file_path = context_path.join(CONFIG_FILE_NAME);
+            let schema_file_path = context_path.join(CONFIG_SCHEMA_FILE_NAME);
+
+            fs::write(&file_path, serde_json::to_string_pretty(&config)?).await?;
+            fs::write(
+                &schema_file_path,
+                serde_json::to_string_pretty(&config_schema)?,
+            )
+            .await?;
         }
-        Command::Update {} => {
-            let introspection = introspect_database(&context.connection).await?;
-            let config = update_tables_config(&context.context_path, &introspection).await?;
-            validate_table_config(&context.context_path, &config).await?;
+        Command::Update {
+            url,
+            username,
+            password,
+        } => {
+            let connection = ConnectionConfig {
+                url,
+                username,
+                password,
+            };
+
+            let introspection = introspect_database(&connection).await?;
+            let config = update_tables_config(&context_path, &introspection).await?;
+            validate_table_config(&context_path, &config).await?;
         }
         Command::Validate {} => {
-            let file_path = context.context_path.join(CONFIG_FILE_NAME);
+            let file_path = context_path.join(CONFIG_FILE_NAME);
             let config = read_config_file(&file_path).await?;
             if let Some(config) = config {
-                validate_table_config(&context.context_path, &config).await?;
+                validate_table_config(&context_path, &config).await?;
             }
         }
         Command::Watch {} => {

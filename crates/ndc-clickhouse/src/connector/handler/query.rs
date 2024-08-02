@@ -12,8 +12,7 @@ pub async fn query(
     #[cfg(debug_assertions)]
     {
         // this block only present in debug builds, to avoid leaking sensitive information
-        let request_string = serde_json::to_string(&request)
-            .map_err(|err| QueryError::Other(err.to_string().into()))?;
+        let request_string = serde_json::to_string(&request).map_err(QueryError::new)?;
 
         tracing::event!(Level::DEBUG, "Incoming IR" = request_string);
     }
@@ -21,28 +20,26 @@ pub async fn query(
     let (statement_string, parameters) =
         tracing::info_span!("Build SQL Query", internal.visibility = "user").in_scope(
             || -> Result<_, QueryError> {
-                let statement = QueryBuilder::new(&request, configuration).build()?;
+                let (statement, parameters) =
+                    QueryBuilder::new(&request, configuration).build_parameterized()?;
 
                 #[cfg(debug_assertions)]
                 {
                     // this block only present in debug builds, to avoid leaking sensitive information
-                    let unsafe_statement_string = statement.to_unsafe_sql_string();
+                    let unsafe_statement_string = QueryBuilder::new(&request, configuration)
+                        .build_inlined()?
+                        .to_string();
 
                     tracing::event!(Level::DEBUG, "Generated SQL" = unsafe_statement_string);
                 }
 
-                let (statement, parameters) = statement.into_parameterized_statement();
-
-                let statement_string = statement.to_parameterized_sql_string();
+                let statement_string = statement.to_string();
 
                 Ok((statement_string, parameters))
             },
         )?;
 
-    let client = state
-        .client(configuration)
-        .await
-        .map_err(|err| QueryError::Other(err.to_string().into()))?;
+    let client = state.client(configuration).await.map_err(QueryError::new)?;
 
     let execution_span = tracing::info_span!(
         "Execute SQL query",
@@ -60,13 +57,12 @@ pub async fn query(
     )
     .instrument(execution_span)
     .await
-    .map_err(|err| QueryError::UnprocessableContent(err.to_string()))?;
+    .map_err(QueryError::new)?;
 
     #[cfg(debug_assertions)]
     {
         // this block only present in debug builds, to avoid leaking sensitive information
-        let result_string =
-            std::str::from_utf8(&rowsets).map_err(|err| QueryError::Other(err.into()))?;
+        let result_string = std::str::from_utf8(&rowsets).map_err(QueryError::new)?;
 
         tracing::event!(Level::DEBUG, "Response" = result_string);
     }

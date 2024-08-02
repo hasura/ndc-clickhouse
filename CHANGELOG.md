@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.10]
+
+- Correct CLI implementation of Init command (used to behave the same as update)
+- Update sdk & errors
+- Fix version returned by capabilities
+- Fix parameter escaping, enabling complex data types as parameters
+- Remove deprecated JSON data type, see [clickhouse docs](https://clickhouse.com/docs/en/sql-reference/data-types/object-data-type)
+
 ## [0.2.9]
 
 - Change namespaceing to use `.` separator instead of `_`. We assume table names are less likely to contain periods, so this reduces likelyhood of naming conflicts.This will change generated type names and will thus manifest as a breaking change for some users

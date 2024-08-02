@@ -1,47 +1,8 @@
-#![allow(dead_code)]
 use std::fmt;
-
-mod parameter_extractor;
+pub mod format;
 use common::clickhouse_parser::parameterized_query::ParameterType;
-use parameter_extractor::ParameterExtractor;
-
-//.A statement containing placeholders where parameters used to be
-// Should be paired with the corresponding parameters for execution
-#[derive(Debug, Clone)]
-pub struct ParameterizedStatement(Statement);
-
-impl ParameterizedStatement {
-    pub fn format<S: Into<String>>(self, format: S) -> Self {
-        Self(self.0.format(format))
-    }
-    pub fn explain(self) -> Self {
-        Self(self.0.explain())
-    }
-    pub fn to_parameterized_sql_string(&self) -> String {
-        self.0.to_string()
-    }
-}
-
-/// A statement that contains parameters that may be user generated
-/// Vulnerable to SQL injection
-/// Should never be sent to the database, but may be useful as user-facing output when explaining requests
-#[derive(Debug, Clone)]
-pub struct UnsafeInlinedStatement(Statement);
-
-impl UnsafeInlinedStatement {
-    pub fn format<S: Into<String>>(self, format: S) -> Self {
-        Self(self.0.format(format))
-    }
-    pub fn explain(self) -> Self {
-        Self(self.0.explain())
-    }
-    pub fn to_unsafe_sql_string(&self) -> String {
-        self.0.to_string()
-    }
-    pub fn into_parameterized_statement(self) -> (ParameterizedStatement, Vec<(String, String)>) {
-        ParameterExtractor::extract_statement_parameters(self)
-    }
-}
+use format::{display_comma_separated, display_period_separated, display_separated, escape_string};
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone)]
 pub struct Statement {
@@ -132,12 +93,12 @@ impl Query {
     pub fn offset(self, offset: Option<u64>) -> Self {
         Self { offset, ..self }
     }
-    pub fn into_statement(self) -> UnsafeInlinedStatement {
-        UnsafeInlinedStatement(Statement {
+    pub fn into_statement(self) -> Statement {
+        Statement {
             query: self,
             format: None,
             explain: false,
-        })
+        }
     }
     pub fn into_table_factor(self) -> TableFactor {
         TableFactor::Derived {
@@ -156,27 +117,27 @@ impl Query {
 impl fmt::Display for Query {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.with.is_empty() {
-            write!(f, "WITH {} ", display_separated(&self.with, ", "))?;
+            write!(f, "WITH {} ", display_comma_separated(&self.with))?;
         }
-        write!(f, "SELECT {}", display_separated(&self.select, ", "))?;
+        write!(f, "SELECT {}", display_comma_separated(&self.select))?;
         if !self.from.is_empty() {
-            write!(f, " FROM {}", display_separated(&self.from, ", "))?;
+            write!(f, " FROM {}", display_comma_separated(&self.from))?;
         }
         if let Some(predicate) = &self.predicate {
             write!(f, " WHERE {}", predicate)?;
         }
         if !self.group_by.is_empty() {
-            write!(f, " GROUP BY {}", display_separated(&self.group_by, ", "))?;
+            write!(f, " GROUP BY {}", display_comma_separated(&self.group_by))?;
         }
         if !self.order_by.is_empty() {
-            write!(f, " ORDER BY {}", display_separated(&self.order_by, ", "))?;
+            write!(f, " ORDER BY {}", display_comma_separated(&self.order_by))?;
         }
         if let Some(limit_by) = &self.limit_by {
             write!(f, " LIMIT {}", limit_by.limit)?;
             if let Some(offset) = limit_by.offset {
                 write!(f, " OFFSET {}", offset)?;
             }
-            write!(f, " BY {}", display_separated(&limit_by.by, ", "))?;
+            write!(f, " BY {}", display_comma_separated(&limit_by.by))?;
         }
         if let Some(limit) = &self.limit {
             write!(f, " LIMIT {}", limit)?;
@@ -296,7 +257,7 @@ impl fmt::Display for Join {
                     match self.0 {
                         JoinConstraint::On(expr) => write!(f, " ON {expr}"),
                         JoinConstraint::Using(attrs) => {
-                            write!(f, " USING({})", display_separated(attrs, ", "))
+                            write!(f, " USING({})", display_comma_separated(attrs))
                         }
                         _ => Ok(()),
                     }
@@ -481,14 +442,14 @@ impl fmt::Display for NativeQuery {
 #[derive(Debug, Clone)]
 pub enum NativeQueryElement {
     String(String),
-    Parameter(Parameter),
+    Expr(Expr),
 }
 
 impl fmt::Display for NativeQueryElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             NativeQueryElement::String(s) => write!(f, "{s}"),
-            NativeQueryElement::Parameter(p) => write!(f, "{p}"),
+            NativeQueryElement::Expr(e) => write!(f, "{e}"),
         }
     }
 }
@@ -515,7 +476,7 @@ impl ObjectName {
 
 impl fmt::Display for ObjectName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", display_separated(&self.0, "."))
+        write!(f, "{}", display_period_separated(&self.0))
     }
 }
 
@@ -568,7 +529,7 @@ impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expr::Identifier(ident) => write!(f, "{}", ident),
-            Expr::CompoundIdentifier(idents) => write!(f, "{}", display_separated(idents, ".")),
+            Expr::CompoundIdentifier(idents) => write!(f, "{}", display_period_separated(idents)),
             Expr::BinaryOp { left, op, right } => write!(f, "{} {} {}", left, op, right),
             Expr::Not(expr) => write!(f, "NOT {expr}"),
             Expr::Nested(expr) => write!(f, "({})", expr),
@@ -576,26 +537,20 @@ impl fmt::Display for Expr {
             Expr::Parameter(p) => write!(f, "{}", p),
             Expr::Function(function) => write!(f, "{}", function),
             Expr::Lambda(lambda) => write!(f, "{}", lambda),
-            Expr::List(list) => write!(f, "({})", display_separated(list, ", ")),
+            Expr::List(list) => write!(f, "({})", display_comma_separated(list)),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Parameter {
-    Value {
-        data_type: ParameterType,
-        value: Value,
-    },
-    Placeholder {
-        data_type: ParameterType,
-        name: String,
-    },
+pub struct Parameter {
+    name: String,
+    data_type: ParameterType,
 }
 
 impl Parameter {
-    pub fn new(value: Value, data_type: ParameterType) -> Self {
-        Self::Value { data_type, value }
+    pub fn new(name: String, data_type: ParameterType) -> Self {
+        Self { name, data_type }
     }
     pub fn into_expr(self) -> Expr {
         Expr::Parameter(self)
@@ -604,15 +559,7 @@ impl Parameter {
 
 impl fmt::Display for Parameter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Parameter::Value {
-                value,
-                data_type: _,
-            } => write!(f, "{value}"),
-            Parameter::Placeholder { name, data_type } => {
-                write!(f, "{{{}:{}}}", name, data_type)
-            }
-        }
+        write!(f, "{{{}:{}}}", self.name, self.data_type)
     }
 }
 
@@ -639,7 +586,7 @@ impl fmt::Display for Lambda {
         write!(
             f,
             "({}) -> {}",
-            display_separated(&self.args, ", "),
+            display_comma_separated(&self.args),
             self.expr
         )
     }
@@ -697,7 +644,7 @@ impl fmt::Display for Function {
             "{}({}{})",
             self.name,
             if self.distinct { "DISTINCT " } else { "" },
-            display_separated(&self.args, ", ")
+            display_comma_separated(&self.args)
         )?;
         if let Some(over) = &self.over {
             write!(f, " OVER ({})", over)?;
@@ -717,14 +664,14 @@ impl fmt::Display for WindowSpec {
             write!(
                 f,
                 "PARTITION BY {}",
-                display_separated(&self.partition_by, ", ")
+                display_comma_separated(&self.partition_by)
             )?;
         }
         if !self.order_by.is_empty() {
             if !self.partition_by.is_empty() {
                 write!(f, " ")?;
             }
-            write!(f, "ORDER BY {}", display_separated(&self.order_by, ", "))?;
+            write!(f, "ORDER BY {}", display_comma_separated(&self.order_by))?;
         }
         Ok(())
     }
@@ -844,6 +791,8 @@ pub enum Value {
     SingleQuotedString(String),
     Boolean(bool),
     Null,
+    Map(IndexMap<String, Value>),
+    Array(Vec<Value>),
 }
 
 impl Value {
@@ -852,30 +801,24 @@ impl Value {
     }
 }
 
-impl From<serde_json::Value> for Value {
-    fn from(value: serde_json::Value) -> Self {
-        match value {
-            serde_json::Value::Null => Value::Null,
-            serde_json::Value::Bool(b) => Value::Boolean(b),
-            serde_json::Value::Number(n) => Value::Number(n.to_string()),
-            serde_json::Value::String(s) => Value::SingleQuotedString(s),
-            // note we may need to convert complex types into escaped json strings rather than json strings.
-            serde_json::Value::Array(_) => Value::SingleQuotedString(value.to_string()),
-            serde_json::Value::Object(_) => Value::SingleQuotedString(value.to_string()),
-        }
-    }
-}
-
 impl From<&serde_json::Value> for Value {
     fn from(value: &serde_json::Value) -> Self {
-        match value {
-            serde_json::Value::Null => Value::Null,
-            serde_json::Value::Bool(b) => Value::Boolean(b.to_owned()),
-            serde_json::Value::Number(n) => Value::Number(n.to_string()),
-            serde_json::Value::String(s) => Value::SingleQuotedString(s.to_owned()),
-            serde_json::Value::Array(_) => Value::SingleQuotedString(value.to_string()),
-            serde_json::Value::Object(_) => Value::SingleQuotedString(value.to_string()),
+        fn map_json_value(value: &serde_json::Value) -> Value {
+            match value {
+                serde_json::Value::Null => Value::Null,
+                serde_json::Value::Bool(b) => Value::Boolean(b.to_owned()),
+                serde_json::Value::Number(n) => Value::Number(n.to_string()),
+                serde_json::Value::String(s) => Value::SingleQuotedString(s.to_owned()),
+                serde_json::Value::Array(arr) => {
+                    Value::Array(arr.iter().map(map_json_value).collect())
+                }
+                serde_json::Value::Object(obj) => Value::Map(IndexMap::from_iter(
+                    obj.into_iter()
+                        .map(|(key, value)| (key.to_owned(), map_json_value(value))),
+                )),
+            }
         }
+        map_json_value(value)
     }
 }
 
@@ -884,10 +827,7 @@ impl fmt::Display for Value {
         match self {
             Value::Number(n) => write!(f, "{}", n),
             Value::SingleQuotedString(s) => {
-                // clickhouse docs state that backslash and single quotes must be escaped
-                // docs: https://clickhouse.com/docs/en/sql-reference/syntax#syntax-string-literal
-                let escaped_value = s.to_owned().replace('\\', r#"\\"#).replace('\'', r#"\'"#);
-                write!(f, "'{}'", escaped_value)
+                write!(f, "'{}'", escape_string(s))
             }
             Value::Boolean(b) => {
                 if *b {
@@ -897,6 +837,19 @@ impl fmt::Display for Value {
                 }
             }
             Value::Null => write!(f, "NULL"),
+            Value::Map(obj) => {
+                write!(
+                    f,
+                    "{{{}}}",
+                    display_separated(obj, ",", |f, (key, value)| write!(
+                        f,
+                        "'{}': {}",
+                        escape_string(key),
+                        value
+                    ))
+                )
+            }
+            Value::Array(arr) => write!(f, "[{}]", display_comma_separated(arr)),
         }
     }
 }
@@ -960,38 +913,5 @@ impl fmt::Display for Ident {
         } else {
             write!(f, "{}", self.value)
         }
-    }
-}
-
-pub struct DisplaySeparated<'a, T>
-where
-    T: fmt::Display,
-{
-    slice: &'a [T],
-    separator: &'static str,
-}
-
-fn display_separated<'a, T>(slice: &'a [T], separator: &'static str) -> DisplaySeparated<'a, T>
-where
-    T: fmt::Display,
-{
-    DisplaySeparated { slice, separator }
-}
-
-impl<'a, T> fmt::Display for DisplaySeparated<'a, T>
-where
-    T: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut first = true;
-        for t in self.slice {
-            if first {
-                first = false;
-            } else {
-                write!(f, "{}", self.separator)?;
-            }
-            write!(f, "{}", t)?;
-        }
-        Ok(())
     }
 }

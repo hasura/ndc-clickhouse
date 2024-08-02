@@ -11,8 +11,10 @@ use common::{
 pub struct TableInfo {
     pub table_name: String,
     pub table_schema: String,
+    #[allow(dead_code)]
     pub table_catalog: String,
     pub table_comment: Option<String>,
+    #[allow(dead_code)]
     pub table_type: TableType,
     pub primary_key: Option<String>,
     pub view_definition: String,
@@ -23,6 +25,7 @@ pub struct TableInfo {
 pub struct ColumnInfo {
     pub column_name: String,
     pub data_type: String,
+    #[allow(dead_code)]
     pub is_nullable: bool,
     pub is_in_primary_key: bool,
 }

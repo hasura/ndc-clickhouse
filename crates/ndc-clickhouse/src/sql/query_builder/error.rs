@@ -106,12 +106,10 @@ impl From<QueryBuilderError> for QueryError {
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
             | QueryBuilderError::Typecasting(_)
             | QueryBuilderError::ColumnTypeMismatch { .. } => {
-                QueryError::InvalidRequest(value.to_string())
+                QueryError::new_invalid_request(&value)
             }
-            QueryBuilderError::NotSupported(_) => {
-                QueryError::UnsupportedOperation(value.to_string())
-            }
-            QueryBuilderError::Unexpected(_) => QueryError::Other(Box::new(value)),
+            QueryBuilderError::NotSupported(_) => QueryError::new_unsupported_operation(&value),
+            QueryBuilderError::Unexpected(_) => QueryError::new(value),
         }
     }
 }
@@ -132,12 +130,10 @@ impl From<QueryBuilderError> for ExplainError {
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
             | QueryBuilderError::Typecasting(_)
             | QueryBuilderError::ColumnTypeMismatch { .. } => {
-                ExplainError::InvalidRequest(value.to_string())
+                ExplainError::new_invalid_request(&value)
             }
-            QueryBuilderError::NotSupported(_) => {
-                ExplainError::UnsupportedOperation(value.to_string())
-            }
-            QueryBuilderError::Unexpected(_) => ExplainError::Other(Box::new(value)),
+            QueryBuilderError::NotSupported(_) => ExplainError::new_unsupported_operation(&value),
+            QueryBuilderError::Unexpected(_) => ExplainError::new(Box::new(value)),
         }
     }
 }

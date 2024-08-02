@@ -334,7 +334,7 @@ checksum = "97af0562545a7d7f3d9222fcf909963bec36dcb502afaacab98c6ffac8da47ce"
 
 [[package]]
 name = "common"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "bytes",
  "peg",
@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1079,7 +1079,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse-cli"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "clap",
  "common",
@@ -1103,8 +1103,8 @@ dependencies = [
 
 [[package]]
 name = "ndc-sdk"
-version = "0.1.4"
-source = "git+https://github.com/hasura/ndc-sdk-rs?tag=v0.1.4#29adcb5983c1237e8a5f4732d5230c2ba8ab75d3"
+version = "0.1.5"
+source = "git+https://github.com/hasura/ndc-sdk-rs?tag=v0.1.5#7f8382001b745c24b5f066411dde6822df65f545"
 dependencies = [
  "async-trait",
  "axum",

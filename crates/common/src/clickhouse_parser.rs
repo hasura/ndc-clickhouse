@@ -46,7 +46,6 @@ peg::parser! {
         / date_time()
         / date32()
         / date()
-        / json()
         / uuid()
         / ipv4()
         / ipv6()
@@ -86,7 +85,6 @@ peg::parser! {
     rule date32() -> DT = "Date32" { DT::Date32 }
     rule date_time() -> DT = "DateTime" tz:("(" tz:single_quoted_string_value()? ")" { tz })? { DT::DateTime { timezone: tz.flatten().map(|s| s.to_owned()) } }
     rule date_time64() -> DT = "DateTime64(" precision:integer_value() tz:(comma_separator() tz:single_quoted_string_value()? { tz })? ")" { DT::DateTime64{ precision, timezone: tz.flatten().map(|s| s.to_owned())} }
-    rule json() -> DT = "JSON" { DT::Json }
     rule uuid() -> DT = "UUID" { DT::Uuid }
     rule ipv4() -> DT = "IPv4" { DT::IPv4 }
     rule ipv6() -> DT = "IPv6" { DT::IPv6 }
