@@ -8,11 +8,11 @@ use tokio::fs;
 mod test_utils {
     use common::config::ServerConfig;
     use ndc_clickhouse::{
-        connector::read_server_config,
+        connector::setup::ClickhouseConnectorSetup,
         sql::{QueryBuilder, QueryBuilderError},
     };
     use ndc_sdk::models;
-    use std::{env, error::Error, path::PathBuf};
+    use std::{collections::HashMap, env, error::Error, path::PathBuf};
     use tokio::fs;
 
     /// when running tests locally, this can be set to true to update reference files
@@ -34,11 +34,14 @@ mod test_utils {
     }
     async fn read_mock_configuration(schema_dir: &str) -> Result<ServerConfig, Box<dyn Error>> {
         // set mock values for required env vars, we won't be reading these anyways
-        env::set_var("CLICKHOUSE_URL", "");
-        env::set_var("CLICKHOUSE_USERNAME", "");
-        env::set_var("CLICKHOUSE_PASSWORD", "");
+        let env = HashMap::from_iter(vec![
+            ("CLICKHOUSE_URL".to_owned(), "".to_owned()),
+            ("CLICKHOUSE_USERNAME".to_owned(), "".to_owned()),
+            ("CLICKHOUSE_PASSWORD".to_owned(), "".to_owned()),
+        ]);
+        let setup = ClickhouseConnectorSetup::new_from_env(env);
         let config_dir = config_dir_path(schema_dir);
-        let configuration = read_server_config(config_dir).await?;
+        let configuration = setup.read_server_config(config_dir).await?;
         Ok(configuration)
     }
     async fn read_request(
@@ -93,8 +96,8 @@ mod test_utils {
     ) -> Result<String, QueryBuilderError> {
         let generated_statement = pretty_print_sql(
             &QueryBuilder::new(request, configuration)
-                .build()?
-                .to_unsafe_sql_string(),
+                .build_inlined()?
+                .to_string(),
         );
         Ok(generated_statement)
     }

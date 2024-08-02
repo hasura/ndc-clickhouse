@@ -65,7 +65,7 @@ impl ClickhouseConnectorSetup {
             password: env.get("CLICKHOUSE_PASSWORD").cloned(),
         }
     }
-    async fn read_server_config(
+    pub async fn read_server_config(
         &self,
         configuration_dir: impl AsRef<Path> + Send,
     ) -> Result<ServerConfig, ParseError> {
@@ -100,7 +100,7 @@ impl ClickhouseConnectorSetup {
                         &table_config.return_type,
                         &config,
                         &file_path,
-                        &["tables", &table_alias, "return_type"],
+                        &["tables", table_alias, "return_type"],
                     )?
                     .map(|columns| {
                         (
@@ -120,7 +120,7 @@ impl ClickhouseConnectorSetup {
                         &query_config.return_type,
                         &config,
                         &file_path,
-                        &["query", &query_alias, "return_type"],
+                        &["query", query_alias, "return_type"],
                     )?
                     .map(|columns| {
                         (
