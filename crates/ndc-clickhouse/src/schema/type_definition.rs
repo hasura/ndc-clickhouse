@@ -129,7 +129,6 @@ impl ClickHouseScalar {
             ClickHouseDataType::Date32 => Some(Rep::String),
             ClickHouseDataType::DateTime { .. } => Some(Rep::String),
             ClickHouseDataType::DateTime64 { .. } => Some(Rep::String),
-            ClickHouseDataType::Json => Some(Rep::JSON),
             ClickHouseDataType::Uuid => Some(Rep::String),
             ClickHouseDataType::IPv4 => Some(Rep::String),
             ClickHouseDataType::IPv6 => Some(Rep::String),
@@ -399,7 +398,6 @@ impl ClickHouseScalar {
             ClickHouseDataType::DateTime { .. } | ClickHouseDataType::DateTime64 { .. } => {
                 [equality_operators, ordering_operators].concat()
             }
-            ClickHouseDataType::Json => [equality_operators, ordering_operators].concat(),
             ClickHouseDataType::Uuid => [equality_operators, ordering_operators].concat(),
             ClickHouseDataType::IPv4 => [equality_operators, ordering_operators].concat(),
             ClickHouseDataType::IPv6 => [equality_operators, ordering_operators].concat(),

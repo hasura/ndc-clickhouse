@@ -133,7 +133,6 @@ pub enum ClickHouseDataType {
         precision: u32,
         timezone: Option<SingleQuotedString>,
     },
-    Json,
     Uuid,
     IPv4,
     IPv6,
@@ -203,7 +202,6 @@ impl Display for ClickHouseDataType {
                 }
                 write!(f, ")")
             }
-            DT::Json => write!(f, "JSON"),
             DT::Uuid => write!(f, "UUID"),
             DT::IPv4 => write!(f, "IPv4"),
             DT::IPv6 => write!(f, "IPv6"),
