@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.11]
+
 - Bugfix: add missing group by clause for `foreach` queries. This should fix remote relationships.
 
 ## [0.2.10]
