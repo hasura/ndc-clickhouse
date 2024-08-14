@@ -178,10 +178,20 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             vec![]
         };
 
+        let group_by = if self.request.variables.is_some() {
+            vec![Expr::CompoundIdentifier(vec![
+                Ident::new_quoted("_vars"),
+                Ident::new_quoted("_varset_id"),
+            ])]
+        } else {
+            vec![]
+        };
+
         Ok(Query::new()
             .with(with)
             .select(select)
             .from(from)
+            .group_by(group_by)
             .order_by(order_by)
             .into_statement()
             .format("TabSeparatedRaw"))

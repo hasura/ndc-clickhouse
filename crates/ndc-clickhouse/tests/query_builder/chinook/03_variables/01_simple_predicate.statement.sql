@@ -46,5 +46,7 @@ FROM
     GROUP BY
       "_row"."_varset_id"
   ) AS "_rowset" ON "_vars"."_varset_id" = "_rowset"."_varset_id"
+GROUP BY
+  "_vars"."_varset_id"
 ORDER BY
   "_vars"."_varset_id" ASC FORMAT TabSeparatedRaw;
