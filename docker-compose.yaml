@@ -1,5 +1,6 @@
 services:
   ndc-clickhouse:
+    image: ndc-clickhouse-debug
     build:
       context: .
       args:
