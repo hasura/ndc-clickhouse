@@ -165,34 +165,10 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             vec![rowset_subquery.into_table_with_joins(vec![])]
         };
 
-        let order_by = if self.request.variables.is_some() {
-            vec![OrderByExpr {
-                expr: Expr::CompoundIdentifier(vec![
-                    Ident::new_quoted("_vars"),
-                    Ident::new_quoted("_varset_id"),
-                ]),
-                asc: Some(true),
-                nulls_first: None,
-            }]
-        } else {
-            vec![]
-        };
-
-        let group_by = if self.request.variables.is_some() {
-            vec![Expr::CompoundIdentifier(vec![
-                Ident::new_quoted("_vars"),
-                Ident::new_quoted("_varset_id"),
-            ])]
-        } else {
-            vec![]
-        };
-
         Ok(Query::new()
             .with(with)
             .select(select)
             .from(from)
-            .group_by(group_by)
-            .order_by(order_by)
             .into_statement()
             .format("TabSeparatedRaw"))
     }
