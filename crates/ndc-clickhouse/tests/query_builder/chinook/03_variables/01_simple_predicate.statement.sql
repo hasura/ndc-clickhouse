@@ -4,7 +4,7 @@ WITH "_vars" AS (
   FROM
     format(
       JSONColumns,
-      '{"_varset_id":[1],"_var_ArtistId":[1]}'
+      '{"_varset_id":[1,2],"_var_ArtistId":[1,2]}'
     )
 )
 SELECT
@@ -45,8 +45,4 @@ FROM
       ) AS "_row"
     GROUP BY
       "_row"."_varset_id"
-  ) AS "_rowset" ON "_vars"."_varset_id" = "_rowset"."_varset_id"
-GROUP BY
-  "_vars"."_varset_id"
-ORDER BY
-  "_vars"."_varset_id" ASC FORMAT TabSeparatedRaw;
+  ) AS "_rowset" ON "_vars"."_varset_id" = "_rowset"."_varset_id" FORMAT TabSeparatedRaw;

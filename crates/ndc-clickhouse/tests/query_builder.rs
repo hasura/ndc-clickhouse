@@ -252,6 +252,10 @@ mod variables {
     async fn empty_variable_sets() -> Result<(), Box<dyn Error>> {
         test_generated_sql("02_empty_variable_sets").await
     }
+    #[tokio::test]
+    async fn singe_set() -> Result<(), Box<dyn Error>> {
+        test_generated_sql("03_single_set").await
+    }
 }
 
 #[cfg(test)]

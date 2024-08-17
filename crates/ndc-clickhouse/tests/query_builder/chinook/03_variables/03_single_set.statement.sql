@@ -2,7 +2,10 @@ WITH "_vars" AS (
   SELECT
     *
   FROM
-    format(JSONColumns, '{"_varset_id":[]}')
+    format(
+      JSONColumns,
+      '{"_varset_id":[1],"_var_ArtistId":[1]}'
+    )
 )
 SELECT
   toJSONString(

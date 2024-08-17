@@ -4,9 +4,6 @@
     "variables": [
         {
             "ArtistId": 1
-        },
-        {
-            "ArtistId": 2
         }
     ],
     "query": {
