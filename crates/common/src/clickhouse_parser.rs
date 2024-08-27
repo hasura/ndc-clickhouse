@@ -58,45 +58,48 @@ peg::parser! {
         / aggregate_function()
         / simple_aggregate_function()
         / nothing()
-    rule nullable() -> DT = "Nullable(" t:data_type() ")" { DT::Nullable(Box::new(t)) }
-    rule uint8() -> DT = "UInt8" { DT::UInt8 }
-    rule uint16() -> DT = "UInt16" { DT::UInt16 }
-    rule uint32() -> DT = "UInt32" { DT::UInt32 }
-    rule uint64() -> DT = "UInt64" { DT::UInt64 }
-    rule uint128() -> DT = "UInt128" { DT::UInt128 }
-    rule uint256() -> DT = "UInt256" { DT::UInt256 }
-    rule int8() -> DT = "Int8" { DT::Int8 }
-    rule int16() -> DT = "Int16" { DT::Int16 }
-    rule int32() -> DT = "Int32" { DT::Int32 }
-    rule int64() -> DT = "Int64" { DT::Int64 }
-    rule int128() -> DT = "Int128" { DT::Int128 }
-    rule int256() -> DT = "Int256" { DT::Int256 }
-    rule float32() -> DT = "Float32" { DT::Float32 }
-    rule float64() -> DT = "Float64" { DT::Float64 }
-    rule decimal() -> DT = "Decimal(" precision:integer_value() comma_separator() scale:integer_value() ")" { DT::Decimal { precision, scale }  }
-    rule decimal32() -> DT = "Decimal32(" scale:integer_value() ")" { DT::Decimal32 { scale } }
-    rule decimal64() -> DT = "Decimal64(" scale:integer_value() ")" { DT::Decimal64 { scale } }
-    rule decimal128() -> DT = "Decimal128(" scale:integer_value() ")" { DT::Decimal128 { scale } }
-    rule decimal256() -> DT = "Decimal256(" scale:integer_value() ")" { DT::Decimal256 { scale } }
-    rule bool() -> DT = "Bool" { DT::Bool }
-    rule string() -> DT = "String" { DT::String }
-    rule fixed_string() -> DT = "FixedString(" n:integer_value() ")" { DT::FixedString(n) }
-    rule date() -> DT = "Date" { DT::Date }
-    rule date32() -> DT = "Date32" { DT::Date32 }
-    rule date_time() -> DT = "DateTime" tz:("(" tz:single_quoted_string_value()? ")" { tz })? { DT::DateTime { timezone: tz.flatten().map(|s| s.to_owned()) } }
-    rule date_time64() -> DT = "DateTime64(" precision:integer_value() tz:(comma_separator() tz:single_quoted_string_value()? { tz })? ")" { DT::DateTime64{ precision, timezone: tz.flatten().map(|s| s.to_owned())} }
-    rule uuid() -> DT = "UUID" { DT::Uuid }
-    rule ipv4() -> DT = "IPv4" { DT::IPv4 }
-    rule ipv6() -> DT = "IPv6" { DT::IPv6 }
-    rule low_cardinality() -> DT = "LowCardinality(" t:data_type() ")" { DT::LowCardinality(Box::new(t)) }
-    rule nested() -> DT =  "Nested(" e:((n:identifier() __ t:data_type() { (n, t)}) ** comma_separator()) ")" { DT::Nested(e) }
-    rule array() -> DT =  "Array(" t:data_type() ")" { DT::Array(Box::new(t)) }
-    rule map() -> DT =  "Map(" k:data_type() comma_separator()  v:data_type() ")" { DT::Map { key: Box::new(k), value: Box::new(v) } }
-    rule tuple() -> DT =  "Tuple(" e:((n:(n:identifier() __ { n })? t:data_type() { (n, t) }) ** comma_separator())  ")" { DT::Tuple(e) }
-    rule r#enum() -> DT = "Enum" ("8" / "16")?  "(" e:((n:single_quoted_string_value() i:(_ "=" _ i:integer_value() { i })? { (n, i) }) ** comma_separator()) ")" { DT::Enum(e)}
-    rule aggregate_function() -> DT = "AggregateFunction(" f:aggregate_function_definition() comma_separator() a:(data_type() ** comma_separator()) ")" { DT::AggregateFunction { function: f, arguments:  a }}
-    rule simple_aggregate_function() -> DT =  "SimpleAggregateFunction(" f:aggregate_function_definition() comma_separator() a:(data_type() ** comma_separator()) ")" { DT::SimpleAggregateFunction { function: f, arguments:  a }}
-    rule nothing() -> DT = "Nothing" { DT::Nothing }
+    rule nullable() -> DT = i("Nullable(") t:data_type() ")" { DT::Nullable(Box::new(t)) }
+    rule uint8() -> DT = i("UInt8") { DT::UInt8 }
+    rule uint16() -> DT = i("UInt16") { DT::UInt16 }
+    rule uint32() -> DT = i("UInt32") { DT::UInt32 }
+    rule uint64() -> DT = i("UInt64") { DT::UInt64 }
+    rule uint128() -> DT = i("UInt128") { DT::UInt128 }
+    rule uint256() -> DT = i("UInt256") { DT::UInt256 }
+    rule int8() -> DT = i("Int8") { DT::Int8 }
+    rule int16() -> DT = i("Int16") { DT::Int16 }
+    rule int32() -> DT = i("Int32") { DT::Int32 }
+    rule int64() -> DT = i("Int64") { DT::Int64 }
+    rule int128() -> DT = i("Int128") { DT::Int128 }
+    rule int256() -> DT = i("Int256") { DT::Int256 }
+    rule float32() -> DT = i("Float32") { DT::Float32 }
+    rule float64() -> DT = i("Float64") { DT::Float64 }
+    rule decimal() -> DT = i("Decimal(") precision:integer_value() comma_separator() scale:integer_value() ")" { DT::Decimal { precision, scale }  }
+        / i("Decimal(") precision:integer_value() ")" { DT::Decimal { precision, scale: 0 } }
+        / i("Decimal") { DT::Decimal { precision: 10, scale: 0 }}
+    rule decimal32() -> DT = i("Decimal32(") scale:integer_value() ")" { DT::Decimal32 { scale } }
+    rule decimal64() -> DT = i("Decimal64(") scale:integer_value() ")" { DT::Decimal64 { scale } }
+    rule decimal128() -> DT = i("Decimal128(") scale:integer_value() ")" { DT::Decimal128 { scale } }
+    rule decimal256() -> DT = i("Decimal256(") scale:integer_value() ")" { DT::Decimal256 { scale } }
+    rule bool() -> DT = i("Bool") { DT::Bool }
+    rule string() -> DT = i("String") { DT::String }
+    rule fixed_string() -> DT = i("FixedString(") n:integer_value() ")" { DT::FixedString(n) }
+    rule date() -> DT = i("Date") { DT::Date }
+    rule date32() -> DT = i("Date32") { DT::Date32 }
+    rule date_time() -> DT = i("DateTime") tz:("(" tz:single_quoted_string_value()? ")" { tz })? { DT::DateTime { timezone: tz.flatten().map(|s| s.to_owned()) } }
+    rule date_time64() -> DT = i("DateTime64(") precision:integer_value() tz:(comma_separator() tz:single_quoted_string_value()? { tz })? ")" { DT::DateTime64{ precision, timezone: tz.flatten().map(|s| s.to_owned())} }
+        / i("DateTime64") { DT::DateTime64 { precision: 3, timezone: None }}
+    rule uuid() -> DT = i("UUID") { DT::Uuid }
+    rule ipv4() -> DT = i("IPv4") { DT::IPv4 }
+    rule ipv6() -> DT = i("IPv6") { DT::IPv6 }
+    rule low_cardinality() -> DT = i("LowCardinality(") t:data_type() ")" { DT::LowCardinality(Box::new(t)) }
+    rule nested() -> DT =  i("Nested(") e:((n:identifier() __ t:data_type() { (n, t)}) ** comma_separator()) ")" { DT::Nested(e) }
+    rule array() -> DT =  i("Array(") t:data_type() ")" { DT::Array(Box::new(t)) }
+    rule map() -> DT =  i("Map(") k:data_type() comma_separator()  v:data_type() ")" { DT::Map { key: Box::new(k), value: Box::new(v) } }
+    rule tuple() -> DT =  i("Tuple(") e:((n:(n:identifier() __ { n })? t:data_type() { (n, t) }) ** comma_separator())  ")" { DT::Tuple(e) }
+    rule r#enum() -> DT = i("Enum") ("8" / "16")?  "(" e:((n:single_quoted_string_value() i:(_ "=" _ i:integer_value() { i })? { (n, i) }) ** comma_separator()) ")" { DT::Enum(e)}
+    rule aggregate_function() -> DT = i("AggregateFunction(") f:aggregate_function_definition() comma_separator() a:(data_type() ** comma_separator()) ")" { DT::AggregateFunction { function: f, arguments:  a }}
+    rule simple_aggregate_function() -> DT =  i("SimpleAggregateFunction(") f:aggregate_function_definition() comma_separator() a:(data_type() ** comma_separator()) ")" { DT::SimpleAggregateFunction { function: f, arguments:  a }}
+    rule nothing() -> DT = i("Nothing") { DT::Nothing }
 
     rule aggregate_function_definition() -> AggregateFunctionDefinition = n:identifier() p:("(" p:(aggregate_function_parameter() ** comma_separator()) ")" { p })? { AggregateFunctionDefinition { name: n, parameters: p }}
     rule aggregate_function_parameter() -> AggregateFunctionParameter = s:single_quoted_string_value() { AggregateFunctionParameter::SingleQuotedString(s)}
@@ -120,6 +123,8 @@ peg::parser! {
     rule _ = [' ' | '\t' | '\r' | '\n']*
     /// A comma surrounded by optional whitespace
     rule comma_separator() = _ "," _
+    /// A case insensitive string
+    rule i(literal: &'static str) = input:$([_]*<{literal.len()}>) {? if input.eq_ignore_ascii_case(literal) { Ok(()) } else { Err(literal) } }
   }
 }
 
@@ -195,7 +200,71 @@ fn can_parse_clickhouse_data_type() {
 
     for (s, t) in data_types {
         let parsed = clickhouse_parser::data_type(s);
-        assert_eq!(parsed, Ok(t), "Able to parse correctly");
+        assert_eq!(parsed, Ok(t), "Able to parse {s} correctly");
+    }
+}
+
+#[test]
+fn support_shorthands() {
+    let test_cases = vec![
+        (
+            "Decimal",
+            DT::Decimal {
+                precision: 10,
+                scale: 0,
+            },
+        ),
+        (
+            "Decimal(3)",
+            DT::Decimal {
+                precision: 3,
+                scale: 0,
+            },
+        ),
+        (
+            "DateTime64",
+            DT::DateTime64 {
+                precision: 3,
+                timezone: None,
+            },
+        ),
+    ];
+
+    for (s, t) in test_cases {
+        let parsed = clickhouse_parser::data_type(s);
+        assert_eq!(parsed, Ok(t), "Able to parse {s} correctly");
+    }
+}
+
+#[test]
+fn print_as_shorthand_when_possible() {
+    let test_cases = vec!["DateTime64", "Decimal", "Decimal(2)"];
+    for s in test_cases {
+        let parsed = clickhouse_parser::data_type(s).expect("Able to parse type");
+        assert_eq!(
+            s,
+            &parsed.to_string(),
+            "Serialize {s} as shorthand when possible"
+        )
+    }
+}
+
+#[test]
+fn is_case_insensitive() {
+    let test_cases = vec![
+        ("dateTime", "DateTime"),
+        ("daTetIme64", "DateTime64"),
+        ("bool", "Bool"),
+        ("STRING", "String"),
+    ];
+
+    for (input, cased) in test_cases {
+        let parsed = clickhouse_parser::data_type(input).expect("Able to parse type");
+        assert_eq!(
+            &parsed.to_string(),
+            cased,
+            "Should parse incorrectly cased type {input} into {cased}"
+        );
     }
 }
 

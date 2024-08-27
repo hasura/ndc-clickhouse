@@ -178,7 +178,17 @@ impl Display for ClickHouseDataType {
             DT::Int256 => write!(f, "Int256"),
             DT::Float32 => write!(f, "Float32"),
             DT::Float64 => write!(f, "Float64"),
-            DT::Decimal { precision, scale } => write!(f, "Decimal({precision}, {scale})"),
+            DT::Decimal { precision, scale } => {
+                if scale == &0 {
+                    if precision == &10 {
+                        write!(f, "Decimal")
+                    } else {
+                        write!(f, "Decimal({precision})")
+                    }
+                } else {
+                    write!(f, "Decimal({precision}, {scale})")
+                }
+            }
             DT::Decimal32 { scale } => write!(f, "Decimal32({scale})"),
             DT::Decimal64 { scale } => write!(f, "Decimal64({scale})"),
             DT::Decimal128 { scale } => write!(f, "Decimal128({scale})"),
@@ -196,11 +206,15 @@ impl Display for ClickHouseDataType {
                 precision,
                 timezone,
             } => {
-                write!(f, "DateTime64({precision}")?;
-                if let Some(tz) = timezone {
-                    write!(f, ", {tz}")?;
+                if precision == &3 && timezone.is_none() {
+                    write!(f, "DateTime64")
+                } else {
+                    write!(f, "DateTime64({precision}")?;
+                    if let Some(tz) = timezone {
+                        write!(f, ", {tz}")?;
+                    }
+                    write!(f, ")")
                 }
-                write!(f, ")")
             }
             DT::Uuid => write!(f, "UUID"),
             DT::IPv4 => write!(f, "IPv4"),
