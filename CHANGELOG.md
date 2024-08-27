@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2]
+
+- Allow `DateTime64` shorthand for `DateTime64(3)`
+- Allow `Decimal` shorthand for `Decimal(10, 0)`
+- Make datatypes case insensitive
+
 ## [1.0.1]
 
 - Bug fix: remove erroneous group by and order by clauses in `foreach` queries. Remote relationships should now function as expected. The previous fix was incorrect.
