@@ -8,17 +8,17 @@ use tokio::fs;
 mod test_utils {
     use common::config::ServerConfig;
     use ndc_clickhouse::{
-        connector::setup::ClickhouseConnectorSetup,
+        connector::{handler::schema_response, setup::ClickhouseConnectorSetup},
         sql::{QueryBuilder, QueryBuilderError},
     };
-    use ndc_sdk::models;
+    use ndc_sdk::models::{self, SchemaResponse};
     use std::{collections::HashMap, env, error::Error, path::PathBuf};
     use tokio::fs;
 
     /// when running tests locally, this can be set to true to update reference files
     /// this allows us to view diffs between commited samples and fresh samples
     /// we don't want that behavior when running CI, so this value should be false in commited code
-    const UPDATE_GENERATED_SQL: bool = false;
+    const UPDATE_SNAPSHOTS: bool = false;
 
     fn base_path(schema_dir: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -31,6 +31,9 @@ mod test_utils {
     }
     fn config_dir_path(schema_dir: &str) -> PathBuf {
         base_path(schema_dir).join("_config")
+    }
+    fn expected_schema_path(schema_dir: &str) -> PathBuf {
+        base_path(schema_dir).join("_schema").join("schema.json")
     }
     async fn read_mock_configuration(schema_dir: &str) -> Result<ServerConfig, Box<dyn Error>> {
         // set mock values for required env vars, we won't be reading these anyways
@@ -111,7 +114,7 @@ mod test_utils {
 
         let generated_sql = generate_sql(&configuration, &request)?;
 
-        if UPDATE_GENERATED_SQL {
+        if UPDATE_SNAPSHOTS {
             write_expected_sql(schema_dir, group_dir, test_name, &generated_sql).await?;
         } else {
             let expected_sql = read_expected_sql(schema_dir, group_dir, test_name).await?;
@@ -136,6 +139,22 @@ mod test_utils {
 
         Ok(())
     }
+    pub async fn test_schema(schema_dir: &str) -> Result<(), Box<dyn Error>> {
+        let configuration = read_mock_configuration(schema_dir).await?;
+        let schema = schema_response(&configuration);
+        let expected_schema_path = expected_schema_path(schema_dir);
+
+        if UPDATE_SNAPSHOTS {
+            fs::write(expected_schema_path, serde_json::to_string_pretty(&schema)?).await?;
+        } else {
+            let expected_schema_file = fs::read_to_string(expected_schema_path).await?;
+            let expected_schema: SchemaResponse = serde_json::from_str(&expected_schema_file)?;
+
+            assert_eq!(schema, expected_schema, "Schema should match snapshot")
+        }
+
+        Ok(())
+    }
 }
 
 #[tokio::test]
@@ -153,6 +172,24 @@ async fn update_json_schema() -> Result<(), Box<dyn Error>> {
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod schemas {
+    use super::*;
+
+    #[tokio::test]
+    async fn chinook_schema() -> Result<(), Box<dyn Error>> {
+        test_utils::test_schema("chinook").await
+    }
+    #[tokio::test]
+    async fn complex_columns_schema() -> Result<(), Box<dyn Error>> {
+        test_utils::test_schema("complex_columns").await
+    }
+    #[tokio::test]
+    async fn star_schema_schema() -> Result<(), Box<dyn Error>> {
+        test_utils::test_schema("star_schema").await
+    }
 }
 
 #[cfg(test)]

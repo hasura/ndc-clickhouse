@@ -13,6 +13,10 @@ use std::collections::BTreeMap;
 pub async fn schema(
     configuration: &ServerConfig,
 ) -> Result<JsonResponse<models::SchemaResponse>, SchemaError> {
+    Ok(JsonResponse::Value(schema_response(configuration)))
+}
+
+pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
     let mut scalar_type_definitions = BTreeMap::new();
     let mut object_type_definitions = vec![];
 
@@ -198,7 +202,7 @@ pub async fn schema(
 
     let collections = table_collections.chain(query_collections).collect();
 
-    Ok(JsonResponse::Value(models::SchemaResponse {
+    models::SchemaResponse {
         scalar_types: scalar_type_definitions,
         // converting vector to map drops any duplicate definitions
         // this could be an issue if there are name collisions
@@ -206,5 +210,5 @@ pub async fn schema(
         collections,
         functions: vec![],
         procedures: vec![],
-    }))
+    }
 }
