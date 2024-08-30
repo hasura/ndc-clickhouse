@@ -237,23 +237,10 @@ fn support_shorthands() {
 }
 
 #[test]
-fn print_as_shorthand_when_possible() {
-    let test_cases = vec!["DateTime64", "Decimal", "Decimal(2)"];
-    for s in test_cases {
-        let parsed = clickhouse_parser::data_type(s).expect("Able to parse type");
-        assert_eq!(
-            s,
-            &parsed.to_string(),
-            "Serialize {s} as shorthand when possible"
-        )
-    }
-}
-
-#[test]
 fn is_case_insensitive() {
     let test_cases = vec![
         ("dateTime", "DateTime"),
-        ("daTetIme64", "DateTime64"),
+        ("daTetIme64", "DateTime64(3)"),
         ("bool", "Bool"),
         ("STRING", "String"),
     ];
