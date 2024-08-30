@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow `DateTime64` shorthand for `DateTime64(3)`
 - Allow `Decimal` shorthand for `Decimal(10, 0)`
 - Make datatypes case insensitive
+- When introspection returns no columns ([parameterized view issue](https://github.com/ClickHouse/ClickHouse/issues/65402)), preserve any manually written columns
 
 ## [1.0.1]
 

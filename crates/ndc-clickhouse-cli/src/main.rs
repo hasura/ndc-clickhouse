@@ -446,7 +446,18 @@ fn get_table_return_type(
     let old_return_type =
         old_table.and_then(
             |(_table_alias, table_config)| match &table_config.return_type {
-                ReturnType::Definition { .. } => None,
+                ReturnType::Definition { columns } => {
+                    // introspection of parameterized views may return no columns
+                    // ref: https://github.com/ClickHouse/ClickHouse/issues/65402
+                    // if introspection returned no columns, and existing config does have (user written) columns, preserve those
+                    if new_columns.is_empty() && !columns.is_empty() {
+                        Some(ReturnType::Definition {
+                            columns: columns.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                }
                 ReturnType::TableReference { table_name } => {
                     // get the old table config for the referenced table
                     let referenced_table_config = old_config
