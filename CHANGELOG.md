@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow `Decimal` shorthand for `Decimal(10, 0)`
 - Make datatypes case insensitive
 - When introspection returns no columns ([parameterized view issue](https://github.com/ClickHouse/ClickHouse/issues/65402)), preserve any manually written columns
+- Correct support for casting from JSON Objects paramters to named Tuples, and JSON Arrays to anonymous tuples
+- Fix printing tuples in bound parameters
 
 ## [1.0.1]
 

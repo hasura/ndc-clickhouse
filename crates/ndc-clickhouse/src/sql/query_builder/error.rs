@@ -1,5 +1,6 @@
 use std::fmt;
 
+use common::clickhouse_parser::parameterized_query::ParameterType;
 use ndc_sdk::connector::{ExplainError, QueryError};
 
 use super::typecasting::TypeStringError;
@@ -39,6 +40,11 @@ pub enum QueryBuilderError {
     Typecasting(TypeStringError),
     /// Column type did not match type asserted by request
     ColumnTypeMismatch { expected: String, got: String },
+    /// Attempted to cast a JSON value to a mismatching data type
+    UnsupportedParameterCast {
+        json_value: serde_json::Value,
+        data_type: ParameterType,
+    },
 }
 
 impl fmt::Display for QueryBuilderError {
@@ -84,6 +90,14 @@ impl fmt::Display for QueryBuilderError {
             QueryBuilderError::ColumnTypeMismatch { expected, got } => {
                 write!(f, "Column Type Mismatch: expected {expected}, got {got}")
             }
+            QueryBuilderError::UnsupportedParameterCast {
+                json_value,
+                data_type,
+            } => write!(
+                f,
+                "Cannot cast value `{}` to type `{}`",
+                json_value, data_type
+            ),
         }
     }
 }
@@ -105,7 +119,8 @@ impl From<QueryBuilderError> for QueryError {
             | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
             | QueryBuilderError::Typecasting(_)
-            | QueryBuilderError::ColumnTypeMismatch { .. } => {
+            | QueryBuilderError::ColumnTypeMismatch { .. }
+            | QueryBuilderError::UnsupportedParameterCast { .. } => {
                 QueryError::new_invalid_request(&value)
             }
             QueryBuilderError::NotSupported(_) => QueryError::new_unsupported_operation(&value),
@@ -129,7 +144,8 @@ impl From<QueryBuilderError> for ExplainError {
             | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
             | QueryBuilderError::Typecasting(_)
-            | QueryBuilderError::ColumnTypeMismatch { .. } => {
+            | QueryBuilderError::ColumnTypeMismatch { .. }
+            | QueryBuilderError::UnsupportedParameterCast { .. } => {
                 ExplainError::new_invalid_request(&value)
             }
             QueryBuilderError::NotSupported(_) => ExplainError::new_unsupported_operation(&value),
