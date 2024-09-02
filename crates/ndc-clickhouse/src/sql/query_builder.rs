@@ -1075,7 +1075,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         parameters,
                     )?,
                     models::ComparisonValue::Scalar { value } => ComparisonColumn::new_simple(
-                        parameters.bind_json(value, right_col_type.clone().into()),
+                        parameters.bind_json(value, right_col_type.clone().into())?,
                         right_col_type,
                     ),
 
@@ -1756,7 +1756,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             };
             let mut literal_argument = |arg_name: &String, value: &serde_json::Value| {
                 Ok(parameters
-                    .bind_json(value, table_argument_type(arg_name)?.to_owned().into())
+                    .bind_json(value, table_argument_type(arg_name)?.to_owned().into())?
                     .into_arg()
                     .name(Ident::new_quoted(arg_name)))
             };
@@ -1885,14 +1885,14 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     }
                     ParameterizedQueryElement::Parameter(p) => get_argument(p.name.value())
                         .transpose()?
-                        .map(|value| {
-                            NativeQueryElement::Expr(
-                                parameters.bind_json(value, p.r#type.to_owned()),
-                            )
-                        })
                         .ok_or_else(|| QueryBuilderError::MissingNativeQueryArgument {
                             query: collection.alias().to_owned(),
                             argument: p.name.value().to_owned(),
+                        })
+                        .and_then(|value| {
+                            Ok(NativeQueryElement::Expr(
+                                parameters.bind_json(value, p.r#type.to_owned())?,
+                            ))
                         }),
                 })
                 .collect::<Result<_, _>>()?;

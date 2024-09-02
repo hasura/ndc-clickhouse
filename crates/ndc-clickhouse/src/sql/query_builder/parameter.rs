@@ -1,4 +1,4 @@
-use super::{format::escape_string, Expr, Parameter, Value};
+use super::{format::escape_string, Expr, Parameter, QueryBuilderError, Value};
 use crate::sql::ast::format::display_separated;
 use common::clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType};
 use std::fmt::Display;
@@ -6,7 +6,7 @@ use std::fmt::Display;
 pub struct ParameterBuilder {
     inline_parameters: bool,
     index: u32,
-    parameters: Vec<(String, String)>,
+    parameters: Vec<(String, ParameterValue)>,
 }
 
 impl ParameterBuilder {
@@ -17,7 +17,7 @@ impl ParameterBuilder {
             parameters: vec![],
         }
     }
-    fn bind_parameter(&mut self, value: String, data_type: ParameterType) -> Expr {
+    fn bind_parameter(&mut self, value: ParameterValue, data_type: ParameterType) -> Expr {
         let parameter_name = format!("param_p{}", self.index);
         let placeholder_name = format!("p{}", self.index);
         self.index += 1;
@@ -27,12 +27,28 @@ impl ParameterBuilder {
         let placeholder = Parameter::new(placeholder_name, data_type);
         placeholder.into_expr()
     }
-    pub fn bind_json(&mut self, value: &serde_json::Value, data_type: ParameterType) -> Expr {
+    pub fn bind_json(
+        &mut self,
+        value: &serde_json::Value,
+        data_type: ParameterType,
+    ) -> Result<Expr, QueryBuilderError> {
+        let value = match &data_type {
+            ParameterType::DataType(data_type) => Value::try_from_json(value, data_type)?,
+            ParameterType::Identifier => match value {
+                serde_json::Value::String(s) => Value::SingleQuotedString(s.to_owned()),
+                _ => {
+                    return Err(QueryBuilderError::UnsupportedParameterCast {
+                        value: value.to_owned(),
+                        data_type: data_type.to_owned(),
+                    })
+                }
+            },
+        };
+
         if self.inline_parameters {
-            let value: Value = value.into();
-            value.into_expr()
+            Ok(value.into_expr())
         } else {
-            self.bind_parameter(ParameterValue(value).to_string(), data_type)
+            Ok(self.bind_parameter(ParameterValue(value), data_type))
         }
     }
     pub fn bind_string(&mut self, value: &str) -> Expr {
@@ -41,62 +57,69 @@ impl ParameterBuilder {
             value.into_expr()
         } else {
             self.bind_parameter(
-                escape_string(value).to_string(),
+                ParameterValue(Value::SingleQuotedString(value.to_owned())),
                 ClickHouseDataType::String.into(),
             )
         }
     }
     pub fn into_parameters(self) -> Vec<(String, String)> {
         self.parameters
+            .into_iter()
+            .map(|(name, value)| (name, value.to_string()))
+            .collect()
     }
 }
 
-struct ParameterValue<'a>(&'a serde_json::Value);
+struct ParameterValue(Value);
 
-impl<'a> Display for ParameterValue<'a> {
+impl Display for ParameterValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
+        match &self.0 {
             // top level string should not be quoted
-            serde_json::Value::String(s) => write!(f, "{}", escape_string(s)),
-            _ => print_parameter_value(f, self.0),
+            Value::SingleQuotedString(s) => write!(f, "{}", escape_string(s)),
+            _ => print_parameter_value(f, &self.0),
         }
     }
 }
 
-fn print_parameter_value(
-    f: &mut std::fmt::Formatter<'_>,
-    value: &serde_json::Value,
-) -> std::fmt::Result {
+fn print_parameter_value(f: &mut std::fmt::Formatter<'_>, value: &Value) -> std::fmt::Result {
     match value {
         // note: serializing null as \N seems to be a default configuration
         // we may need to add a configuration option for this in the future,
         // but let's wait until a user actually asks for it
         // ref: https://clickhouse.com/docs/en/operations/settings/formats#format_tsv_null_representation
-        serde_json::Value::Null => write!(f, "\\N"),
-        serde_json::Value::Bool(b) => {
+        Value::Null => write!(f, "\\N"),
+        Value::Boolean(b) => {
             if *b {
                 write!(f, "true")
             } else {
                 write!(f, "false")
             }
         }
-        serde_json::Value::Number(n) => write!(f, "{n}"),
-        serde_json::Value::String(s) => write!(f, "'{}'", escape_string(s)),
-        serde_json::Value::Array(arr) => {
+        Value::Number(n) => write!(f, "{n}"),
+        Value::SingleQuotedString(s) => write!(f, "'{}'", escape_string(s)),
+        Value::Array(arr) => {
             write!(
                 f,
                 "[{}]",
                 display_separated(arr, ",", |f, i| print_parameter_value(f, i))
             )
         }
-        serde_json::Value::Object(obj) => {
+        Value::Map(elements) => {
             write!(
                 f,
                 "{{{}}}",
-                display_separated(obj, ",", |f, (key, value)| {
+                display_separated(elements, ",", |f, (key, value)| {
                     write!(f, "'{}':", escape_string(key))?;
                     print_parameter_value(f, value)
                 })
+            )
+        }
+        Value::Tuple(elements) => {
+            write!(
+                f,
+                "({})",
+                display_separated(elements, ",", |f, i| print_parameter_value(f, i))
             )
         }
     }
@@ -111,16 +134,26 @@ mod tests {
     #[test]
     fn can_print_parameter() {
         let test_cases = vec![
-            (json!("foo"), "foo"),
-            (json!(true), "true"),
-            (json!(false), "false"),
-            (json!({ "foo": "bar"}), "{'foo':'bar'}"),
-            (json!(["foo", "bar"]), "['foo','bar']"),
-            (json!(null), "\\N"),
+            (json!("foo"), "String", "foo"),
+            (json!(true), "Bool", "true"),
+            (json!(false), "Bool", "false"),
+            (
+                json!({ "foo": "bar"}),
+                "Map(String, String)",
+                "{'foo':'bar'}",
+            ),
+            (json!(["foo", "bar"]), "Array(String)", "['foo','bar']"),
+            (json!(null), "Nullable(String)", "\\N"),
         ];
 
-        for (value, printed) in test_cases {
-            assert_eq!(ParameterValue(&value).to_string().as_str(), printed)
+        for (value, data_type, printed) in test_cases {
+            let data_type =
+                ClickHouseDataType::from_str(&data_type).expect("Should parse data type");
+
+            let value = Value::try_from_json(&value, &data_type)
+                .expect("Should convert type based on data type");
+
+            assert_eq!(ParameterValue(value).to_string().as_str(), printed)
         }
     }
     #[test]
@@ -172,14 +205,17 @@ mod tests {
             (
                 json!({ "foo": ["bar"], "baz": null }),
                 "Tuple(foo Array(String), baz Nullable(String))",
-                "{'foo': ['bar'],'baz': NULL}",
+                "(['bar'], NULL)",
             ),
+            (json!(["foo", 1]), "Tuple(String, Int32)", "('foo', 1)"),
         ];
 
         for (value, data_type_string, expected) in &test_cases {
             let data_type = ClickHouseDataType::from_str(data_type_string)
                 .expect("Data type string should be valid ClickHouseDataType");
-            let inlined = parameters.bind_json(value, data_type.into());
+            let inlined = parameters
+                .bind_json(value, data_type.into())
+                .expect("Should succesessfully bind parameter");
 
             assert_eq!(
                 &inlined.to_string().as_str(),
@@ -297,13 +333,29 @@ mod tests {
                 "param_p10",
                 "['foo','bar']",
             ),
+            (
+                json!(["foo", "bar"]),
+                "Tuple(String, String)",
+                "{p11:Tuple(String, String)}",
+                "param_p11",
+                "('foo','bar')",
+            ),
+            (
+                json!({"foo": "bar", "baz": "qux"}),
+                "Tuple(foo String, baz String)",
+                "{p12:Tuple(foo String, baz String)}",
+                "param_p12",
+                "('bar','qux')",
+            ),
         ];
         let mut placeholders = vec![];
 
         for (value, data_type_string, _, _, _) in &test_cases {
             let data_type = ClickHouseDataType::from_str(data_type_string)
                 .expect("Data type string should be valid ClickHouseDataType");
-            let placeholder = parameters.bind_json(value, data_type.into());
+            let placeholder = parameters
+                .bind_json(value, data_type.into())
+                .expect("Should successfully bind parameter");
             placeholders.push(placeholder);
         }
 

@@ -9,7 +9,7 @@
                 "columns": {
                     "ColumnA": "String",
                     "ColumnB": "Array(Tuple(field1 String, field2 String))",
-                    "ColumnC": "Nested(field1 String, field1 String)",
+                    "ColumnC": "Nested(field1 String, field2 String)",
                     "ColumnD": "Tuple(child Tuple(id UInt32, name String))",
                     "ColumnE": "Tuple(child Array(Tuple(id UInt32, name String)))",
                     "ColumnF": "Tuple(child Tuple(id UInt32, name String, toys Nested(id UInt32, name String)))",

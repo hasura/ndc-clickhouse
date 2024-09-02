@@ -1,5 +1,5 @@
 {
-    "$schema": "../request.schema.json",
+    "$schema": "../../request.schema.json",
     "collection": "TableOne",
     "collection_relationships": {
         "rel1": {
@@ -13,54 +13,53 @@
     },
     "arguments": {},
     "query": {
-       "fields": {
-          "field1": {
-            "type": "column",
-            "column": "ColumnA"
-          },
-          "field2": {
-            "type": "column",
-            "column": "ColumnE",
-            "fields": {
-              "type": "object",
-              "fields": {
-                "child": {
-                    "type": "column",
-                    "column": "child",
+        "fields": {
+            "field1": {
+                "type": "column",
+                "column": "ColumnA"
+            },
+            "field2": {
+                "type": "column",
+                "column": "ColumnE",
+                "fields": {
+                    "type": "object",
                     "fields": {
-                        "type": "array",
-                        "fields": {
-                            "type": "object",
+                        "child": {
+                            "type": "column",
+                            "column": "child",
                             "fields": {
-                                "id": {
-                                    "type": "column",
-                                    "column": "id"
-                                },
-                                "name": {
-                                    "type": "column",
-                                    "column": "name"
-                                },
-                                "child": {
-                                    "type": "relationship",
-                                    "arguments": {},
-                                    "relationship": "rel1",
-                                    "query": {
-                                        "fields": {
-                                            "name": {
-                                                "type": "column",
-                                                "column": "Name"
+                                "type": "array",
+                                "fields": {
+                                    "type": "object",
+                                    "fields": {
+                                        "id": {
+                                            "type": "column",
+                                            "column": "id"
+                                        },
+                                        "name": {
+                                            "type": "column",
+                                            "column": "name"
+                                        },
+                                        "child": {
+                                            "type": "relationship",
+                                            "arguments": {},
+                                            "relationship": "rel1",
+                                            "query": {
+                                                "fields": {
+                                                    "name": {
+                                                        "type": "column",
+                                                        "column": "Name"
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-
                     }
                 }
-              }
             }
-          }
-       }
+        }
     }
 }

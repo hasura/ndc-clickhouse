@@ -1,0 +1,6 @@
+param_p0=[('foo','bar')]
+param_p1=[('foo','bar')]
+param_p2=((1,'foo'))
+param_p3=([(1,'foo')])
+param_p4=((1,'foo',[(2,'bar')]))
+param_p5=(\N,{'foo':'bar'},[('foo',('foo','bar'))],('foo','bar'))

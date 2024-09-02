@@ -1,6 +1,7 @@
 use std::fmt;
 pub mod format;
-use common::clickhouse_parser::parameterized_query::ParameterType;
+use super::QueryBuilderError;
+use common::clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType};
 use format::{display_comma_separated, display_period_separated, display_separated, escape_string};
 use indexmap::IndexMap;
 
@@ -793,32 +794,151 @@ pub enum Value {
     Null,
     Map(IndexMap<String, Value>),
     Array(Vec<Value>),
+    Tuple(Vec<Value>),
+}
+
+pub enum ValueCastingError {
+    UnsupportedCast {
+        json_value: serde_json::Value,
+        data_type: ClickHouseDataType,
+    },
 }
 
 impl Value {
     pub fn into_expr(self) -> Expr {
         Expr::Value(self)
     }
-}
-
-impl From<&serde_json::Value> for Value {
-    fn from(value: &serde_json::Value) -> Self {
-        fn map_json_value(value: &serde_json::Value) -> Value {
-            match value {
-                serde_json::Value::Null => Value::Null,
-                serde_json::Value::Bool(b) => Value::Boolean(b.to_owned()),
-                serde_json::Value::Number(n) => Value::Number(n.to_string()),
-                serde_json::Value::String(s) => Value::SingleQuotedString(s.to_owned()),
-                serde_json::Value::Array(arr) => {
-                    Value::Array(arr.iter().map(map_json_value).collect())
+    pub fn try_from_json(
+        value: &serde_json::Value,
+        data_type: &ClickHouseDataType,
+    ) -> Result<Self, QueryBuilderError> {
+        fn underlying_type(data_type: &ClickHouseDataType) -> &ClickHouseDataType {
+            match data_type {
+                ClickHouseDataType::Nullable(t) | ClickHouseDataType::LowCardinality(t) => {
+                    underlying_type(t)
                 }
-                serde_json::Value::Object(obj) => Value::Map(IndexMap::from_iter(
-                    obj.into_iter()
-                        .map(|(key, value)| (key.to_owned(), map_json_value(value))),
-                )),
+                _ => data_type,
             }
         }
-        map_json_value(value)
+
+        fn map_json_value(
+            value: &serde_json::Value,
+            data_type: &ClickHouseDataType,
+        ) -> Result<Value, QueryBuilderError> {
+            match value {
+                serde_json::Value::Null => Ok(Value::Null),
+                serde_json::Value::Bool(b) => Ok(Value::Boolean(b.to_owned())),
+                serde_json::Value::Number(n) => Ok(Value::Number(n.to_string())),
+                serde_json::Value::String(s) => Ok(Value::SingleQuotedString(s.to_owned())),
+                serde_json::Value::Array(arr) => match underlying_type(data_type) {
+                    ClickHouseDataType::Array(element_type) => Ok(Value::Array(
+                        arr.iter()
+                            .map(|value| map_json_value(value, element_type))
+                            .collect::<Result<_, _>>()?,
+                    )),
+                    ClickHouseDataType::Tuple(elements) => {
+                        // tuple should be anonymous, and tuple length should match array length
+                        if elements.len() != arr.len() {
+                            Err(QueryBuilderError::TupleLengthMismatch {
+                                value: value.to_owned(),
+                                data_type: data_type.to_owned().into(),
+                            })
+                        } else {
+                            let values = arr
+                                .iter()
+                                .zip(elements.iter())
+                                .map(|(value, (identifier, element_type))| {
+                                    if identifier.is_some() {
+                                        Err(QueryBuilderError::ExpectedAnonymousTuple {
+                                            value: value.to_owned(),
+                                            data_type: data_type.to_owned().into(),
+                                        })
+                                    } else {
+                                        map_json_value(value, element_type)
+                                    }
+                                })
+                                .collect::<Result<_, _>>()?;
+
+                            Ok(Value::Tuple(values))
+                        }
+                    }
+                    ClickHouseDataType::Nested(elements) => Ok(Value::Array(
+                        arr.iter()
+                            .map(|value| match value {
+                                serde_json::Value::Object(obj) => Ok(Value::Tuple(
+                                    elements
+                                        .iter()
+                                        .map(|(identifier, field_type)| {
+                                            if let Some(value) = obj.get(identifier.value()) {
+                                                map_json_value(value, field_type)
+                                            } else {
+                                                Err(QueryBuilderError::MissingNamedField {
+                                                    value: value.to_owned(),
+                                                    data_type: data_type.to_owned().into(),
+                                                    field: identifier.value().to_string(),
+                                                })
+                                            }
+                                        })
+                                        .collect::<Result<_, _>>()?,
+                                )),
+                                _ => Err(QueryBuilderError::UnsupportedParameterCast {
+                                    value: value.to_owned(),
+                                    data_type: data_type.to_owned().into(),
+                                }),
+                            })
+                            .collect::<Result<_, _>>()?,
+                    )),
+                    _ => Err(QueryBuilderError::UnsupportedParameterCast {
+                        value: value.to_owned(),
+                        data_type: data_type.to_owned().into(),
+                    }),
+                },
+                serde_json::Value::Object(obj) => match underlying_type(data_type) {
+                    ClickHouseDataType::Map {
+                        key: _key_type,
+                        value: value_type,
+                    } => Ok(Value::Map(
+                        obj.into_iter()
+                            .map(|(key, value)| {
+                                Ok((key.to_owned(), map_json_value(value, value_type)?))
+                            })
+                            .collect::<Result<IndexMap<_, _>, QueryBuilderError>>()?,
+                    )),
+                    ClickHouseDataType::Tuple(elements) => {
+                        // tuple should be named, and all tuple keys should be in the input object
+                        Ok(Value::Tuple(
+                            elements
+                                .iter()
+                                .map(|(identifier, element_type)| {
+                                    if let Some(identifier) = identifier {
+                                        if let Some(value) = obj.get(identifier.value()) {
+                                            map_json_value(value, element_type)
+                                        } else {
+                                            Err(QueryBuilderError::MissingNamedField {
+                                                value: value.to_owned(),
+                                                data_type: data_type.to_owned().into(),
+                                                field: identifier.value().to_string(),
+                                            })
+                                        }
+                                    } else {
+                                        Err(QueryBuilderError::ExpectedNamedTuple {
+                                            value: value.to_owned(),
+                                            data_type: data_type.to_owned().into(),
+                                        })
+                                    }
+                                })
+                                .collect::<Result<_, _>>()?,
+                        ))
+                    }
+                    _ => Err(QueryBuilderError::UnsupportedParameterCast {
+                        value: value.to_owned(),
+                        data_type: data_type.to_owned().into(),
+                    }),
+                },
+            }
+        }
+
+        map_json_value(value, data_type)
     }
 }
 
@@ -850,6 +970,7 @@ impl fmt::Display for Value {
                 )
             }
             Value::Array(arr) => write!(f, "[{}]", display_comma_separated(arr)),
+            Value::Tuple(values) => write!(f, "({})", display_comma_separated(values)),
         }
     }
 }

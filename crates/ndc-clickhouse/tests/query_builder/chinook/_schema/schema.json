@@ -1,0 +1,1160 @@
+{
+  "scalar_types": {
+    "Date32": {
+      "representation": {
+        "type": "string"
+      },
+      "aggregate_functions": {
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "Date32"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "Date32"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date32"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date32"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date32"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date32"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date32"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "Date32"
+            }
+          }
+        }
+      }
+    },
+    "DateTime64(9)": {
+      "representation": {
+        "type": "string"
+      },
+      "aggregate_functions": {
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "DateTime64(9)"
+            }
+          }
+        }
+      }
+    },
+    "Float64": {
+      "representation": {
+        "type": "float64"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "Float64"
+            }
+          }
+        }
+      }
+    },
+    "Int32": {
+      "representation": {
+        "type": "int32"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "Int32"
+            }
+          }
+        }
+      }
+    },
+    "String": {
+      "representation": {
+        "type": "string"
+      },
+      "aggregate_functions": {},
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_ilike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_like": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_match": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_nilike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "_nlike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    }
+  },
+  "object_types": {
+    "Chinook_Album": {
+      "description": "",
+      "fields": {
+        "AlbumId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "ArtistId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Title": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "Chinook_Artist": {
+      "description": "",
+      "fields": {
+        "ArtistId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Name": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        }
+      }
+    },
+    "Chinook_Customer": {
+      "description": "",
+      "fields": {
+        "Address": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "City": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "Company": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "Country": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "CustomerId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Email": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "Fax": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "FirstName": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "LastName": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "Phone": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "PostalCode": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "State": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "SupportRepId": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "Int32"
+            }
+          }
+        }
+      }
+    },
+    "Chinook_Employee": {
+      "description": "",
+      "fields": {
+        "Address": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "BirthDate": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "Date32"
+            }
+          }
+        },
+        "City": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "Country": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "Email": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "EmployeeId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Fax": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "FirstName": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "HireDate": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "Date32"
+            }
+          }
+        },
+        "LastName": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "Phone": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "PostalCode": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "ReportsTo": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "Int32"
+            }
+          }
+        },
+        "State": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "Title": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        }
+      }
+    },
+    "Chinook_Genre": {
+      "description": "",
+      "fields": {
+        "GenreId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Name": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        }
+      }
+    },
+    "Chinook_Invoice": {
+      "description": "",
+      "fields": {
+        "BillingAddress": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "BillingCity": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "BillingCountry": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "BillingPostalCode": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "BillingState": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "CustomerId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "InvoiceDate": {
+          "type": {
+            "type": "named",
+            "name": "DateTime64(9)"
+          }
+        },
+        "InvoiceId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Total": {
+          "type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      }
+    },
+    "Chinook_InvoiceLine": {
+      "description": "",
+      "fields": {
+        "InvoiceId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "InvoiceLineId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Quantity": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "TrackId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "UnitPrice": {
+          "type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      }
+    },
+    "Chinook_MediaType": {
+      "description": "",
+      "fields": {
+        "MediaTypeId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Name": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        }
+      }
+    },
+    "Chinook_Playlist": {
+      "description": "",
+      "fields": {
+        "Name": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "PlaylistId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        }
+      }
+    },
+    "Chinook_PlaylistTrack": {
+      "description": "",
+      "fields": {
+        "PlaylistId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "TrackId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        }
+      }
+    },
+    "Chinook_Track": {
+      "description": "",
+      "fields": {
+        "AlbumId": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "Int32"
+            }
+          }
+        },
+        "Bytes": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "Int32"
+            }
+          }
+        },
+        "Composer": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "GenreId": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "Int32"
+            }
+          }
+        },
+        "MediaTypeId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Milliseconds": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "Name": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "TrackId": {
+          "type": {
+            "type": "named",
+            "name": "Int32"
+          }
+        },
+        "UnitPrice": {
+          "type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      }
+    }
+  },
+  "collections": [
+    {
+      "name": "Chinook_Album",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Album",
+      "uniqueness_constraints": {
+        "AlbumId": {
+          "unique_columns": [
+            "AlbumId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_Artist",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Artist",
+      "uniqueness_constraints": {
+        "ArtistId": {
+          "unique_columns": [
+            "ArtistId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_Customer",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Customer",
+      "uniqueness_constraints": {
+        "CustomerId": {
+          "unique_columns": [
+            "CustomerId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_Employee",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Employee",
+      "uniqueness_constraints": {
+        "EmployeeId": {
+          "unique_columns": [
+            "EmployeeId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_Genre",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Genre",
+      "uniqueness_constraints": {
+        "GenreId": {
+          "unique_columns": [
+            "GenreId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_Invoice",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Invoice",
+      "uniqueness_constraints": {
+        "InvoiceId": {
+          "unique_columns": [
+            "InvoiceId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_InvoiceLine",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_InvoiceLine",
+      "uniqueness_constraints": {
+        "InvoiceLineId": {
+          "unique_columns": [
+            "InvoiceLineId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_MediaType",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_MediaType",
+      "uniqueness_constraints": {
+        "MediaTypeId": {
+          "unique_columns": [
+            "MediaTypeId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_Playlist",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Playlist",
+      "uniqueness_constraints": {
+        "PlaylistId": {
+          "unique_columns": [
+            "PlaylistId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_PlaylistTrack",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_PlaylistTrack",
+      "uniqueness_constraints": {
+        "PlaylistId, TrackId": {
+          "unique_columns": [
+            "PlaylistId",
+            "TrackId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "Chinook_Track",
+      "description": "",
+      "arguments": {},
+      "type": "Chinook_Track",
+      "uniqueness_constraints": {
+        "TrackId": {
+          "unique_columns": [
+            "TrackId"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    }
+  ],
+  "functions": [],
+  "procedures": []
+}

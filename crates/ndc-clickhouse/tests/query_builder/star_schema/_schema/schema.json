@@ -1,0 +1,1654 @@
+{
+  "scalar_types": {
+    "Date": {
+      "representation": {
+        "type": "string"
+      },
+      "aggregate_functions": {
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "Date"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "Date"
+            }
+          }
+        }
+      }
+    },
+    "Int64": {
+      "representation": {
+        "type": "int64"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "Int64"
+            }
+          }
+        }
+      }
+    },
+    "String": {
+      "representation": {
+        "type": "string"
+      },
+      "aggregate_functions": {},
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_ilike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_like": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_match": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_nilike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "_nlike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "UInt16": {
+      "representation": {
+        "type": "int32"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "UInt16"
+            }
+          }
+        }
+      }
+    },
+    "UInt32": {
+      "representation": {
+        "type": "int64"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "UInt32"
+            }
+          }
+        }
+      }
+    },
+    "UInt64": {
+      "representation": {
+        "type": "biginteger"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "UInt64"
+            }
+          }
+        }
+      }
+    },
+    "UInt8": {
+      "representation": {
+        "type": "int16"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "UInt8"
+            }
+          }
+        }
+      }
+    }
+  },
+  "object_types": {
+    "q11": {
+      "fields": {
+        "revenue": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        }
+      }
+    },
+    "q13": {
+      "fields": {
+        "revenue": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        }
+      }
+    },
+    "q21": {
+      "fields": {
+        "P_BRAND": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "sum(LO_REVENUE)": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q22": {
+      "fields": {
+        "P_BRAND": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "sum(LO_REVENUE)": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q23": {
+      "fields": {
+        "P_BRAND": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "sum(LO_REVENUE)": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q31": {
+      "fields": {
+        "C_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "revenue": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q32": {
+      "fields": {
+        "C_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "revenue": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q33": {
+      "fields": {
+        "C_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "revenue": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q34": {
+      "fields": {
+        "C_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "revenue": {
+          "type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q41": {
+      "fields": {
+        "C_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "profit": {
+          "type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q42": {
+      "fields": {
+        "P_CATEGORY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "profit": {
+          "type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "q43": {
+      "fields": {
+        "P_BRAND": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_CITY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "profit": {
+          "type": {
+            "type": "named",
+            "name": "Int64"
+          }
+        },
+        "year": {
+          "type": {
+            "type": "named",
+            "name": "UInt16"
+          }
+        }
+      }
+    },
+    "star_customer": {
+      "description": "",
+      "fields": {
+        "C_ADDRESS": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_CITY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_CUSTKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "C_MKTSEGMENT": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_NAME": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_PHONE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_REGION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "star_lineorder": {
+      "description": "",
+      "fields": {
+        "LO_COMMITDATE": {
+          "type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "LO_CUSTKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_DISCOUNT": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_EXTENDEDPRICE": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_LINENUMBER": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_ORDERDATE": {
+          "type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "LO_ORDERKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_ORDERPRIORITY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "LO_ORDTOTALPRICE": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_PARTKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_QUANTITY": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_REVENUE": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_SHIPMODE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "LO_SHIPPRIORITY": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_SUPPKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_SUPPLYCOST": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_TAX": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        }
+      }
+    },
+    "star_lineorder_flat": {
+      "description": "",
+      "fields": {
+        "C_ADDRESS": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_CITY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_MKTSEGMENT": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_NAME": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_PHONE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "C_REGION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "LO_COMMITDATE": {
+          "type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "LO_CUSTKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_DISCOUNT": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_EXTENDEDPRICE": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_LINENUMBER": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_ORDERDATE": {
+          "type": {
+            "type": "named",
+            "name": "Date"
+          }
+        },
+        "LO_ORDERKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_ORDERPRIORITY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "LO_ORDTOTALPRICE": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_PARTKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_QUANTITY": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_REVENUE": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_SHIPMODE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "LO_SHIPPRIORITY": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "LO_SUPPKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_SUPPLYCOST": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "LO_TAX": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "P_BRAND": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_CATEGORY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_COLOR": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_CONTAINER": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_MFGR": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_NAME": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_SIZE": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "P_TYPE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_ADDRESS": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_CITY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NAME": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_PHONE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_REGION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "star_part": {
+      "description": "",
+      "fields": {
+        "P_BRAND": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_CATEGORY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_COLOR": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_CONTAINER": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_MFGR": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_NAME": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "P_PARTKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "P_SIZE": {
+          "type": {
+            "type": "named",
+            "name": "UInt8"
+          }
+        },
+        "P_TYPE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "star_supplier": {
+      "description": "",
+      "fields": {
+        "S_ADDRESS": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_CITY": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NAME": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_NATION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_PHONE": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_REGION": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "S_SUPPKEY": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        }
+      }
+    }
+  },
+  "collections": [
+    {
+      "name": "star_customer",
+      "description": "",
+      "arguments": {},
+      "type": "star_customer",
+      "uniqueness_constraints": {
+        "C_CUSTKEY": {
+          "unique_columns": [
+            "C_CUSTKEY"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "star_lineorder",
+      "description": "",
+      "arguments": {},
+      "type": "star_lineorder",
+      "uniqueness_constraints": {
+        "LO_ORDERDATE, LO_ORDERKEY": {
+          "unique_columns": [
+            "LO_ORDERKEY",
+            "LO_ORDERDATE"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "star_lineorder_flat",
+      "description": "",
+      "arguments": {},
+      "type": "star_lineorder_flat",
+      "uniqueness_constraints": {
+        "LO_ORDERDATE, LO_ORDERKEY": {
+          "unique_columns": [
+            "LO_ORDERKEY",
+            "LO_ORDERDATE"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "star_part",
+      "description": "",
+      "arguments": {},
+      "type": "star_part",
+      "uniqueness_constraints": {
+        "P_PARTKEY": {
+          "unique_columns": [
+            "P_PARTKEY"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "star_supplier",
+      "description": "",
+      "arguments": {},
+      "type": "star_supplier",
+      "uniqueness_constraints": {
+        "S_SUPPKEY": {
+          "unique_columns": [
+            "S_SUPPKEY"
+          ]
+        }
+      },
+      "foreign_keys": {}
+    },
+    {
+      "name": "q11",
+      "arguments": {},
+      "type": "q11",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q12",
+      "arguments": {},
+      "type": "q11",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q13",
+      "arguments": {},
+      "type": "q13",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q21",
+      "arguments": {},
+      "type": "q21",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q22",
+      "arguments": {},
+      "type": "q22",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q23",
+      "arguments": {},
+      "type": "q23",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q31",
+      "arguments": {},
+      "type": "q31",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q32",
+      "arguments": {},
+      "type": "q32",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q33",
+      "arguments": {},
+      "type": "q33",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q34",
+      "arguments": {},
+      "type": "q34",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q41",
+      "arguments": {},
+      "type": "q41",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q42",
+      "arguments": {},
+      "type": "q42",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "q43",
+      "arguments": {},
+      "type": "q43",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    }
+  ],
+  "functions": [],
+  "procedures": []
+}

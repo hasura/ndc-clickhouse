@@ -1,0 +1,506 @@
+{
+  "scalar_types": {
+    "Map(String, String)": {
+      "aggregate_functions": {},
+      "comparison_operators": {}
+    },
+    "String": {
+      "representation": {
+        "type": "string"
+      },
+      "aggregate_functions": {},
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_ilike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_like": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_match": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_nilike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "_nlike": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "Tuple(String, String)": {
+      "aggregate_functions": {},
+      "comparison_operators": {}
+    },
+    "UInt32": {
+      "representation": {
+        "type": "int64"
+      },
+      "aggregate_functions": {
+        "avg": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "max": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "min": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "stddev_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "stddev_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "sum": {
+          "result_type": {
+            "type": "named",
+            "name": "UInt64"
+          }
+        },
+        "var_pop": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        },
+        "var_samp": {
+          "result_type": {
+            "type": "named",
+            "name": "Float64"
+          }
+        }
+      },
+      "comparison_operators": {
+        "_eq": {
+          "type": "equal"
+        },
+        "_gt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_gte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_in": {
+          "type": "in"
+        },
+        "_lt": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_lte": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_neq": {
+          "type": "custom",
+          "argument_type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "_nin": {
+          "type": "custom",
+          "argument_type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "UInt32"
+            }
+          }
+        }
+      }
+    }
+  },
+  "object_types": {
+    "TableOne": {
+      "fields": {
+        "ColumnA": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "ColumnB": {
+          "type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "TableOne.ColumnB"
+            }
+          }
+        },
+        "ColumnC": {
+          "type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "TableOne.ColumnC"
+            }
+          }
+        },
+        "ColumnD": {
+          "type": {
+            "type": "named",
+            "name": "TableOne.ColumnD"
+          }
+        },
+        "ColumnE": {
+          "type": {
+            "type": "named",
+            "name": "TableOne.ColumnE"
+          }
+        },
+        "ColumnF": {
+          "type": {
+            "type": "named",
+            "name": "TableOne.ColumnF"
+          }
+        },
+        "ColumnG": {
+          "type": {
+            "type": "named",
+            "name": "TableOne.ColumnG"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnB": {
+      "fields": {
+        "field1": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "field2": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnC": {
+      "fields": {
+        "field1": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "field2": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnD": {
+      "fields": {
+        "child": {
+          "type": {
+            "type": "named",
+            "name": "TableOne.ColumnD.child"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnD.child": {
+      "fields": {
+        "id": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "name": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnE": {
+      "fields": {
+        "child": {
+          "type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "TableOne.ColumnE.child"
+            }
+          }
+        }
+      }
+    },
+    "TableOne.ColumnE.child": {
+      "fields": {
+        "id": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "name": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnF": {
+      "fields": {
+        "child": {
+          "type": {
+            "type": "named",
+            "name": "TableOne.ColumnF.child"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnF.child": {
+      "fields": {
+        "id": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "name": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "toys": {
+          "type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "TableOne.ColumnF.child.toys"
+            }
+          }
+        }
+      }
+    },
+    "TableOne.ColumnF.child.toys": {
+      "fields": {
+        "id": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "name": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnG": {
+      "fields": {
+        "a": {
+          "type": {
+            "type": "nullable",
+            "underlying_type": {
+              "type": "named",
+              "name": "String"
+            }
+          }
+        },
+        "b": {
+          "type": {
+            "type": "named",
+            "name": "Map(String, String)"
+          }
+        },
+        "c": {
+          "type": {
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "TableOne.ColumnG.c"
+            }
+          }
+        },
+        "d": {
+          "type": {
+            "type": "named",
+            "name": "TableOne.ColumnG.d"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnG.c": {
+      "fields": {
+        "a": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "b": {
+          "type": {
+            "type": "named",
+            "name": "Tuple(String, String)"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnG.d": {
+      "fields": {
+        "a": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "b": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "TableTwo": {
+      "fields": {
+        "Id": {
+          "type": {
+            "type": "named",
+            "name": "UInt32"
+          }
+        },
+        "Name": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    }
+  },
+  "collections": [
+    {
+      "name": "TableOne",
+      "arguments": {},
+      "type": "TableOne",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    },
+    {
+      "name": "TableTwo",
+      "arguments": {},
+      "type": "TableTwo",
+      "uniqueness_constraints": {},
+      "foreign_keys": {}
+    }
+  ],
+  "functions": [],
+  "procedures": []
+}

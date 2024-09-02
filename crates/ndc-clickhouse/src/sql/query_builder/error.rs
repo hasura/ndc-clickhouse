@@ -1,6 +1,6 @@
-use std::fmt;
-
+use common::clickhouse_parser::parameterized_query::ParameterType;
 use ndc_sdk::connector::{ExplainError, QueryError};
+use std::fmt;
 
 use super::typecasting::TypeStringError;
 
@@ -39,6 +39,32 @@ pub enum QueryBuilderError {
     Typecasting(TypeStringError),
     /// Column type did not match type asserted by request
     ColumnTypeMismatch { expected: String, got: String },
+    /// Attempted to cast a JSON value to a mismatching data type
+    UnsupportedParameterCast {
+        value: serde_json::Value,
+        data_type: ParameterType,
+    },
+    /// Attempted to cast a value to a tuple with a mismatching length
+    TupleLengthMismatch {
+        value: serde_json::Value,
+        data_type: ParameterType,
+    },
+    /// Attempted to cast an Array to a named tuple, which should be represented as an object
+    ExpectedAnonymousTuple {
+        value: serde_json::Value,
+        data_type: ParameterType,
+    },
+    /// Attempted to cast an Object to an anonymous tuple, which should be represented as an array
+    ExpectedNamedTuple {
+        value: serde_json::Value,
+        data_type: ParameterType,
+    },
+    /// could not find field required by named tuple or nested in the source json object
+    MissingNamedField {
+        value: serde_json::Value,
+        data_type: ParameterType,
+        field: String,
+    },
 }
 
 impl fmt::Display for QueryBuilderError {
@@ -84,6 +110,27 @@ impl fmt::Display for QueryBuilderError {
             QueryBuilderError::ColumnTypeMismatch { expected, got } => {
                 write!(f, "Column Type Mismatch: expected {expected}, got {got}")
             }
+            QueryBuilderError::UnsupportedParameterCast { value, data_type } => {
+                write!(f, "Cannot cast value `{}` to type `{}`", value, data_type)
+            }
+            QueryBuilderError::TupleLengthMismatch { value, data_type } => {
+                write!(f, "Tuple `{data_type}` length does not match value {value}")
+            }
+            QueryBuilderError::ExpectedAnonymousTuple { value, data_type } => {
+                write!(
+                    f,
+                    "Expected anonymous tuple for value `{value}`, got `{data_type}`"
+                )
+            }
+            QueryBuilderError::ExpectedNamedTuple { value, data_type } => write!(
+                f,
+                "Expected named tuple for value `{value}`, got `{data_type}`"
+            ),
+            QueryBuilderError::MissingNamedField {
+                value,
+                data_type,
+                field,
+            } => write!(f, "Missing field `{field}` for `{data_type}` in `{value}`"),
         }
     }
 }
@@ -105,7 +152,12 @@ impl From<QueryBuilderError> for QueryError {
             | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
             | QueryBuilderError::Typecasting(_)
-            | QueryBuilderError::ColumnTypeMismatch { .. } => {
+            | QueryBuilderError::ColumnTypeMismatch { .. }
+            | QueryBuilderError::UnsupportedParameterCast { .. }
+            | QueryBuilderError::ExpectedAnonymousTuple { .. }
+            | QueryBuilderError::ExpectedNamedTuple { .. }
+            | QueryBuilderError::MissingNamedField { .. }
+            | QueryBuilderError::TupleLengthMismatch { .. } => {
                 QueryError::new_invalid_request(&value)
             }
             QueryBuilderError::NotSupported(_) => QueryError::new_unsupported_operation(&value),
@@ -129,7 +181,12 @@ impl From<QueryBuilderError> for ExplainError {
             | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
             | QueryBuilderError::UnknownBinaryComparisonOperator(_)
             | QueryBuilderError::Typecasting(_)
-            | QueryBuilderError::ColumnTypeMismatch { .. } => {
+            | QueryBuilderError::ColumnTypeMismatch { .. }
+            | QueryBuilderError::UnsupportedParameterCast { .. }
+            | QueryBuilderError::ExpectedAnonymousTuple { .. }
+            | QueryBuilderError::ExpectedNamedTuple { .. }
+            | QueryBuilderError::MissingNamedField { .. }
+            | QueryBuilderError::TupleLengthMismatch { .. } => {
                 ExplainError::new_invalid_request(&value)
             }
             QueryBuilderError::NotSupported(_) => ExplainError::new_unsupported_operation(&value),

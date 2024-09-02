@@ -4,10 +4,13 @@ packagingDefinition:
 supportedEnvironmentVariables:
   - name: CLICKHOUSE_URL
     description: The ClickHouse connection URL
+    defaultValue: ""
   - name: CLICKHOUSE_USERNAME
     description: The ClickHouse connection username
+    defaultValue: ""
   - name: CLICKHOUSE_PASSWORD
     description: The ClickHouse connection password
+    defaultValue: ""
 commands:
   update: hasura-clickhouse update
 cliPlugin:
