@@ -38,7 +38,7 @@ impl ParameterBuilder {
                 serde_json::Value::String(s) => Value::SingleQuotedString(s.to_owned()),
                 _ => {
                     return Err(QueryBuilderError::UnsupportedParameterCast {
-                        json_value: value.to_owned(),
+                        value: value.to_owned(),
                         data_type: data_type.to_owned(),
                     })
                 }

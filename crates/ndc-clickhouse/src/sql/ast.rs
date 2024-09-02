@@ -839,19 +839,22 @@ impl Value {
                     ClickHouseDataType::Tuple(elements) => {
                         // tuple should be anonymous, and tuple length should match array length
                         if elements.len() != arr.len() {
-                            Err(QueryBuilderError::UnsupportedParameterCast {
-                                json_value: value.to_owned(),
+                            Err(QueryBuilderError::TupleLengthMismatch {
+                                value: value.to_owned(),
                                 data_type: data_type.to_owned().into(),
                             })
                         } else {
                             let values = arr
                                 .iter()
                                 .zip(elements.iter())
-                                .map(|(value, (identifier, data_type))| {
+                                .map(|(value, (identifier, element_type))| {
                                     if identifier.is_some() {
-                                        todo!("unexpected identifer error")
+                                        Err(QueryBuilderError::ExpectedAnonymousTuple {
+                                            value: value.to_owned(),
+                                            data_type: data_type.to_owned().into(),
+                                        })
                                     } else {
-                                        map_json_value(value, data_type)
+                                        map_json_value(value, element_type)
                                     }
                                 })
                                 .collect::<Result<_, _>>()?;
@@ -859,8 +862,34 @@ impl Value {
                             Ok(Value::Tuple(values))
                         }
                     }
+                    ClickHouseDataType::Nested(elements) => Ok(Value::Array(
+                        arr.iter()
+                            .map(|value| match value {
+                                serde_json::Value::Object(obj) => Ok(Value::Tuple(
+                                    elements
+                                        .iter()
+                                        .map(|(identifier, field_type)| {
+                                            if let Some(value) = obj.get(identifier.value()) {
+                                                map_json_value(value, field_type)
+                                            } else {
+                                                Err(QueryBuilderError::MissingNamedField {
+                                                    value: value.to_owned(),
+                                                    data_type: data_type.to_owned().into(),
+                                                    field: identifier.value().to_string(),
+                                                })
+                                            }
+                                        })
+                                        .collect::<Result<_, _>>()?,
+                                )),
+                                _ => Err(QueryBuilderError::UnsupportedParameterCast {
+                                    value: value.to_owned(),
+                                    data_type: data_type.to_owned().into(),
+                                }),
+                            })
+                            .collect::<Result<_, _>>()?,
+                    )),
                     _ => Err(QueryBuilderError::UnsupportedParameterCast {
-                        json_value: value.to_owned(),
+                        value: value.to_owned(),
                         data_type: data_type.to_owned().into(),
                     }),
                 },
@@ -877,32 +906,32 @@ impl Value {
                     )),
                     ClickHouseDataType::Tuple(elements) => {
                         // tuple should be named, and all tuple keys should be in the input object
-                        let mut values = vec![];
-
-                        for (identifier, data_type) in elements {
-                            if let Some(identifier) = identifier {
-                                if let Some(value) = obj.get(identifier.value()) {
-                                    values.push(map_json_value(value, data_type)?)
-                                } else {
-                                    // all tuple keys should be in the value object
-                                    return Err(QueryBuilderError::UnsupportedParameterCast {
-                                        json_value: value.to_owned(),
-                                        data_type: data_type.to_owned().into(),
-                                    });
-                                }
-                            } else {
-                                // tuple should not be anonymous
-                                return Err(QueryBuilderError::UnsupportedParameterCast {
-                                    json_value: value.to_owned(),
-                                    data_type: data_type.to_owned().into(),
-                                });
-                            }
-                        }
-
-                        Ok(Value::Tuple(values))
+                        Ok(Value::Tuple(
+                            elements
+                                .iter()
+                                .map(|(identifier, element_type)| {
+                                    if let Some(identifier) = identifier {
+                                        if let Some(value) = obj.get(identifier.value()) {
+                                            map_json_value(value, element_type)
+                                        } else {
+                                            Err(QueryBuilderError::MissingNamedField {
+                                                value: value.to_owned(),
+                                                data_type: data_type.to_owned().into(),
+                                                field: identifier.value().to_string(),
+                                            })
+                                        }
+                                    } else {
+                                        Err(QueryBuilderError::ExpectedNamedTuple {
+                                            value: value.to_owned(),
+                                            data_type: data_type.to_owned().into(),
+                                        })
+                                    }
+                                })
+                                .collect::<Result<_, _>>()?,
+                        ))
                     }
                     _ => Err(QueryBuilderError::UnsupportedParameterCast {
-                        json_value: value.to_owned(),
+                        value: value.to_owned(),
                         data_type: data_type.to_owned().into(),
                     }),
                 },
