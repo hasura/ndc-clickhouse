@@ -4,10 +4,6 @@
       "aggregate_functions": {},
       "comparison_operators": {}
     },
-    "Nested(field1 String, field1 String)": {
-      "aggregate_functions": {},
-      "comparison_operators": {}
-    },
     "String": {
       "representation": {
         "type": "string"
@@ -235,8 +231,11 @@
         },
         "ColumnC": {
           "type": {
-            "type": "named",
-            "name": "Nested(field1 String, field1 String)"
+            "type": "array",
+            "element_type": {
+              "type": "named",
+              "name": "TableOne.ColumnC"
+            }
           }
         },
         "ColumnD": {
@@ -266,6 +265,22 @@
       }
     },
     "TableOne.ColumnB": {
+      "fields": {
+        "field1": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        },
+        "field2": {
+          "type": {
+            "type": "named",
+            "name": "String"
+          }
+        }
+      }
+    },
+    "TableOne.ColumnC": {
       "fields": {
         "field1": {
           "type": {

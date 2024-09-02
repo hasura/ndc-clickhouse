@@ -70,6 +70,26 @@ mod test_utils {
         let expected_statement = fs::read_to_string(&statement_path).await?;
         Ok(expected_statement)
     }
+    async fn read_expected_parameterized_sql(
+        schema_dir: &str,
+        group_dir: &str,
+        test_name: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        let statement_path = tests_dir_path(schema_dir, group_dir)
+            .join(format!("{test_name}.parameterized_statement.sql"));
+        let expected_statement = fs::read_to_string(&statement_path).await?;
+        Ok(expected_statement)
+    }
+    async fn read_expected_parameters(
+        schema_dir: &str,
+        group_dir: &str,
+        test_name: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        let parameters_path =
+            tests_dir_path(schema_dir, group_dir).join(format!("{test_name}.parameters.txt"));
+        let expected_parameters = fs::read_to_string(&parameters_path).await?;
+        Ok(expected_parameters)
+    }
     async fn write_expected_sql(
         schema_dir: &str,
         group_dir: &str,
@@ -78,8 +98,23 @@ mod test_utils {
     ) -> Result<(), Box<dyn Error>> {
         let statement_path =
             tests_dir_path(schema_dir, group_dir).join(format!("{test_name}.statement.sql"));
-        let pretty_statement = pretty_print_sql(generated_statement);
-        fs::write(&statement_path, &pretty_statement).await?;
+        fs::write(&statement_path, &generated_statement).await?;
+        Ok(())
+    }
+    async fn write_expected_parameterized_sql(
+        schema_dir: &str,
+        group_dir: &str,
+        test_name: &str,
+        generated_statement: &str,
+        parameters: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let statement_path = tests_dir_path(schema_dir, group_dir)
+            .join(format!("{test_name}.parameterized_statement.sql"));
+        let parameters_path =
+            tests_dir_path(schema_dir, group_dir).join(format!("{test_name}.parameters.txt"));
+        fs::write(&statement_path, &generated_statement).await?;
+        fs::write(&parameters_path, &parameters).await?;
+
         Ok(())
     }
     fn pretty_print_sql(query: &str) -> String {
@@ -104,6 +139,26 @@ mod test_utils {
         );
         Ok(generated_statement)
     }
+    fn generate_parameterized_sql(
+        configuration: &ServerConfig,
+        request: &models::QueryRequest,
+    ) -> Result<(String, String), QueryBuilderError> {
+        let (statement, parameters) =
+            QueryBuilder::new(request, configuration).build_parameterized()?;
+        let pretty_statement = pretty_print_sql(&statement.to_string());
+        let printed_parameters =
+            parameters
+                .into_iter()
+                .fold(String::new(), |mut acc, (name, value)| {
+                    acc.reserve(name.len() + value.len() + 2);
+                    acc.push_str(&name);
+                    acc.push('=');
+                    acc.push_str(&value);
+                    acc.push('\n');
+                    acc
+                });
+        Ok((pretty_statement, printed_parameters))
+    }
     pub async fn test_generated_sql(
         schema_dir: &str,
         group_dir: &str,
@@ -113,13 +168,48 @@ mod test_utils {
         let request = read_request(schema_dir, group_dir, test_name).await?;
 
         let generated_sql = generate_sql(&configuration, &request)?;
+        let (parameterized_sql, parameters) = generate_parameterized_sql(&configuration, &request)?;
 
         if UPDATE_SNAPSHOTS {
             write_expected_sql(schema_dir, group_dir, test_name, &generated_sql).await?;
+            write_expected_parameterized_sql(
+                schema_dir,
+                group_dir,
+                test_name,
+                &parameterized_sql,
+                &parameters,
+            )
+            .await?;
         } else {
             let expected_sql = read_expected_sql(schema_dir, group_dir, test_name).await?;
 
-            assert_eq!(generated_sql, expected_sql);
+            assert_eq!(
+                generated_sql, expected_sql,
+                "Inlined SQL should match snapshot"
+            );
+
+            let expected_parameterized_sql =
+                read_expected_parameterized_sql(schema_dir, group_dir, test_name).await?;
+
+            assert_eq!(
+                parameterized_sql, expected_parameterized_sql,
+                "Parameterized SQL should match snapshot"
+            );
+
+            let expected_parameters =
+                read_expected_parameters(schema_dir, group_dir, test_name).await?;
+
+            assert_eq!(
+                parameters, expected_parameters,
+                "Parameters should match snapshot"
+            );
+
+            if expected_parameters.is_empty() {
+                assert_eq!(
+                    generated_sql, parameterized_sql,
+                    "If no parameters are present, parameterized sql should match inlined sql"
+                );
+            }
         }
 
         Ok(())
@@ -347,5 +437,19 @@ mod field_selector {
     #[tokio::test]
     async fn no_useless_nested_accessors() -> Result<(), Box<dyn Error>> {
         test_generated_sql("06_no_useless_nested_accessors").await
+    }
+}
+
+#[cfg(test)]
+mod bound_parameters {
+    use super::*;
+
+    async fn test_generated_sql(name: &str) -> Result<(), Box<dyn Error>> {
+        super::test_utils::test_generated_sql("complex_columns", "bound_parameters", name).await
+    }
+
+    #[tokio::test]
+    async fn bind_complex_parameters() -> Result<(), Box<dyn Error>> {
+        test_generated_sql("01_bind_complex_parameters").await
     }
 }
