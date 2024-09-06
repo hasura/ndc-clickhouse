@@ -8,11 +8,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          # this defaults to "-D warnings", making warnings fail the entire build.
-          # setting to empty strng to allow builds with warnings
-          # todo: consider removing this, and disallowing pushing with warnings?
-          rustflags: ""
       # we don't use the audit-check action, because it overwrites our lockfile before checking
       # ref: https://github.com/rustsec/audit-check/issues/15
       # todo: once that is fixed, move to audit-check, and set up regular audit check on top of these PR ones 
