@@ -5,12 +5,15 @@ supportedEnvironmentVariables:
   - name: CLICKHOUSE_URL
     description: The ClickHouse connection URL
     defaultValue: ""
+    required: true
   - name: CLICKHOUSE_USERNAME
     description: The ClickHouse connection username
     defaultValue: ""
+    required: true
   - name: CLICKHOUSE_PASSWORD
     description: The ClickHouse connection password
     defaultValue: ""
+    required: true
 commands:
   update: hasura-clickhouse update
 cliPlugin:
@@ -20,5 +23,6 @@ dockerComposeWatch:
   - path: ./
     target: /etc/connector
     action: sync+restart
+documentationPage: https://hasura.info/clickhouse-getting-started
 
 
