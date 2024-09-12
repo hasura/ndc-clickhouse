@@ -1,0 +1,15 @@
+name: Security audit
+on:
+  pull_request:
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      # we don't use the audit-check action, because it overwrites our lockfile before checking
+      # ref: https://github.com/rustsec/audit-check/issues/15
+      # todo: once that is fixed, move to audit-check, and set up regular audit check on top of these PR ones 
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit
