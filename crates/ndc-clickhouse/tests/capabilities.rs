@@ -1,4 +1,4 @@
-use ndc_clickhouse::connector::handler::capabilities;
+use common::capabilities::capabilities_response;
 use ndc_sdk::models::CapabilitiesResponse;
 use std::path::PathBuf;
 use tokio::fs;
@@ -16,7 +16,7 @@ async fn prints_expected_capabilities() {
         serde_json::from_str(&expected_capabilities_file)
             .expect("Expected capabilities shoudl be valid capabilities response");
 
-    let capabilities = capabilities();
+    let capabilities = capabilities_response();
 
     assert_eq!(
         expected_capabilities, capabilities,
@@ -28,7 +28,7 @@ async fn prints_expected_capabilities() {
 // update the expected capabilities. We only want thise called explicitly when capabilities have changed
 #[ignore]
 async fn update_expected_capabilities() {
-    let capabilities = serde_json::to_string_pretty(&capabilities())
+    let capabilities = serde_json::to_string_pretty(&capabilities_response())
         .expect("Capabilities should serialize to json");
 
     let capabilities_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

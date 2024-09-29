@@ -1,9 +1,12 @@
-use common::clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
+use crate::clickhouse_parser::datatype::{ClickHouseDataType, Identifier, SingleQuotedString};
 use indexmap::IndexMap;
-use ndc_sdk::models;
+use ndc_models::{self as models, FieldName, ObjectTypeName, ScalarTypeName};
 use std::{collections::BTreeMap, iter};
 
-use super::{ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction};
+use super::{
+    binary_comparison_operator::ClickHouseBinaryComparisonOperator,
+    single_column_aggregate_function::ClickHouseSingleColumnAggregateFunction,
+};
 
 #[derive(Debug, Clone)]
 struct NameSpace<'a> {
@@ -35,8 +38,8 @@ impl<'a> NameSpace<'a> {
 pub struct ClickHouseScalar(ClickHouseDataType);
 
 impl ClickHouseScalar {
-    fn type_name(&self) -> String {
-        self.0.to_string()
+    fn type_name(&self) -> ScalarTypeName {
+        self.0.to_string().into()
     }
     fn cast_type(&self) -> ClickHouseDataType {
         // todo: recusively map large number types to string here
@@ -50,10 +53,10 @@ impl ClickHouseScalar {
                 .into_iter()
                 .map(|(function, result_type)| {
                     (
-                        function.to_string(),
+                        function.to_string().into(),
                         models::AggregateFunctionDefinition {
                             result_type: models::Type::Named {
-                                name: result_type.to_string(),
+                                name: result_type.to_string().into(),
                             },
                         },
                     )
@@ -74,7 +77,7 @@ impl ClickHouseScalar {
                             models::ComparisonOperatorDefinition::Custom {
                                 argument_type: models::Type::Array {
                                     element_type: Box::new(models::Type::Named {
-                                        name: self.type_name(),
+                                        name: self.type_name().into_inner(),
                                     }),
                                 },
                             }
@@ -91,12 +94,12 @@ impl ClickHouseScalar {
                         | ClickHouseBinaryComparisonOperator::Match => {
                             models::ComparisonOperatorDefinition::Custom {
                                 argument_type: models::Type::Named {
-                                    name: self.type_name(),
+                                    name: self.type_name().into_inner(),
                                 },
                             }
                         }
                     };
-                    (operator.to_string(), definition)
+                    (operator.to_string().into(), definition)
                 })
                 .collect(),
         }
@@ -416,8 +419,8 @@ pub enum ClickHouseTypeDefinition {
         element_type: Box<ClickHouseTypeDefinition>,
     },
     Object {
-        name: String,
-        fields: IndexMap<String, ClickHouseTypeDefinition>,
+        name: ObjectTypeName,
+        fields: IndexMap<FieldName, ClickHouseTypeDefinition>,
     },
 }
 
@@ -425,11 +428,14 @@ impl ClickHouseTypeDefinition {
     /// Table alias is guaranteed unique across the database, and by default includes the schema name for non default schemas
     pub fn from_table_column(
         data_type: &ClickHouseDataType,
-        column_alias: &str,
-        table_alias: &str,
+        column_alias: &FieldName,
+        return_type: &ObjectTypeName,
         separator: &str,
     ) -> Self {
-        let namespace = NameSpace::new(vec![table_alias, column_alias], separator);
+        let namespace = NameSpace::new(
+            vec![return_type.inner().inner(), column_alias.inner()],
+            separator,
+        );
         Self::new(data_type, &namespace)
     }
     pub fn from_query_return_type(
@@ -468,7 +474,7 @@ impl ClickHouseTypeDefinition {
                     let field_definition = Self::new(field_data_type, &field_namespace);
 
                     if fields
-                        .insert(name.value().to_owned(), field_definition)
+                        .insert(name.value().to_owned().into(), field_definition)
                         .is_some()
                     {
                         // on duplicate field names, fall back to unknown type
@@ -478,7 +484,7 @@ impl ClickHouseTypeDefinition {
 
                 Self::Array {
                     element_type: Box::new(Self::Object {
-                        name: namespace.value(),
+                        name: namespace.value().into(),
                         fields,
                     }),
                 }
@@ -502,7 +508,7 @@ impl ClickHouseTypeDefinition {
                     let field_definition = Self::new(field_data_type, &field_namespace);
 
                     if fields
-                        .insert(field_name.to_owned(), field_definition)
+                        .insert(field_name.to_owned().into(), field_definition)
                         .is_some()
                     {
                         // on duplicate field names, fall back to unknown type
@@ -511,7 +517,7 @@ impl ClickHouseTypeDefinition {
                 }
 
                 Self::Object {
-                    name: namespace.value(),
+                    name: namespace.value().into(),
                     fields,
                 }
             }
@@ -548,7 +554,7 @@ impl ClickHouseTypeDefinition {
     pub fn type_identifier(&self) -> models::Type {
         match self {
             ClickHouseTypeDefinition::Scalar(scalar) => models::Type::Named {
-                name: scalar.type_name(),
+                name: scalar.type_name().into_inner(),
             },
             ClickHouseTypeDefinition::Nullable { inner } => models::Type::Nullable {
                 underlying_type: Box::new(inner.type_identifier()),
@@ -557,7 +563,7 @@ impl ClickHouseTypeDefinition {
                 element_type: Box::new(element_type.type_identifier()),
             },
             ClickHouseTypeDefinition::Object { name, fields: _ } => models::Type::Named {
-                name: name.to_owned(),
+                name: name.to_owned().into(),
             },
         }
     }
@@ -577,7 +583,7 @@ impl ClickHouseTypeDefinition {
                         .map(|(key, value)| {
                             // todo: prevent issues where the key contains unescaped double quotes
                             (
-                                Some(Identifier::DoubleQuoted(key.to_owned())),
+                                Some(Identifier::DoubleQuoted(key.to_owned().into())),
                                 value.cast_type(),
                             )
                         })
@@ -600,7 +606,7 @@ impl ClickHouseTypeDefinition {
                 name: namespace,
                 fields,
             } => {
-                let mut object_type_fields = vec![];
+                let mut object_type_fields = BTreeMap::new();
                 let mut object_type_definitions = vec![];
                 let mut scalar_type_definitions = vec![];
 
@@ -613,18 +619,18 @@ impl ClickHouseTypeDefinition {
                     scalar_type_definitions.append(&mut scalars);
                     object_type_definitions.append(&mut objects);
 
-                    object_type_fields.push((
+                    object_type_fields.insert(
                         field_name.to_owned(),
                         models::ObjectField {
                             description: None,
                             r#type: field.type_identifier(),
                             arguments: BTreeMap::new(),
                         },
-                    ));
+                    );
                 }
 
                 object_type_definitions.push((
-                    namespace.to_string(),
+                    namespace.to_string().into(),
                     models::ObjectType {
                         description: None,
                         fields: object_type_fields.into_iter().collect(),
@@ -660,6 +666,6 @@ impl ClickHouseTypeDefinition {
 }
 
 pub struct SchemaTypeDefinitions {
-    pub scalars: Vec<(String, models::ScalarType)>,
-    pub objects: Vec<(String, models::ObjectType)>,
+    pub scalars: Vec<(ScalarTypeName, models::ScalarType)>,
+    pub objects: Vec<(ObjectTypeName, models::ObjectType)>,
 }

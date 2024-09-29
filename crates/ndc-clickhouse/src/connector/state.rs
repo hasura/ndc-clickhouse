@@ -1,6 +1,5 @@
-use std::{error::Error, sync::Arc};
-
 use common::{client::get_http_client, config::ServerConfig};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
@@ -17,7 +16,7 @@ impl ServerState {
             client: Arc::new(RwLock::new(client)),
         }
     }
-    pub async fn client(&self, config: &ServerConfig) -> Result<reqwest::Client, Box<dyn Error>> {
+    pub async fn client(&self, config: &ServerConfig) -> Result<reqwest::Client, reqwest::Error> {
         if let Some(client) = &*self.client.read().await {
             Ok(client.clone())
         } else {

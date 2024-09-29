@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use ndc_models::{ArgumentName, CollectionName, FieldName};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -15,11 +16,11 @@ pub struct ServerConfigFile {
     /// This is the name exposed to the engine, and may be configured by users.
     /// When the configuration is updated, the table is identified by name and schema, and changes to the alias are preserved.
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub tables: BTreeMap<String, TableConfigFile>,
+    pub tables: BTreeMap<CollectionName, TableConfigFile>,
     /// Optionally define custom parameterized queries here
     /// Note the names must not match table names
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub queries: BTreeMap<String, ParameterizedQueryConfigFile>,
+    pub queries: BTreeMap<CollectionName, ParameterizedQueryConfigFile>,
 }
 
 impl Default for ServerConfigFile {
@@ -44,7 +45,7 @@ pub struct TableConfigFile {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub primary_key: Option<PrimaryKey>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-    pub arguments: BTreeMap<String, String>,
+    pub arguments: BTreeMap<ArgumentName, String>,
     /// The map key is a column alias identifying the table and may be customized.
     /// It defaults to the table name.
     /// When the configuration is updated, the column is identified by name, and changes to the alias are preserved.
@@ -55,7 +56,7 @@ pub struct TableConfigFile {
 pub struct PrimaryKey {
     pub name: String,
     /// The names of columns in this primary key
-    pub columns: Vec<String>,
+    pub columns: Vec<FieldName>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -63,18 +64,20 @@ pub struct PrimaryKey {
 pub enum ReturnType {
     /// A custom return type definition
     /// The keys are column names, the values are parsable clichouse datatypes
-    Definition { columns: BTreeMap<String, String> },
+    Definition {
+        columns: BTreeMap<FieldName, String>,
+    },
     /// the same as the return type for another table
     TableReference {
         /// the table alias must match a key in `tables`, and the query must return the same type as that table
         /// alternatively, the alias may reference another parameterized query which has a return type definition,
-        table_name: String,
+        table_name: CollectionName,
     },
     /// The same as the return type for another query
     QueryReference {
         /// the table alias must match a key in `tables`, and the query must return the same type as that table
         /// alternatively, the alias may reference another parameterized query which has a return type definition,
-        query_name: String,
+        query_name: CollectionName,
     },
 }
 

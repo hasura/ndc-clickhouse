@@ -148,7 +148,7 @@ mod tests {
 
         for (value, data_type, printed) in test_cases {
             let data_type =
-                ClickHouseDataType::from_str(&data_type).expect("Should parse data type");
+                ClickHouseDataType::from_str(data_type).expect("Should parse data type");
 
             let value = Value::try_from_json(&value, &data_type)
                 .expect("Should convert type based on data type");

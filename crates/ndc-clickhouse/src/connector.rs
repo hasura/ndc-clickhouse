@@ -4,12 +4,10 @@ pub mod state;
 
 use self::state::ServerState;
 use async_trait::async_trait;
-use common::config::ServerConfig;
+use common::{capabilities::capabilities, config::ServerConfig, schema::schema_response};
+use http::StatusCode;
 use ndc_sdk::{
-    connector::{
-        Connector, ExplainError, FetchMetricsError, HealthError, MutationError, QueryError,
-        SchemaError,
-    },
+    connector::{Connector, ErrorResponse, Result},
     json_response::JsonResponse,
     models,
 };
@@ -22,44 +20,25 @@ impl Connector for ClickhouseConnector {
     type Configuration = ServerConfig;
     type State = ServerState;
 
-    fn fetch_metrics(
-        _configuration: &Self::Configuration,
-        _state: &Self::State,
-    ) -> Result<(), FetchMetricsError> {
+    fn fetch_metrics(_configuration: &Self::Configuration, _state: &Self::State) -> Result<()> {
         Ok(())
     }
 
-    async fn health_check(
-        configuration: &Self::Configuration,
-        state: &Self::State,
-    ) -> Result<(), HealthError> {
-        let client = state
-            .client(configuration)
-            .await
-            .map_err(HealthError::new)?;
-
-        common::client::ping(&client, &configuration.connection)
-            .await
-            .map_err(HealthError::new)?;
-
-        Ok(())
-    }
-
-    async fn get_capabilities() -> JsonResponse<models::CapabilitiesResponse> {
-        JsonResponse::Value(handler::capabilities())
+    async fn get_capabilities() -> models::Capabilities {
+        capabilities()
     }
 
     async fn get_schema(
         configuration: &Self::Configuration,
-    ) -> Result<JsonResponse<models::SchemaResponse>, SchemaError> {
-        handler::schema(configuration).await
+    ) -> Result<JsonResponse<models::SchemaResponse>> {
+        Ok(JsonResponse::Value(schema_response(configuration)))
     }
 
     async fn query_explain(
         configuration: &Self::Configuration,
         state: &Self::State,
         request: models::QueryRequest,
-    ) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
+    ) -> Result<JsonResponse<models::ExplainResponse>> {
         handler::explain(configuration, state, request).await
     }
 
@@ -67,9 +46,11 @@ impl Connector for ClickhouseConnector {
         _configuration: &Self::Configuration,
         _state: &Self::State,
         _request: models::MutationRequest,
-    ) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
-        Err(ExplainError::new_unsupported_operation(
-            &"mutation explain not supported",
+    ) -> Result<JsonResponse<models::ExplainResponse>> {
+        Err(ErrorResponse::new(
+            StatusCode::NOT_IMPLEMENTED,
+            "mutation explain not supported".to_string(),
+            serde_json::Value::Null,
         ))
     }
 
@@ -77,9 +58,11 @@ impl Connector for ClickhouseConnector {
         _configuration: &Self::Configuration,
         _state: &Self::State,
         _request: models::MutationRequest,
-    ) -> Result<JsonResponse<models::MutationResponse>, MutationError> {
-        Err(MutationError::new_unsupported_operation(
-            &"mutation not supported",
+    ) -> Result<JsonResponse<models::MutationResponse>> {
+        Err(ErrorResponse::new(
+            StatusCode::NOT_IMPLEMENTED,
+            "mutation not supported".to_string(),
+            serde_json::Value::Null,
         ))
     }
 
@@ -87,7 +70,7 @@ impl Connector for ClickhouseConnector {
         configuration: &Self::Configuration,
         state: &Self::State,
         request: models::QueryRequest,
-    ) -> Result<JsonResponse<models::QueryResponse>, QueryError> {
+    ) -> Result<JsonResponse<models::QueryResponse>> {
         handler::query(configuration, state, request).await
     }
 }

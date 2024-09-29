@@ -3,11 +3,16 @@ use std::{collections::BTreeMap, fmt::Display, str::FromStr};
 use common::{
     clickhouse_parser::datatype::{ClickHouseDataType, Identifier},
     config::ServerConfig,
+    schema::{
+        single_column_aggregate_function::ClickHouseSingleColumnAggregateFunction,
+        type_definition::ClickHouseTypeDefinition,
+    },
 };
 use indexmap::IndexMap;
-use ndc_sdk::models::{self, NestedField};
-
-use crate::schema::{ClickHouseSingleColumnAggregateFunction, ClickHouseTypeDefinition};
+use ndc_sdk::models::{
+    self, AggregateFunctionName, CollectionName, FieldName, NestedField, ObjectTypeName,
+    RelationshipName,
+};
 
 use super::QueryBuilderError;
 
@@ -18,24 +23,24 @@ pub struct RowsetTypeString {
 }
 /// Tuple("a1" T1, "a2" T2)
 pub struct AggregatesTypeString {
-    aggregates: Vec<(String, ClickHouseDataType)>,
+    aggregates: Vec<(FieldName, ClickHouseDataType)>,
 }
 /// Tuple("f1" T1, "f2" <RowSetTypeString>)
 pub struct RowTypeString {
-    fields: Vec<(String, FieldTypeString)>,
+    fields: Vec<(FieldName, FieldTypeString)>,
 }
 pub enum FieldTypeString {
     Relationship(RowsetTypeString),
     Array(Box<FieldTypeString>),
-    Object(Vec<(String, FieldTypeString)>),
+    Object(Vec<(FieldName, FieldTypeString)>),
     Scalar(ClickHouseDataType),
 }
 
 impl RowsetTypeString {
     pub fn new(
-        table_alias: &str,
+        table_alias: &CollectionName,
         query: &models::Query,
-        relationships: &BTreeMap<String, models::Relationship>,
+        relationships: &BTreeMap<RelationshipName, models::Relationship>,
         config: &ServerConfig,
     ) -> Result<Self, TypeStringError> {
         let rows = if let Some(fields) = &query.fields {
@@ -86,8 +91,8 @@ impl RowsetTypeString {
 
 impl AggregatesTypeString {
     fn new(
-        table_alias: &str,
-        aggregates: &IndexMap<String, models::Aggregate>,
+        table_alias: &CollectionName,
+        aggregates: &IndexMap<FieldName, models::Aggregate>,
         config: &ServerConfig,
     ) -> Result<Self, TypeStringError> {
         Ok(Self {
@@ -95,30 +100,30 @@ impl AggregatesTypeString {
                 .iter()
                 .map(|(alias, aggregate)| match aggregate {
                     models::Aggregate::StarCount {} | models::Aggregate::ColumnCount { .. } => {
-                        Ok((alias.to_string(), ClickHouseDataType::UInt32))
+                        Ok((alias.to_owned(), ClickHouseDataType::UInt32))
                     }
                     models::Aggregate::SingleColumn {
                         column: column_alias,
                         function,
                         field_path: _,
                     } => {
-                        let column_type = get_column(column_alias, table_alias, config)?;
+                        let return_type = get_return_type(table_alias, config)?;
+                        let column_type = get_column(column_alias, return_type, config)?;
                         let type_definition = ClickHouseTypeDefinition::from_table_column(
                             column_type,
                             column_alias,
-                            table_alias,
+                            return_type,
                             &config.namespace_separator,
                         );
 
                         let aggregate_function =
-                            ClickHouseSingleColumnAggregateFunction::from_str(function).map_err(
-                                |_err| TypeStringError::UnknownAggregateFunction {
+                            ClickHouseSingleColumnAggregateFunction::from_str(function.inner())
+                                .map_err(|_err| TypeStringError::UnknownAggregateFunction {
                                     table: table_alias.to_owned(),
                                     column: column_alias.to_owned(),
                                     data_type: column_type.to_owned(),
                                     function: function.to_owned(),
-                                },
-                            )?;
+                                })?;
 
                         let aggregate_functions = type_definition.aggregate_functions();
 
@@ -149,7 +154,7 @@ impl AggregatesTypeString {
             ClickHouseDataType::Tuple(
                 self.aggregates
                     .into_iter()
-                    .map(|(alias, t)| (Some(Identifier::DoubleQuoted(alias)), t))
+                    .map(|(alias, t)| (Some(Identifier::DoubleQuoted(alias.into())), t))
                     .collect(),
             )
         }
@@ -158,9 +163,9 @@ impl AggregatesTypeString {
 
 impl RowTypeString {
     fn new(
-        table_alias: &str,
-        fields: &IndexMap<String, models::Field>,
-        relationships: &BTreeMap<String, models::Relationship>,
+        table_alias: &CollectionName,
+        fields: &IndexMap<FieldName, models::Field>,
+        relationships: &BTreeMap<RelationshipName, models::Relationship>,
         config: &ServerConfig,
     ) -> Result<Self, TypeStringError> {
         Ok(Self {
@@ -168,18 +173,19 @@ impl RowTypeString {
                 .iter()
                 .map(|(alias, field)| {
                     Ok((
-                        alias.to_string(),
+                        alias.to_owned(),
                         match field {
                             models::Field::Column {
                                 column: column_alias,
                                 fields,
                                 arguments: _,
                             } => {
-                                let column_type = get_column(column_alias, table_alias, config)?;
+                                let return_type = get_return_type(table_alias, config)?;
+                                let column_type = get_column(column_alias, return_type, config)?;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
                                     column_type,
                                     column_alias,
-                                    table_alias,
+                                    return_type,
                                     &config.namespace_separator,
                                 );
 
@@ -229,7 +235,7 @@ impl RowTypeString {
                     .into_iter()
                     .map(|(alias, field)| {
                         (
-                            Some(Identifier::DoubleQuoted(alias)),
+                            Some(Identifier::DoubleQuoted(alias.into())),
                             field.into_cast_type(),
                         )
                     })
@@ -243,7 +249,7 @@ impl FieldTypeString {
     fn new(
         type_definition: &ClickHouseTypeDefinition,
         fields: Option<&NestedField>,
-        relationships: &BTreeMap<String, models::Relationship>,
+        relationships: &BTreeMap<RelationshipName, models::Relationship>,
         config: &ServerConfig,
     ) -> Result<Self, TypeStringError> {
         if let Some(fields) = fields {
@@ -275,7 +281,10 @@ impl FieldTypeString {
                                     let type_definition = fields.get(column).ok_or_else(|| {
                                         TypeStringError::MissingNestedField {
                                             field_name: column.to_owned(),
-                                            object_type: type_definition.cast_type().to_string(),
+                                            object_type: type_definition
+                                                .cast_type()
+                                                .to_string()
+                                                .into(),
                                         }
                                     })?;
 
@@ -371,7 +380,7 @@ impl FieldTypeString {
                     .into_iter()
                     .map(|(alias, field)| {
                         (
-                            Some(Identifier::DoubleQuoted(alias)),
+                            Some(Identifier::DoubleQuoted(alias.into())),
                             field.into_cast_type(),
                         )
                     })
@@ -383,24 +392,10 @@ impl FieldTypeString {
 }
 
 fn get_column<'a>(
-    column_alias: &str,
-    table_alias: &str,
+    column_alias: &FieldName,
+    return_type: &ObjectTypeName,
     config: &'a ServerConfig,
 ) -> Result<&'a ClickHouseDataType, TypeStringError> {
-    let return_type = config
-        .tables
-        .get(table_alias)
-        .map(|table| &table.return_type)
-        .or_else(|| {
-            config
-                .queries
-                .get(table_alias)
-                .map(|query| &query.return_type)
-        })
-        .ok_or_else(|| TypeStringError::UnknownTable {
-            table: table_alias.to_owned(),
-        })?;
-
     let table_type =
         config
             .table_types
@@ -414,40 +409,59 @@ fn get_column<'a>(
             .columns
             .get(column_alias)
             .ok_or_else(|| TypeStringError::UnknownColumn {
-                table: table_alias.to_owned(),
+                table: return_type.to_owned(),
                 column: column_alias.to_owned(),
             })?;
 
     Ok(column)
 }
 
+fn get_return_type<'a>(
+    table_alias: &CollectionName,
+    config: &'a ServerConfig,
+) -> Result<&'a ObjectTypeName, TypeStringError> {
+    config
+        .tables
+        .get(table_alias)
+        .map(|table| &table.return_type)
+        .or_else(|| {
+            config
+                .queries
+                .get(table_alias)
+                .map(|query| &query.return_type)
+        })
+        .ok_or_else(|| TypeStringError::UnknownTable {
+            table: table_alias.to_owned(),
+        })
+}
+
 #[derive(Debug, PartialEq)]
 pub enum TypeStringError {
     UnknownTable {
-        table: String,
+        table: CollectionName,
     },
     UnknownTableType {
-        table: String,
+        table: ObjectTypeName,
     },
     UnknownColumn {
-        table: String,
-        column: String,
+        table: ObjectTypeName,
+        column: FieldName,
     },
     UnknownAggregateFunction {
-        table: String,
-        column: String,
+        table: CollectionName,
+        column: FieldName,
         data_type: ClickHouseDataType,
-        function: String,
+        function: AggregateFunctionName,
     },
-    MissingRelationship(String),
+    MissingRelationship(RelationshipName),
     NotSupported(String),
     NestedFieldTypeMismatch {
         expected: String,
         got: String,
     },
     MissingNestedField {
-        field_name: String,
-        object_type: String,
+        field_name: FieldName,
+        object_type: ObjectTypeName,
     },
 }
 

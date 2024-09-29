@@ -8,3 +8,8 @@ resolver = "2"
 
 package.version = "1.0.2"
 package.edition = "2021"
+
+# insta performs better in release mode
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3

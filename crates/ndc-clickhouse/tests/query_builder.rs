@@ -6,9 +6,9 @@ use std::error::Error;
 use tokio::fs;
 
 mod test_utils {
-    use common::config::ServerConfig;
+    use common::{config::ServerConfig, schema::schema_response};
     use ndc_clickhouse::{
-        connector::{handler::schema_response, setup::ClickhouseConnectorSetup},
+        connector::setup::ClickhouseConnectorSetup,
         sql::{QueryBuilder, QueryBuilderError},
     };
     use ndc_sdk::models::{self, SchemaResponse};

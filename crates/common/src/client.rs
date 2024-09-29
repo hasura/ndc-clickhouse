@@ -8,7 +8,7 @@ use crate::config::ConnectionConfig;
 
 pub fn get_http_client(
     _connection_config: &ConnectionConfig,
-) -> Result<reqwest::Client, Box<dyn Error>> {
+) -> Result<reqwest::Client, reqwest::Error> {
     // todo: we could make client come preconfigured with some headers such as for username and password?
     let client = reqwest::Client::builder().build()?;
     Ok(client)
@@ -19,7 +19,7 @@ pub async fn execute_query(
     connection_config: &ConnectionConfig,
     statement: &str,
     parameters: &Vec<(String, String)>,
-) -> Result<Bytes, Box<dyn Error>> {
+) -> Result<Bytes, reqwest::Error> {
     let response = client
         .post(&connection_config.url)
         .header("X-ClickHouse-User", &connection_config.username)
@@ -33,11 +33,8 @@ pub async fn execute_query(
         ))
         .await?;
 
-    if response.error_for_status_ref().is_err() {
-        return Err(response.text().await?.into());
-    }
-
     let response = response
+        .error_for_status()?
         .bytes()
         .instrument(tracing::info_span!(
             "Read HTTP response",
@@ -53,7 +50,7 @@ pub async fn execute_json_query<T: DeserializeOwned>(
     connection_config: &ConnectionConfig,
     statement: &str,
     parameters: &Vec<(String, String)>,
-) -> Result<Vec<T>, Box<dyn Error>> {
+) -> Result<Vec<T>, reqwest::Error> {
     let response = client
         .post(&connection_config.url)
         .header("X-ClickHouse-User", &connection_config.username)
@@ -64,11 +61,8 @@ pub async fn execute_json_query<T: DeserializeOwned>(
         .instrument(tracing::info_span!("Execute HTTP request"))
         .await?;
 
-    if response.error_for_status_ref().is_err() {
-        return Err(response.text().await?.into());
-    }
-
     let payload: ClickHouseResponse<T> = response
+        .error_for_status()?
         .json()
         .instrument(tracing::info_span!("Parse HTTP response"))
         .await?;

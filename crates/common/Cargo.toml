@@ -6,6 +6,8 @@ edition.workspace = true
 [dependencies]
 bytes = "1.6.0"
 peg = "0.8.2"
+indexmap = "2.1.0"
+ndc-models = { git = "http://github.com/hasura/ndc-spec.git", tag = "v0.1.6" }
 reqwest = { version = "0.12.3", features = [
     "json",
     "rustls-tls",
@@ -13,4 +15,5 @@ reqwest = { version = "0.12.3", features = [
 schemars = "0.8.16"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
+strum = { version = "0.26.3", features = ["derive"] }
 tracing = "0.1.40"

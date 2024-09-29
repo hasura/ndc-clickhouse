@@ -1,5 +1,4 @@
-use crate::schema::{ClickHouseTypeDefinition, SchemaTypeDefinitions};
-use common::{
+use crate::{
     clickhouse_parser::{
         datatype::ClickHouseDataType,
         parameterized_query::{Parameter, ParameterType, ParameterizedQueryElement},
@@ -7,18 +6,18 @@ use common::{
     config::ServerConfig,
     config_file::{ParameterizedQueryExposedAs, PrimaryKey},
 };
-use ndc_sdk::{connector::SchemaError, json_response::JsonResponse, models};
+use ndc_models::{self as models, ObjectTypeName, ScalarTypeName};
 use std::collections::BTreeMap;
-
-pub async fn schema(
-    configuration: &ServerConfig,
-) -> Result<JsonResponse<models::SchemaResponse>, SchemaError> {
-    Ok(JsonResponse::Value(schema_response(configuration)))
-}
+use type_definition::{ClickHouseTypeDefinition, SchemaTypeDefinitions};
+pub mod binary_comparison_operator;
+pub mod single_column_aggregate_function;
+pub mod type_definition;
 
 pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
-    let mut scalar_type_definitions = BTreeMap::new();
-    let mut object_type_definitions = vec![];
+    let mut scalar_type_definitions: BTreeMap<ScalarTypeName, ndc_models::ScalarType> =
+        BTreeMap::new();
+    let mut object_type_definitions: BTreeMap<ObjectTypeName, ndc_models::ObjectType> =
+        BTreeMap::new();
 
     for (type_name, table_type) in &configuration.table_types {
         let mut fields = vec![];
@@ -33,7 +32,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
             let SchemaTypeDefinitions { scalars, objects } = type_definition.type_definitions();
 
             for (name, definition) in objects {
-                object_type_definitions.push((name, definition));
+                object_type_definitions.insert(name, definition);
             }
             for (name, definition) in scalars {
                 // silently dropping duplicate scalar definitions
@@ -52,27 +51,27 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
             ));
         }
 
-        object_type_definitions.push((
+        object_type_definitions.insert(
             type_name.to_owned(),
             models::ObjectType {
                 description: table_type.comment.to_owned(),
                 fields: fields.into_iter().collect(),
             },
-        ));
+        );
     }
 
     for (table_alias, table_config) in &configuration.tables {
         for (argument_name, argument_type) in &table_config.arguments {
             let type_definition = ClickHouseTypeDefinition::from_query_argument(
                 argument_type,
-                argument_name,
-                table_alias,
+                argument_name.inner(),
+                table_alias.inner(),
                 &configuration.namespace_separator,
             );
             let SchemaTypeDefinitions { scalars, objects } = type_definition.type_definitions();
 
             for (name, definition) in objects {
-                object_type_definitions.push((name, definition));
+                object_type_definitions.insert(name, definition);
             }
             for (name, definition) in scalars {
                 // silently dropping duplicate scalar definitions
@@ -93,14 +92,14 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
                 let type_definition = ClickHouseTypeDefinition::from_query_argument(
                     data_type,
                     name.value(),
-                    query_alias,
+                    query_alias.inner(),
                     &configuration.namespace_separator,
                 );
 
                 let SchemaTypeDefinitions { scalars, objects } = type_definition.type_definitions();
 
                 for (name, definition) in objects {
-                    object_type_definitions.push((name, definition));
+                    object_type_definitions.insert(name, definition);
                 }
                 for (name, definition) in scalars {
                     // silently dropping duplicate scalar definitions
@@ -124,8 +123,8 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
                 .map(|(argument_name, argument_type)| {
                     let type_definition = ClickHouseTypeDefinition::from_query_argument(
                         argument_type,
-                        argument_name,
-                        table_alias,
+                        argument_name.inner(),
+                        table_alias.inner(),
                         &configuration.namespace_separator,
                     );
                     (
@@ -175,12 +174,12 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
                         let type_definition = ClickHouseTypeDefinition::from_query_argument(
                             data_type,
                             name.value(),
-                            query_alias,
+                            query_alias.inner(),
                             &configuration.namespace_separator,
                         );
 
                         Some((
-                            name.value().to_owned(),
+                            name.value().to_owned().into(),
                             models::ArgumentInfo {
                                 description: None,
                                 argument_type: type_definition.type_identifier(),
@@ -206,7 +205,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
         scalar_types: scalar_type_definitions,
         // converting vector to map drops any duplicate definitions
         // this could be an issue if there are name collisions
-        object_types: object_type_definitions.into_iter().collect(),
+        object_types: object_type_definitions,
         collections,
         functions: vec![],
         procedures: vec![],

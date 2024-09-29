@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use ndc_models::{ArgumentName, CollectionName, FieldName, ObjectTypeName};
+
 use crate::{
     clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery},
     config_file::{ParameterizedQueryExposedAs, PrimaryKey},
@@ -11,15 +13,15 @@ pub struct ServerConfig {
     /// the connection part of the config is not part of the config file
     pub connection: ConnectionConfig,
     pub namespace_separator: String,
-    pub table_types: BTreeMap<ReturnTypeRef, TableType>,
-    pub tables: BTreeMap<String, TableConfig>,
-    pub queries: BTreeMap<String, ParameterizedQueryConfig>,
+    pub table_types: BTreeMap<ObjectTypeName, TableType>,
+    pub tables: BTreeMap<CollectionName, TableConfig>,
+    pub queries: BTreeMap<CollectionName, ParameterizedQueryConfig>,
 }
 
 #[derive(Debug, Clone)]
 pub struct TableType {
     pub comment: Option<String>,
-    pub columns: BTreeMap<String, ClickHouseDataType>,
+    pub columns: BTreeMap<FieldName, ClickHouseDataType>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -38,9 +40,9 @@ pub struct TableConfig {
     /// Comments are sourced from the database table comment
     pub comment: Option<String>,
     pub primary_key: Option<PrimaryKey>,
-    pub arguments: BTreeMap<String, ClickHouseDataType>,
+    pub arguments: BTreeMap<ArgumentName, ClickHouseDataType>,
     // this key coresponds to a return type definition in the config table types
-    pub return_type: ReturnTypeRef,
+    pub return_type: ObjectTypeName,
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +50,5 @@ pub struct ParameterizedQueryConfig {
     pub exposed_as: ParameterizedQueryExposedAs,
     pub comment: Option<String>,
     pub query: ParameterizedQuery,
-    pub return_type: ReturnTypeRef,
+    pub return_type: ObjectTypeName,
 }
-
-type ReturnTypeRef = String;

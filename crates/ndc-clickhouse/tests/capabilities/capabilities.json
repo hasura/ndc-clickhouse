@@ -1,11 +1,12 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.6",
   "capabilities": {
     "query": {
       "aggregates": {},
       "variables": {},
       "explain": {},
-      "nested_fields": {}
+      "nested_fields": {},
+      "exists": {}
     },
     "mutation": {},
     "relationships": {

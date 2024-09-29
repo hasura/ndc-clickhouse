@@ -1,25 +1,32 @@
+mod binary_comparison_expression;
 mod collection_context;
 mod comparison_column;
 mod error;
+mod function_expression;
 pub mod parameter;
 mod typecasting;
-
 use self::{collection_context::CollectionContext, typecasting::RowsetTypeString};
 use super::ast::*;
-use crate::schema::{
-    ClickHouseBinaryComparisonOperator, ClickHouseSingleColumnAggregateFunction,
-    ClickHouseTypeDefinition,
-};
+use binary_comparison_expression::apply_binary_operator;
 use common::{
     clickhouse_parser::{
         datatype::ClickHouseDataType, parameterized_query::ParameterizedQueryElement,
     },
     config::ServerConfig,
+    schema::{
+        binary_comparison_operator::ClickHouseBinaryComparisonOperator,
+        single_column_aggregate_function::ClickHouseSingleColumnAggregateFunction,
+        type_definition::ClickHouseTypeDefinition,
+    },
 };
 use comparison_column::ComparisonColumn;
 pub use error::QueryBuilderError;
+use function_expression::apply_function;
 use indexmap::IndexMap;
-use ndc_sdk::models;
+use ndc_sdk::models::{
+    self, AggregateFunctionName, ArgumentName, CollectionName, FieldName, ObjectTypeName,
+    RelationshipName, VariableName,
+};
 use parameter::ParameterBuilder;
 use std::{collections::BTreeMap, iter, str::FromStr};
 
@@ -175,7 +182,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     fn rowset_subquery(
         &self,
         current_collection: &CollectionContext,
-        relkeys: &Vec<&String>,
+        relkeys: &Vec<&FieldName>,
         query: &models::Query,
         parameters: &mut ParameterBuilder,
     ) -> Result<Query, QueryBuilderError> {
@@ -239,7 +246,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     Ident::new_quoted("_row"),
                                     Ident::new_quoted(format!("_agg_{alias}")),
                                 ]);
-                                aggregate_function(function)?.as_expr(column)
+                                apply_function(&aggregate_function(function)?, column)
                             }
                         }
                         .into_arg())
@@ -297,7 +304,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     fn row_subquery(
         &self,
         current_collection: &CollectionContext,
-        relkeys: &Vec<&String>,
+        relkeys: &Vec<&FieldName>,
         query: &models::Query,
         parameters: &mut ParameterBuilder,
     ) -> Result<Query, QueryBuilderError> {
@@ -332,10 +339,12 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         arguments: _,
                     } => {
                         let data_type = self.column_data_type(column, current_collection)?;
+                        let return_type =
+                            get_return_type(current_collection.alias(), self.configuration)?;
                         let column_definition = ClickHouseTypeDefinition::from_table_column(
                             &data_type,
                             column,
-                            current_collection.alias(),
+                            return_type,
                             &self.configuration.namespace_separator,
                         );
 
@@ -743,8 +752,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                         self.column_ident(column),
                                     ]);
                                     select.push(
-                                        aggregate_function(function)?
-                                            .as_expr(column)
+                                        apply_function(&aggregate_function(function)?, column)
                                             .into_select(Some("_order_by_value")),
                                     );
                                 }
@@ -851,12 +859,12 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     #[allow(clippy::too_many_arguments)]
     fn field_relationship(
         &self,
-        field_alias: &str,
+        field_alias: &FieldName,
         name_index: &mut u32,
         target_path: &[Ident],
         query: &models::Query,
-        relationship: &str,
-        arguments: &BTreeMap<String, models::RelationshipArgument>,
+        relationship: &RelationshipName,
+        arguments: &BTreeMap<ArgumentName, models::RelationshipArgument>,
         parameters: &mut ParameterBuilder,
     ) -> Result<(Expr, Join), QueryBuilderError> {
         let join_alias = format!("_rel_{name_index}_{field_alias}");
@@ -874,7 +882,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         target_path
                             .iter()
                             .cloned()
-                            .chain(iter::once(Ident::new_quoted(source_col)))
+                            .chain(iter::once(Ident::new_quoted(source_col.to_string())))
                             .collect(),
                     )
                     .into_box(),
@@ -1041,8 +1049,8 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 operator,
                 value,
             } => {
-                let operator =
-                    ClickHouseBinaryComparisonOperator::from_str(operator).map_err(|_err| {
+                let operator = ClickHouseBinaryComparisonOperator::from_str(operator.inner())
+                    .map_err(|_err| {
                         QueryBuilderError::UnknownBinaryComparisonOperator(operator.to_owned())
                     })?;
 
@@ -1097,7 +1105,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
 
                 let (expression, expression_joins) = right_col.apply(|right_col| {
                     left_col.apply(|left_col| {
-                        let expression = operator.apply(left_col, right_col);
+                        let expression = apply_binary_operator(&operator, left_col, right_col);
                         (expression, vec![])
                     })
                 });
@@ -1140,6 +1148,15 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     collection,
                     arguments,
                 } => CollectionContext::new_unrelated(collection, arguments),
+                models::ExistsInCollection::NestedCollection {
+                    column_name: _,
+                    arguments: _,
+                    field_path: _,
+                } => {
+                    return Err(QueryBuilderError::NotSupported(
+                        "Nested Collection exists".to_string(),
+                    ))
+                }
             };
 
             let subquery_origin_alias = Ident::new_quoted(format!("_exists_{}", name_index));
@@ -1268,6 +1285,15 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 collection: _,
                 arguments: _,
             } => vec![],
+            models::ExistsInCollection::NestedCollection {
+                column_name: _,
+                arguments: _,
+                field_path: _,
+            } => {
+                return Err(QueryBuilderError::NotSupported(
+                    "Nested Collection exists".to_string(),
+                ))
+            }
         };
 
         if self.request.variables.is_some() {
@@ -1715,13 +1741,13 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     }
     fn collection_relationship(
         &self,
-        relationship: &str,
+        relationship: &RelationshipName,
     ) -> Result<&models::Relationship, QueryBuilderError> {
         self.request
             .collection_relationships
             .get(relationship)
             .ok_or(QueryBuilderError::MissingRelationship(
-                relationship.to_string(),
+                relationship.to_owned(),
             ))
     }
     fn collection_ident(
@@ -1730,7 +1756,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
         parameters: &mut ParameterBuilder,
     ) -> Result<TableFactor, QueryBuilderError> {
         if let Some(table) = self.configuration.tables.get(collection.alias()) {
-            let table_argument_type = |argument_name: &str| {
+            let table_argument_type = |argument_name: &ArgumentName| {
                 table.arguments.get(argument_name).ok_or_else(|| {
                     QueryBuilderError::UnknownTableArgument {
                         table: collection.alias().to_owned(),
@@ -1738,13 +1764,14 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                     }
                 })
             };
-            let variable_argument = |arg_name: &String, variable_name: &String| {
+            let variable_argument = |arg_name: &ArgumentName, variable_name: &VariableName| {
                 let argument_type = table_argument_type(arg_name)?;
                 let column_ident = Expr::CompoundIdentifier(vec![
                     Ident::new_quoted("_vars"),
                     Ident::new_quoted(format!("_var_{variable_name}")),
                 ]);
 
+                // todo: review whether this is actually needed now, given we now have proper serialization of parameters. I think this is unrelated.
                 let column_ident = if is_uuid(argument_type) {
                     Function::new_unquoted("toUUID")
                         .args(vec![column_ident.into_arg()])
@@ -1752,13 +1779,15 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                 } else {
                     column_ident
                 };
-                Ok(column_ident.into_arg().name(Ident::new_quoted(arg_name)))
+                Ok(column_ident
+                    .into_arg()
+                    .name(Ident::new_quoted(arg_name.to_string())))
             };
-            let mut literal_argument = |arg_name: &String, value: &serde_json::Value| {
+            let mut literal_argument = |arg_name: &ArgumentName, value: &serde_json::Value| {
                 Ok(parameters
                     .bind_json(value, table_argument_type(arg_name)?.to_owned().into())?
                     .into_arg()
-                    .name(Ident::new_quoted(arg_name)))
+                    .name(Ident::new_quoted(arg_name.to_string())))
             };
             let table_name = ObjectName(vec![
                 Ident::new_quoted(&table.schema),
@@ -1887,7 +1916,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         .transpose()?
                         .ok_or_else(|| QueryBuilderError::MissingNativeQueryArgument {
                             query: collection.alias().to_owned(),
-                            argument: p.name.value().to_owned(),
+                            argument: p.name.value().to_owned().into(),
                         })
                         .and_then(|value| {
                             Ok(NativeQueryElement::Expr(
@@ -1904,12 +1933,12 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             ))
         }
     }
-    fn column_ident(&self, column_alias: &str) -> Ident {
-        Ident::new_quoted(column_alias)
+    fn column_ident(&self, column_alias: &FieldName) -> Ident {
+        Ident::new_quoted(column_alias.to_string())
     }
     fn column_data_type(
         &self,
-        column_alias: &str,
+        column_alias: &FieldName,
         collection: &CollectionContext,
     ) -> Result<ClickHouseDataType, QueryBuilderError> {
         let return_type = self
@@ -1932,7 +1961,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             .ok_or_else(|| QueryBuilderError::UnknownTableType(return_type.to_owned()))?;
 
         let column_type = table_type.columns.get(column_alias).ok_or_else(|| {
-            QueryBuilderError::UnknownColumn(column_alias.to_owned(), collection.alias().to_owned())
+            QueryBuilderError::UnknownColumn(column_alias.to_owned(), return_type.to_owned())
         })?;
 
         Ok(column_type.to_owned())
@@ -1996,11 +2025,11 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                         }
                     };
 
-                    let chain_ident = |i: &str| -> Vec<Ident> {
+                    let chain_ident = |i: &FieldName| -> Vec<Ident> {
                         column_ident
                             .clone()
                             .into_iter()
-                            .chain(iter::once(Ident::new_quoted(i)))
+                            .chain(iter::once(Ident::new_quoted(i.to_string())))
                             .collect()
                     };
 
@@ -2021,7 +2050,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                                     object_type_fields.get(column).ok_or_else(|| {
                                         QueryBuilderError::UnknownSubField {
                                             field_name: column.to_owned(),
-                                            data_type: type_definition.cast_type().to_string(),
+                                            data_type: type_definition.cast_type(),
                                         }
                                     })?;
 
@@ -2094,11 +2123,28 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
     }
 }
 
+fn get_return_type<'a>(
+    table_alias: &CollectionName,
+    config: &'a ServerConfig,
+) -> Result<&'a ObjectTypeName, QueryBuilderError> {
+    config
+        .tables
+        .get(table_alias)
+        .map(|table| &table.return_type)
+        .or_else(|| {
+            config
+                .queries
+                .get(table_alias)
+                .map(|query| &query.return_type)
+        })
+        .ok_or_else(|| QueryBuilderError::UnknownTable(table_alias.to_owned()))
+}
+
 fn aggregate_function(
-    name: &str,
+    name: &AggregateFunctionName,
 ) -> Result<ClickHouseSingleColumnAggregateFunction, QueryBuilderError> {
-    ClickHouseSingleColumnAggregateFunction::from_str(name)
-        .map_err(|_err| QueryBuilderError::UnknownSingleColumnAggregateFunction(name.to_string()))
+    ClickHouseSingleColumnAggregateFunction::from_str(name.inner())
+        .map_err(|_err| QueryBuilderError::UnknownSingleColumnAggregateFunction(name.to_owned()))
 }
 
 fn and_reducer(left: Expr, right: Expr) -> Expr {
