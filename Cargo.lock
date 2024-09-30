@@ -364,6 +364,7 @@ version = "1.0.2"
 dependencies = [
  "bytes",
  "indexmap 2.5.0",
+ "insta",
  "ndc-models",
  "peg",
  "reqwest 0.12.7",

@@ -1,0 +1,7 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: printed_parameters
+input_file: crates/ndc-clickhouse/tests/query_builder/chinook/02_relationships_04_child_predicate.request.json
+---
+param_p0=10
+param_p1=10

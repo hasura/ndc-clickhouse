@@ -1,0 +1,6 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: printed_parameters
+input_file: crates/ndc-clickhouse/tests/query_builder/star_schema/02_native_query_with_predicate.request.json
+---
+param_p0=1

@@ -1,0 +1,28 @@
+{
+    "$schema": "../request.schema.json",
+    "collection": "q12",
+    "query": {
+        "fields": {
+            "revenue": {
+                "type": "column",
+                "column": "revenue",
+                "fields": null
+            }
+        },
+        "predicate": {
+            "type": "binary_comparison_operator",
+            "column": {
+                "type": "column",
+                "name": "revenue",
+                "path": []
+            },
+            "operator": "_gte",
+            "value": {
+                "type": "scalar",
+                "value": 1
+            }
+        }
+    },
+    "arguments": {},
+    "collection_relationships": {}
+}

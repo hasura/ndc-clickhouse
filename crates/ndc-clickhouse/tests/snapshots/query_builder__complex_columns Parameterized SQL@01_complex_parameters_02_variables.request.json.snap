@@ -1,0 +1,47 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: parameterized_sql
+input_file: crates/ndc-clickhouse/tests/query_builder/complex_columns/01_complex_parameters_02_variables.request.json
+---
+WITH "_vars" AS (
+  SELECT
+    *
+  FROM
+    format(JSONColumns, { p0 :String })
+)
+SELECT
+  toJSONString(
+    groupArray(
+      cast(
+        "_rowset"."_rowset",
+        'Tuple(rows Array(Tuple("field1" String)))'
+      )
+    )
+  ) AS "rowsets"
+FROM
+  "_vars" AS "_vars"
+  LEFT JOIN (
+    SELECT
+      tuple(groupArray(tuple("_row"."_field_field1"))) AS "_rowset",
+      "_row"."_varset_id" AS "_varset_id"
+    FROM
+      (
+        SELECT
+          "_origin"."ColumnA" AS "_field_field1",
+          "_vars"."_varset_id" AS "_varset_id"
+        FROM
+          "_vars" AS "_vars"
+          CROSS JOIN "Schema1"."Table1" AS "_origin"
+        WHERE
+          (
+            "_origin"."ColumnB" = "_vars"."_var_var1"
+            AND "_origin"."ColumnC" = "_vars"."_var_var2"
+            AND "_origin"."ColumnD" = "_vars"."_var_var3"
+            AND "_origin"."ColumnE" = "_vars"."_var_var4"
+            AND "_origin"."ColumnF" = "_vars"."_var_var5"
+            AND "_origin"."ColumnG" = "_vars"."_var_var6"
+          )
+      ) AS "_row"
+    GROUP BY
+      "_row"."_varset_id"
+  ) AS "_rowset" ON "_vars"."_varset_id" = "_rowset"."_varset_id" FORMAT TabSeparatedRaw;

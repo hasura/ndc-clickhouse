@@ -1,0 +1,30 @@
+{
+  "$schema": "../request.schema.json",
+  "collection": "TableOne",
+  "collection_relationships": {},
+  "arguments": {},
+  "query": {
+    "fields": {
+      "field1": {
+        "type": "column",
+        "column": "ColumnB",
+        "fields": {
+          "type": "array",
+          "fields": {
+            "type": "object",
+            "fields": {
+              "subfield1": {
+                "type": "column",
+                "column": "field1"
+              },
+              "subfield2": {
+                "type": "column",
+                "column": "field2"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

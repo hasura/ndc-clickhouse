@@ -1,0 +1,6 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: printed_parameters
+input_file: crates/ndc-clickhouse/tests/query_builder/complex_columns/01_complex_parameters_02_variables.request.json
+---
+param_p0={"_varset_id":[1,2],"_var_var1":[[{"field1":"foo","field2":"bar"}],[{"field1":"foo","field2":"bar"}]],"_var_var2":[[{"field1":"foo","field2":"bar"}],[{"field1":"foo","field2":"bar"}]],"_var_var3":[{"child":{"id":1,"name":"foo"}},{"child":{"id":1,"name":"foo"}}],"_var_var4":[{"child":[{"id":1,"name":"foo"}]},{"child":[{"id":1,"name":"foo"}]}],"_var_var5":[{"child":{"id":1,"name":"foo","toys":[{"id":2,"name":"bar"}]}},{"child":{"id":1,"name":"foo","toys":[{"id":2,"name":"bar"}]}}],"_var_var6":[{"a":null,"b":{"foo":"bar"},"c":[{"a":"foo","b":["foo","bar"]}],"d":{"a":"foo","b":"bar"}},{"a":null,"b":{"foo":"bar"},"c":[{"a":"foo","b":["foo","bar"]}],"d":{"a":"foo","b":"bar"}}]}

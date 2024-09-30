@@ -1,0 +1,6 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: err
+input_file: crates/ndc-clickhouse/tests/query_builder/complex_columns/02_column_accessor_04_error_on_relationships_on_array_nested_field.request.json
+---
+Not supported: Relationships with fields nested in arrays
