@@ -7,14 +7,17 @@ use common::{
         CONFIG_FILE_NAME,
     },
 };
-use ndc_sdk::connector::{
-    Connector, ConnectorSetup, InitializationError, InvalidNode, InvalidNodes, KeyOrIndex,
-    LocatedError, ParseError,
+use ndc_sdk::{
+    connector::{
+        self, Connector, ConnectorSetup, InvalidNode, InvalidNodes, KeyOrIndex, LocatedError,
+        ParseError,
+    },
+    models::FieldName,
 };
 use std::{
     collections::{BTreeMap, HashMap},
     env,
-    path::Path,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 use tokio::fs;
@@ -34,15 +37,16 @@ impl ConnectorSetup for ClickhouseConnectorSetup {
     async fn parse_configuration(
         &self,
         configuration_dir: impl AsRef<Path> + Send,
-    ) -> Result<<Self::Connector as Connector>::Configuration, ParseError> {
-        self.read_server_config(configuration_dir).await
+    ) -> connector::Result<<Self::Connector as Connector>::Configuration> {
+        // we wrap read_server_config so the ParseError is implicitly converted into an ErrorResponse
+        Ok(self.read_server_config(configuration_dir).await?)
     }
 
     async fn try_init_state(
         &self,
         configuration: &<Self::Connector as Connector>::Configuration,
         _metrics: &mut prometheus::Registry,
-    ) -> Result<<Self::Connector as Connector>::State, InitializationError> {
+    ) -> connector::Result<<Self::Connector as Connector>::State> {
         Ok(ServerState::new(configuration))
     }
 }
@@ -69,9 +73,9 @@ impl ClickhouseConnectorSetup {
         &self,
         configuration_dir: impl AsRef<Path> + Send,
     ) -> Result<ServerConfig, ParseError> {
-        let connection = self.get_connection_config()?;
-
         let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
+
+        let connection = self.get_connection_config(&file_path)?;
 
         let config_file = fs::read_to_string(&file_path)
             .await
@@ -100,11 +104,11 @@ impl ClickhouseConnectorSetup {
                         &table_config.return_type,
                         &config,
                         &file_path,
-                        &["tables", table_alias, "return_type"],
+                        &["tables", table_alias.inner(), "return_type"],
                     )?
                     .map(|columns| {
                         (
-                            table_alias.to_owned(),
+                            table_alias.to_string().into(),
                             TableType {
                                 comment: table_config.comment.to_owned(),
                                 columns,
@@ -120,11 +124,11 @@ impl ClickhouseConnectorSetup {
                         &query_config.return_type,
                         &config,
                         &file_path,
-                        &["query", query_alias, "return_type"],
+                        &["query", query_alias.inner(), "return_type"],
                     )?
                     .map(|columns| {
                         (
-                            query_alias.to_owned(),
+                            query_alias.to_string().into(),
                             TableType {
                                 comment: query_config.comment.to_owned(),
                                 columns,
@@ -149,13 +153,13 @@ impl ClickhouseConnectorSetup {
                         comment: table_config.comment.to_owned(),
                         primary_key: table_config.primary_key.to_owned(),
                         return_type: match &table_config.return_type {
-                            ReturnType::Definition { .. } => table_alias.to_owned(),
+                            ReturnType::Definition { .. } => table_alias.to_string().into(),
                             ReturnType::TableReference {
                                 table_name: target_alias,
                             }
                             | ReturnType::QueryReference {
                                 query_name: target_alias,
-                            } => target_alias.to_owned(),
+                            } => target_alias.to_string().into(),
                         },
                         arguments: table_config
                             .arguments
@@ -167,9 +171,9 @@ impl ClickhouseConnectorSetup {
                                             file_path: file_path.to_owned(),
                                             node_path: vec![
                                                 KeyOrIndex::Key("tables".to_string()),
-                                                KeyOrIndex::Key(table_alias.to_owned()),
+                                                KeyOrIndex::Key(table_alias.to_string()),
                                                 KeyOrIndex::Key("arguments".to_string()),
-                                                KeyOrIndex::Key(name.to_owned()),
+                                                KeyOrIndex::Key(name.to_string()),
                                             ],
                                             message: "Unable to parse data type".to_string(),
                                         }]))
@@ -200,7 +204,7 @@ impl ClickhouseConnectorSetup {
                     file_path: query_file_path.clone(),
                     node_path: vec![
                         KeyOrIndex::Key("queries".to_string()),
-                        KeyOrIndex::Key(query_alias.clone()),
+                        KeyOrIndex::Key(query_alias.to_string()),
                     ],
                     message: format!("Unable to parse parameterized query: {}", err),
                 }]))
@@ -211,13 +215,13 @@ impl ClickhouseConnectorSetup {
                 comment: query_config.comment.to_owned(),
                 query,
                 return_type: match query_config.return_type {
-                    ReturnType::Definition { .. } => query_alias.to_owned(),
+                    ReturnType::Definition { .. } => query_alias.to_string().into(),
                     ReturnType::TableReference {
                         table_name: target_alias,
                     }
                     | ReturnType::QueryReference {
                         query_name: target_alias,
-                    } => target_alias.to_owned(),
+                    } => target_alias.to_string().into(),
                 },
             };
 
@@ -236,16 +240,31 @@ impl ClickhouseConnectorSetup {
 
         Ok(config)
     }
-    fn get_connection_config(&self) -> Result<ConnectionConfig, ParseError> {
-        let url = self.url.to_owned().ok_or(ParseError::Other(
-            "CLICKHOUSE_URL env var must be set".into(),
-        ))?;
-        let username = self.username.to_owned().ok_or(ParseError::Other(
-            "CLICKHOUSE_USERNAME env var must be set".into(),
-        ))?;
-        let password = self.password.to_owned().ok_or(ParseError::Other(
-            "CLICKHOUSE_PASSWORD env var must be set".into(),
-        ))?;
+    fn get_connection_config(&self, file_path: &PathBuf) -> Result<ConnectionConfig, ParseError> {
+        let url = self
+            .url
+            .to_owned()
+            .ok_or(ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
+                file_path: file_path.to_owned(),
+                node_path: vec![],
+                message: "CLICKHOUSE_URL env var must be set".into(),
+            }])))?;
+        let username = self
+            .username
+            .to_owned()
+            .ok_or(ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
+                file_path: file_path.to_owned(),
+                node_path: vec![],
+                message: "CLICKHOUSE_USERNAME env var must be set".into(),
+            }])))?;
+        let password = self
+            .password
+            .to_owned()
+            .ok_or(ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
+                file_path: file_path.to_owned(),
+                node_path: vec![],
+                message: "CLICKHOUSE_PASSWORD env var must be set".into(),
+            }])))?;
 
         Ok(ConnectionConfig {
             url,
@@ -259,7 +278,7 @@ impl ClickhouseConnectorSetup {
         config: &ServerConfigFile,
         file_path: &Path,
         node_path: &[&str],
-    ) -> Result<Option<BTreeMap<String, ClickHouseDataType>>, ParseError> {
+    ) -> Result<Option<BTreeMap<FieldName, ClickHouseDataType>>, ParseError> {
         let get_node_path = |extra_segments: &[&str]| {
             node_path
                 .iter()
@@ -333,25 +352,24 @@ impl ClickhouseConnectorSetup {
                 }
             }
             ReturnType::Definition { columns } => Ok(Some(
-
                 columns
-                .iter()
-                .map(|(field_alias, field_type)| {
-                    let data_type = ClickHouseDataType::from_str(field_type).map_err(|err| {
-                        ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
-                            file_path: file_path.to_path_buf(),
-                            node_path: get_node_path(&["columns", field_alias]),
-                            message: format!(
-                                "Unable to parse data type \"{}\": {}",
-                                field_type, err
-                            ),
-                        }]))
-                    })?;
-                    Ok((field_alias.to_owned(), data_type))
-                })
-                .collect::<Result<BTreeMap<String, ClickHouseDataType>, ParseError>>()?
-
-            ))
+                    .iter()
+                    .map(|(field_alias, field_type)| {
+                        let data_type =
+                            ClickHouseDataType::from_str(field_type).map_err(|err| {
+                                ParseError::ValidateError(InvalidNodes(vec![InvalidNode {
+                                    file_path: file_path.to_path_buf(),
+                                    node_path: get_node_path(&["columns", field_alias.inner()]),
+                                    message: format!(
+                                        "Unable to parse data type \"{}\": {}",
+                                        field_type, err
+                                    ),
+                                }]))
+                            })?;
+                        Ok((field_alias.to_owned(), data_type))
+                    })
+                    .collect::<Result<BTreeMap<FieldName, ClickHouseDataType>, ParseError>>()?,
+            )),
         }
     }
 }

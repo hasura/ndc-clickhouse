@@ -1,0 +1,6 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: printed_parameters
+input_file: crates/ndc-clickhouse/tests/query_builder/chinook/03_variables_01_simple_predicate.request.json
+---
+param_p0={"_varset_id":[1,2],"_var_ArtistId":[1,2]}

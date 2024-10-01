@@ -19,6 +19,7 @@ use common::{
     },
 };
 use database_introspection::{introspect_database, TableInfo};
+use ndc_models::{CollectionName, FieldName};
 use schemars::schema_for;
 use tokio::fs;
 mod database_introspection;
@@ -182,7 +183,7 @@ async fn update_tables_config(
                 .filter_map(|element| match element {
                     ParameterizedQueryElement::String(_) => None,
                     ParameterizedQueryElement::Parameter(Parameter { name, r#type }) => {
-                        Some((name.to_string(), r#type.to_string()))
+                        Some((name.value().into(), r#type.to_string()))
                     }
                 })
                 .collect();
@@ -198,7 +199,7 @@ async fn update_tables_config(
                         .iter()
                         .filter_map(|column| {
                             if column.is_in_primary_key {
-                                Some(column.column_name.to_owned())
+                                Some(column.column_name.to_owned().into())
                             } else {
                                 None
                             }
@@ -408,7 +409,7 @@ async fn validate_table_config(
 fn get_old_table_config<'a>(
     table: &TableInfo,
     old_config: &'a Option<ServerConfigFile>,
-) -> Option<(&'a String, &'a TableConfigFile)> {
+) -> Option<(&'a CollectionName, &'a TableConfigFile)> {
     old_config.as_ref().and_then(|old_config| {
         old_config.tables.iter().find(|(_, old_table)| {
             old_table.name == table.table_name && old_table.schema == table.table_schema
@@ -419,7 +420,10 @@ fn get_old_table_config<'a>(
 /// Table aliases default to <schema_name>_<table_name>,
 /// except for tables in the default schema where the table name is used.
 /// Prefer existing, old aliases over creating a new one
-fn get_table_alias(table: &TableInfo, old_table: &Option<(&String, &TableConfigFile)>) -> String {
+fn get_table_alias(
+    table: &TableInfo,
+    old_table: &Option<(&CollectionName, &TableConfigFile)>,
+) -> CollectionName {
     // to preserve any customization, aliases are kept throught updates
     if let Some((old_table_alias, _)) = old_table {
         old_table_alias.to_string()
@@ -428,6 +432,7 @@ fn get_table_alias(table: &TableInfo, old_table: &Option<(&String, &TableConfigF
     } else {
         format!("{}_{}", table.table_schema, table.table_name)
     }
+    .into()
 }
 
 /// Given table info, and optionally old table info, get the return type for this table
@@ -437,7 +442,7 @@ fn get_table_alias(table: &TableInfo, old_table: &Option<(&String, &TableConfigF
 /// to a query: check that query still exists, and that it returns the same type as this table
 fn get_table_return_type(
     table: &TableInfo,
-    old_table: &Option<(&String, &TableConfigFile)>,
+    old_table: &Option<(&CollectionName, &TableConfigFile)>,
     old_config: &Option<ServerConfigFile>,
     introspection: &[TableInfo],
 ) -> ReturnType {
@@ -515,10 +520,15 @@ fn get_table_return_type(
     })
 }
 
-fn get_return_type_columns(table: &TableInfo) -> BTreeMap<String, String> {
+fn get_return_type_columns(table: &TableInfo) -> BTreeMap<FieldName, String> {
     table
         .columns
         .iter()
-        .map(|column| (column.column_name.to_owned(), column.data_type.to_owned()))
+        .map(|column| {
+            (
+                column.column_name.to_string().into(),
+                column.data_type.to_owned(),
+            )
+        })
         .collect()
 }

@@ -1,0 +1,6 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: printed_parameters
+input_file: crates/ndc-clickhouse/tests/query_builder/chinook/02_relationships_05_traverse_relationship_in_predicate.request.json
+---
+param_p0=AC/DC

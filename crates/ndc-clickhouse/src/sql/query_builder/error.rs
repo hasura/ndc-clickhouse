@@ -1,36 +1,51 @@
-use common::clickhouse_parser::parameterized_query::ParameterType;
-use ndc_sdk::connector::{ExplainError, QueryError};
-use std::fmt;
-
 use super::typecasting::TypeStringError;
+use common::clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType};
+use http::StatusCode;
+use ndc_sdk::{
+    connector::ErrorResponse,
+    models::{
+        AggregateFunctionName, ArgumentName, CollectionName, ComparisonOperatorName, FieldName,
+        ObjectTypeName, RelationshipName,
+    },
+};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum QueryBuilderError {
     /// A relationship referenced in the query is missing from the collection_relationships map
-    MissingRelationship(String),
+    MissingRelationship(RelationshipName),
     /// An argument required for a native query was not supplied
-    MissingNativeQueryArgument { query: String, argument: String },
+    MissingNativeQueryArgument {
+        query: CollectionName,
+        argument: ArgumentName,
+    },
     /// A table was referenced but not found in configuration
-    UnknownTable(String),
+    UnknownTable(CollectionName),
     /// An argument was supplied for a table that does not have that argument
-    UnknownTableArgument { table: String, argument: String },
+    UnknownTableArgument {
+        table: CollectionName,
+        argument: ArgumentName,
+    },
     /// An argument was supplied for a table that does not have that argument
-    UnknownQueryArgument { query: String, argument: String },
+    UnknownQueryArgument {
+        query: CollectionName,
+        argument: ArgumentName,
+    },
     /// A table in configuration referenced a table type that could not be found
-    UnknownTableType(String),
+    UnknownTableType(ObjectTypeName),
     /// A column was referenced but not found in configuration
-    UnknownColumn(String, String),
+    UnknownColumn(FieldName, ObjectTypeName),
     /// A field was referenced but not found in configuration
     UnknownSubField {
-        field_name: String,
-        data_type: String,
+        field_name: FieldName,
+        data_type: ClickHouseDataType,
     },
     /// Unable to serialize variables into a json string
     CannotSerializeVariables(String),
     /// An unknown single column aggregate function was referenced
-    UnknownSingleColumnAggregateFunction(String),
+    UnknownSingleColumnAggregateFunction(AggregateFunctionName),
     /// An unknown binary comparison operator was referenced
-    UnknownBinaryComparisonOperator(String),
+    UnknownBinaryComparisonOperator(ComparisonOperatorName),
     /// A feature is not supported
     NotSupported(String),
     /// An error that should never happen, and indicates a bug if triggered
@@ -137,7 +152,7 @@ impl fmt::Display for QueryBuilderError {
 
 impl std::error::Error for QueryBuilderError {}
 
-impl From<QueryBuilderError> for QueryError {
+impl From<QueryBuilderError> for ErrorResponse {
     fn from(value: QueryBuilderError) -> Self {
         match value {
             QueryBuilderError::MissingRelationship(_)
@@ -157,40 +172,21 @@ impl From<QueryBuilderError> for QueryError {
             | QueryBuilderError::ExpectedAnonymousTuple { .. }
             | QueryBuilderError::ExpectedNamedTuple { .. }
             | QueryBuilderError::MissingNamedField { .. }
-            | QueryBuilderError::TupleLengthMismatch { .. } => {
-                QueryError::new_invalid_request(&value)
-            }
-            QueryBuilderError::NotSupported(_) => QueryError::new_unsupported_operation(&value),
-            QueryBuilderError::Unexpected(_) => QueryError::new(value),
-        }
-    }
-}
-
-impl From<QueryBuilderError> for ExplainError {
-    fn from(value: QueryBuilderError) -> Self {
-        match value {
-            QueryBuilderError::MissingRelationship(_)
-            | QueryBuilderError::MissingNativeQueryArgument { .. }
-            | QueryBuilderError::UnknownTable(_)
-            | QueryBuilderError::UnknownTableArgument { .. }
-            | QueryBuilderError::UnknownQueryArgument { .. }
-            | QueryBuilderError::UnknownTableType(_)
-            | QueryBuilderError::UnknownColumn(_, _)
-            | QueryBuilderError::UnknownSubField { .. }
-            | QueryBuilderError::CannotSerializeVariables(_)
-            | QueryBuilderError::UnknownSingleColumnAggregateFunction(_)
-            | QueryBuilderError::UnknownBinaryComparisonOperator(_)
-            | QueryBuilderError::Typecasting(_)
-            | QueryBuilderError::ColumnTypeMismatch { .. }
-            | QueryBuilderError::UnsupportedParameterCast { .. }
-            | QueryBuilderError::ExpectedAnonymousTuple { .. }
-            | QueryBuilderError::ExpectedNamedTuple { .. }
-            | QueryBuilderError::MissingNamedField { .. }
-            | QueryBuilderError::TupleLengthMismatch { .. } => {
-                ExplainError::new_invalid_request(&value)
-            }
-            QueryBuilderError::NotSupported(_) => ExplainError::new_unsupported_operation(&value),
-            QueryBuilderError::Unexpected(_) => ExplainError::new(Box::new(value)),
+            | QueryBuilderError::TupleLengthMismatch { .. } => ErrorResponse::new(
+                StatusCode::BAD_REQUEST,
+                value.to_string(),
+                serde_json::Value::Null,
+            ),
+            QueryBuilderError::NotSupported(_) => ErrorResponse::new(
+                StatusCode::NOT_IMPLEMENTED,
+                value.to_string(),
+                serde_json::Value::Null,
+            ),
+            QueryBuilderError::Unexpected(_) => ErrorResponse::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                value.to_string(),
+                serde_json::Value::Null,
+            ),
         }
     }
 }

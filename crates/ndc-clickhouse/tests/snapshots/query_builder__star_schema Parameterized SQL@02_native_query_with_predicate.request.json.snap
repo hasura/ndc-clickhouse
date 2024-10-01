@@ -1,0 +1,37 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: parameterized_sql
+input_file: crates/ndc-clickhouse/tests/query_builder/star_schema/02_native_query_with_predicate.request.json
+---
+SELECT
+  toJSONString(
+    groupArray(
+      cast(
+        "_rowset"."_rowset",
+        'Tuple(rows Array(Tuple("revenue" UInt64)))'
+      )
+    )
+  ) AS "rowsets"
+FROM
+  (
+    SELECT
+      tuple(groupArray(tuple("_row"."_field_revenue"))) AS "_rowset"
+    FROM
+      (
+        SELECT
+          "_origin"."revenue" AS "_field_revenue"
+        FROM
+          (
+            SELECT
+              sum(LO_EXTENDEDPRICE * LO_DISCOUNT) AS revenue
+            FROM
+              star.lineorder_flat
+            WHERE
+              toYYYYMM(LO_ORDERDATE) = 199401
+              AND LO_DISCOUNT BETWEEN 4 AND 6
+              AND LO_QUANTITY BETWEEN 26 AND 35
+          ) AS "_origin"
+        WHERE
+          "_origin"."revenue" >= { p0 :UInt64 }
+      ) AS "_row"
+  ) AS "_rowset" FORMAT TabSeparatedRaw;

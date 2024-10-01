@@ -1,11 +1,8 @@
-use std::error::Error;
-
-use serde::Deserialize;
-
 use common::{
     client::{execute_json_query, get_http_client},
     config::ConnectionConfig,
 };
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct TableInfo {
@@ -44,7 +41,7 @@ pub enum TableType {
 
 pub async fn introspect_database(
     connection_config: &ConnectionConfig,
-) -> Result<Vec<TableInfo>, Box<dyn Error>> {
+) -> Result<Vec<TableInfo>, reqwest::Error> {
     let introspection_sql = include_str!("./database_introspection.sql");
     let client = get_http_client(connection_config)?;
     execute_json_query::<TableInfo>(&client, connection_config, introspection_sql, &vec![]).await

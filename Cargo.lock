@@ -251,6 +251,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
+name = "bstr"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40723b8fb387abc38f4f4a37c09073622e41dd12327033091ef8950659e6dc0c"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -350,15 +360,31 @@ checksum = "97af0562545a7d7f3d9222fcf909963bec36dcb502afaacab98c6ffac8da47ce"
 
 [[package]]
 name = "common"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "bytes",
+ "indexmap 2.5.0",
+ "insta",
+ "ndc-models",
  "peg",
  "reqwest 0.12.7",
  "schemars",
  "serde",
  "serde_json",
+ "strum",
  "tracing",
+]
+
+[[package]]
+name = "console"
+version = "0.15.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e1f83fc076bd6dd27517eacdf25fef6c4dfe5f1d7448bafaaf3a26f13b5e4eb"
+dependencies = [
+ "encode_unicode",
+ "lazy_static",
+ "libc",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -457,6 +483,12 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+
+[[package]]
+name = "encode_unicode"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
 name = "encoding_rs"
@@ -623,6 +655,19 @@ name = "glob"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
+
+[[package]]
+name = "globset"
+version = "0.4.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15f1ce686646e7f1e19bf7d5533fe443a45dbfb990e00629110797578b42fb19"
+dependencies = [
+ "aho-corasick",
+ "bstr",
+ "log",
+ "regex-automata 0.4.7",
+ "regex-syntax 0.8.4",
+]
 
 [[package]]
 name = "h2"
@@ -915,6 +960,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "insta"
+version = "1.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6593a41c7a73841868772495db7dc1e8ecab43bb5c0b6da2059246c4b506ab60"
+dependencies = [
+ "console",
+ "globset",
+ "lazy_static",
+ "linked-hash-map",
+ "serde",
+ "similar",
+ "walkdir",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -961,6 +1021,12 @@ name = "libc"
 version = "0.2.158"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8adc4bb1803a324070e64a98ae98f38934d91957a99cfb3a43dcbc01bc56439"
+
+[[package]]
+name = "linked-hash-map"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 
 [[package]]
 name = "linux-raw-sys"
@@ -1076,12 +1142,14 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "async-trait",
  "bytes",
  "common",
+ "http 0.2.12",
  "indexmap 2.5.0",
+ "insta",
  "ndc-sdk",
  "prometheus",
  "reqwest 0.12.7",
@@ -1096,10 +1164,13 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse-cli"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "clap",
  "common",
+ "insta",
+ "ndc-models",
+ "reqwest 0.12.7",
  "schemars",
  "serde",
  "serde_json",
@@ -1108,20 +1179,22 @@ dependencies = [
 
 [[package]]
 name = "ndc-models"
-version = "0.1.4"
-source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.4#20172e3b2552b78d16dbafcd047f559ced420309"
+version = "0.1.6"
+source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.6#d1be19e9cdd86ac7b6ad003ff82b7e5b4e96b84f"
 dependencies = [
  "indexmap 2.5.0",
+ "ref-cast",
  "schemars",
  "serde",
  "serde_json",
  "serde_with",
+ "smol_str",
 ]
 
 [[package]]
 name = "ndc-sdk"
-version = "0.1.5"
-source = "git+https://github.com/hasura/ndc-sdk-rs?tag=v0.1.5#7f8382001b745c24b5f066411dde6822df65f545"
+version = "0.4.0"
+source = "git+https://github.com/hasura/ndc-sdk-rs?tag=v0.4.0#665509f7d3b47ce4f014fc23f817a3599ba13933"
 dependencies = [
  "async-trait",
  "axum",
@@ -1153,8 +1226,8 @@ dependencies = [
 
 [[package]]
 name = "ndc-test"
-version = "0.1.4"
-source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.4#20172e3b2552b78d16dbafcd047f559ced420309"
+version = "0.1.6"
+source = "git+http://github.com/hasura/ndc-spec.git?tag=v0.1.6#d1be19e9cdd86ac7b6ad003ff82b7e5b4e96b84f"
 dependencies = [
  "async-trait",
  "clap",
@@ -1166,6 +1239,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "smol_str",
  "thiserror",
  "tokio",
  "url",
@@ -1649,6 +1723,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ref-cast"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccf0a6f84d5f1d581da8b41b47ec8600871962f2a528115b542b362d4b744931"
+dependencies = [
+ "ref-cast-impl",
+]
+
+[[package]]
+name = "ref-cast-impl"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcc303e793d3734489387d205e9b186fac9c6cfacedd98cbb2e8a5943595f3e6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "regex"
 version = "1.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1905,6 +1999,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
+name = "same-file"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
+dependencies = [
+ "winapi-util",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2094,6 +2197,12 @@ checksum = "a9e9e0b4211b72e7b8b6e85c807d36c212bdb33ea8587f7569562a84df5465b1"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "similar"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
 
 [[package]]
 name = "slab"
@@ -2695,6 +2804,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "walkdir"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
+dependencies = [
+ "same-file",
+ "winapi-util",
+]
+
+[[package]]
 name = "want"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2820,6 +2939,15 @@ name = "winapi-i686-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-util"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
+dependencies = [
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "winapi-x86_64-pc-windows-gnu"

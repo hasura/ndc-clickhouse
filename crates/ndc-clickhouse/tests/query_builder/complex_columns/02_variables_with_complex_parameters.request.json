@@ -1,0 +1,217 @@
+{
+  "$schema": "../request.schema.json",
+  "collection": "TableOne",
+  "collection_relationships": {},
+  "arguments": {},
+  "variables": [
+    {
+      "var1": [
+        {
+          "field1": "foo",
+          "field2": "bar"
+        }
+      ],
+      "var2": [
+        {
+          "field1": "foo",
+          "field2": "bar"
+        }
+      ],
+      "var3": {
+        "child": {
+          "id": 1,
+          "name": "foo"
+        }
+      },
+      "var4": {
+        "child": [
+          {
+            "id": 1,
+            "name": "foo"
+          }
+        ]
+      },
+      "var5": {
+        "child": {
+          "id": 1,
+          "name": "foo",
+          "toys": [
+            {
+              "id": 2,
+              "name": "bar"
+            }
+          ]
+        }
+      },
+      "var6": {
+        "a": null,
+        "b": {
+          "foo": "bar"
+        },
+        "c": [
+          {
+            "a": "foo",
+            "b": [
+              "foo",
+              "bar"
+            ]
+          }
+        ],
+        "d": {
+          "a": "foo",
+          "b": "bar"
+        }
+      }
+    },
+    {
+      "var1": [
+        {
+          "field1": "foo",
+          "field2": "bar"
+        }
+      ],
+      "var2": [
+        {
+          "field1": "foo",
+          "field2": "bar"
+        }
+      ],
+      "var3": {
+        "child": {
+          "id": 1,
+          "name": "foo"
+        }
+      },
+      "var4": {
+        "child": [
+          {
+            "id": 1,
+            "name": "foo"
+          }
+        ]
+      },
+      "var5": {
+        "child": {
+          "id": 1,
+          "name": "foo",
+          "toys": [
+            {
+              "id": 2,
+              "name": "bar"
+            }
+          ]
+        }
+      },
+      "var6": {
+        "a": null,
+        "b": {
+          "foo": "bar"
+        },
+        "c": [
+          {
+            "a": "foo",
+            "b": [
+              "foo",
+              "bar"
+            ]
+          }
+        ],
+        "d": {
+          "a": "foo",
+          "b": "bar"
+        }
+      }
+    }
+  ],
+  "query": {
+    "fields": {
+      "field1": {
+        "type": "column",
+        "column": "ColumnA"
+      }
+    },
+    "predicate": {
+      "type": "and",
+      "expressions": [
+        {
+          "type": "binary_comparison_operator",
+          "operator": "_eq",
+          "column": {
+            "type": "column",
+            "name": "ColumnB",
+            "path": []
+          },
+          "value": {
+            "type": "variable",
+            "name": "var1"
+          }
+        },
+        {
+          "type": "binary_comparison_operator",
+          "operator": "_eq",
+          "column": {
+            "type": "column",
+            "name": "ColumnC",
+            "path": []
+          },
+          "value": {
+            "type": "variable",
+            "name": "var2"
+          }
+        },
+        {
+          "type": "binary_comparison_operator",
+          "operator": "_eq",
+          "column": {
+            "type": "column",
+            "name": "ColumnD",
+            "path": []
+          },
+          "value": {
+            "type": "variable",
+            "name": "var3"
+          }
+        },
+        {
+          "type": "binary_comparison_operator",
+          "operator": "_eq",
+          "column": {
+            "type": "column",
+            "name": "ColumnE",
+            "path": []
+          },
+          "value": {
+            "type": "variable",
+            "name": "var4"
+          }
+        },
+        {
+          "type": "binary_comparison_operator",
+          "operator": "_eq",
+          "column": {
+            "type": "column",
+            "name": "ColumnF",
+            "path": []
+          },
+          "value": {
+            "type": "variable",
+            "name": "var5"
+          }
+        },
+        {
+          "type": "binary_comparison_operator",
+          "operator": "_eq",
+          "column": {
+            "type": "column",
+            "name": "ColumnG",
+            "path": []
+          },
+          "value": {
+            "type": "variable",
+            "name": "var6"
+          }
+        }
+      ]
+    }
+  }
+}

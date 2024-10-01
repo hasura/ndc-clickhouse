@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use common::{client::execute_json_query, config::ServerConfig};
-use ndc_sdk::{connector::ExplainError, json_response::JsonResponse, models};
+use ndc_sdk::{connector::ErrorResponse, json_response::JsonResponse, models};
 use serde::{Deserialize, Serialize};
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};
@@ -15,7 +15,7 @@ pub async fn explain(
     configuration: &ServerConfig,
     state: &ServerState,
     request: models::QueryRequest,
-) -> Result<JsonResponse<models::ExplainResponse>, ExplainError> {
+) -> Result<JsonResponse<models::ExplainResponse>, ErrorResponse> {
     let inlined_statement = QueryBuilder::new(&request, configuration)
         .build_inlined()?
         .explain()
@@ -24,7 +24,10 @@ pub async fn explain(
         QueryBuilder::new(&request, configuration).build_parameterized()?;
     let parameterized_statement = parameterized_statement.explain().to_string();
 
-    let client = state.client(configuration).await?;
+    let client = state
+        .client(configuration)
+        .await
+        .map_err(ErrorResponse::from_error)?;
 
     let explain = execute_json_query::<ExplainRow>(
         &client,
@@ -52,7 +55,7 @@ pub async fn explain(
         ),
         (
             "Parameters".to_string(),
-            serde_json::to_string(&parameters).map_err(ExplainError::new)?,
+            serde_json::to_string(&parameters).map_err(ErrorResponse::from_error)?,
         ),
         ("Execution Plan".to_string(), explain),
     ]);

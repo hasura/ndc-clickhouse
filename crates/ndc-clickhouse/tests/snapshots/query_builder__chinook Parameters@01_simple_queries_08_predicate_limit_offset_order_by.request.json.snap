@@ -1,0 +1,6 @@
+---
+source: crates/ndc-clickhouse/tests/query_builder.rs
+expression: printed_parameters
+input_file: crates/ndc-clickhouse/tests/query_builder/chinook/01_simple_queries_08_predicate_limit_offset_order_by.request.json
+---
+param_p0=10

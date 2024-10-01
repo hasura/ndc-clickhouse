@@ -1,0 +1,48 @@
+{
+    "$schema": "../request.schema.json",
+    "collection": "Chinook_Album",
+    "query": {
+        "fields": {
+            "albumId": {
+                "type": "column",
+                "column": "AlbumId",
+                "fields": null
+            },
+            "artistId": {
+                "type": "column",
+                "column": "ArtistId",
+                "fields": null
+            },
+            "title": {
+                "type": "column",
+                "column": "Title",
+                "fields": null
+            }
+        },
+        "predicate": {
+            "type": "and",
+            "expressions": [
+                {
+                    "type": "and",
+                    "expressions": [
+                        {
+                            "type": "binary_comparison_operator",
+                            "column": {
+                                "type": "column",
+                                "name": "ArtistId",
+                                "path": []
+                            },
+                            "operator": "_eq",
+                            "value": {
+                                "type": "scalar",
+                                "value": "1"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "arguments": {},
+    "collection_relationships": {}
+}
