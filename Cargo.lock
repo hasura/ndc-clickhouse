@@ -360,7 +360,7 @@ checksum = "97af0562545a7d7f3d9222fcf909963bec36dcb502afaacab98c6ffac8da47ce"
 
 [[package]]
 name = "common"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "bytes",
  "indexmap 2.5.0",
@@ -1142,7 +1142,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1164,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "ndc-clickhouse-cli"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "clap",
  "common",
