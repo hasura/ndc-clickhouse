@@ -16,6 +16,7 @@ supportedEnvironmentVariables:
     required: true
 commands:
   update: hasura-clickhouse update
+  printSchemaAndCapabilities: hasura-clickhouse print-schema-and-capabilities
 cliPlugin:
   name: clickhouse
   version: "${CLI_VERSION}"
