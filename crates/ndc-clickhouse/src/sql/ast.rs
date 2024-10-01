@@ -1,8 +1,11 @@
 use std::fmt;
 pub mod format;
 use super::QueryBuilderError;
-use common::clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType};
-use format::{display_comma_separated, display_period_separated, display_separated, escape_string};
+use common::{
+    clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType},
+    format::{display_comma_separated, display_period_separated, display_separated},
+};
+use format::escape_string;
 use indexmap::IndexMap;
 
 #[derive(Debug, Clone)]
