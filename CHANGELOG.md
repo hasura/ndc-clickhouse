@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4]
+
+- Implement PrintSchemaAndCapabilities command
+- Bug fix: scalar aggregates may return other scalars, creating dependencies. Fix schema response not including those scalar type dependencies 
+
 ## [1.0.3]
 
 - Update SDK version to enable unauthorized access to health endpoint
