@@ -1,5 +1,3 @@
-use std::{collections::BTreeMap, fmt::Display, str::FromStr};
-
 use common::{
     clickhouse_parser::datatype::{ClickHouseDataType, Identifier},
     config::ServerConfig,
@@ -13,6 +11,7 @@ use ndc_sdk::models::{
     self, AggregateFunctionName, CollectionName, FieldName, NestedField, ObjectTypeName,
     RelationshipName,
 };
+use std::{collections::BTreeMap, str::FromStr};
 
 use super::QueryBuilderError;
 
@@ -435,59 +434,36 @@ fn get_return_type<'a>(
         })
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub enum TypeStringError {
-    UnknownTable {
-        table: CollectionName,
-    },
-    UnknownTableType {
-        table: ObjectTypeName,
-    },
+    #[error("Unknown table: {table}")]
+    UnknownTable { table: CollectionName },
+    #[error("Unknown table type: {table}")]
+    UnknownTableType { table: ObjectTypeName },
+    #[error("Unknown column: {column} in table: {table}")]
     UnknownColumn {
         table: ObjectTypeName,
         column: FieldName,
     },
+    #[error("Unknown aggregate function: {function} for column {column} of type: {data_type} in table {table}")]
     UnknownAggregateFunction {
         table: CollectionName,
         column: FieldName,
         data_type: ClickHouseDataType,
         function: AggregateFunctionName,
     },
+    #[error("Missing relationship: {0}")]
     MissingRelationship(RelationshipName),
+    #[error("Not supported: {0}")]
     NotSupported(String),
-    NestedFieldTypeMismatch {
-        expected: String,
-        got: String,
-    },
+    #[error("Nested field selector type mismatch, expected: {expected}, got {got}")]
+    NestedFieldTypeMismatch { expected: String, got: String },
+    #[error("Missing field {field_name} in object type {object_type}")]
     MissingNestedField {
         field_name: FieldName,
         object_type: ObjectTypeName,
     },
 }
-
-impl Display for TypeStringError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeStringError::UnknownTable { table } => write!(f, "Unknown table: {table}"),
-            TypeStringError::UnknownTableType { table } => write!(f, "Unknown table type: {table}"),
-            TypeStringError::UnknownColumn { table, column } => {
-                write!(f, "Unknown column: {column} in table: {table}")
-            }
-            TypeStringError::UnknownAggregateFunction {
-                table,
-                column,
-                data_type,
-                function,
-            } => write!(f, "Unknown aggregate function: {function} for column {column} of type: {data_type} in table {table}"),
-            TypeStringError::MissingRelationship(rel) => write!(f, "Missing relationship: {rel}"),
-            TypeStringError::NotSupported(feature) => write!(f, "Not supported: {feature}"),
-            TypeStringError::NestedFieldTypeMismatch { expected, got } => write!(f, "Nested field selector type mismatch, expected: {expected}, got {got}"),
-            TypeStringError::MissingNestedField { field_name, object_type } => write!(f, "Missing field {field_name} in object type {object_type}"),
-        }
-    }
-}
-
-impl std::error::Error for TypeStringError {}
 
 impl From<TypeStringError> for QueryBuilderError {
     fn from(value: TypeStringError) -> Self {
