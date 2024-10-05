@@ -34,7 +34,7 @@ impl<'a> NameSpace<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClickHouseScalar(ClickHouseDataType);
 
 impl ClickHouseScalar {
@@ -596,10 +596,38 @@ impl ClickHouseTypeDefinition {
     /// note that ScalarType definitions may be duplicated
     pub fn type_definitions(&self) -> SchemaTypeDefinitions {
         match self {
-            ClickHouseTypeDefinition::Scalar(scalar) => SchemaTypeDefinitions {
-                scalars: vec![(scalar.type_name(), scalar.type_definition())],
-                objects: vec![],
-            },
+            ClickHouseTypeDefinition::Scalar(scalar) => {
+                // add the definition for this scalar, and any dependencies
+                fn get_dependencies(
+                    aggregate_functions: Vec<(
+                        ClickHouseSingleColumnAggregateFunction,
+                        ClickHouseDataType,
+                    )>,
+                    scalars: &mut IndexMap<ScalarTypeName, models::ScalarType>,
+                ) {
+                    for (_, return_type) in aggregate_functions {
+                        let return_type = ClickHouseScalar(return_type);
+                        if !scalars.contains_key(&return_type.type_name()) {
+                            scalars.insert(return_type.type_name(), return_type.type_definition());
+                            get_dependencies(return_type.aggregate_functions(), scalars);
+                        }
+                    }
+                }
+
+                let mut scalars = IndexMap::new();
+
+                scalars.insert(scalar.type_name(), scalar.type_definition());
+
+                get_dependencies(scalar.aggregate_functions(), &mut scalars);
+
+                let scalars = scalars.into_iter().collect();
+
+                SchemaTypeDefinitions {
+                    scalars,
+                    objects: vec![],
+                }
+            }
+
             ClickHouseTypeDefinition::Nullable { inner } => inner.type_definitions(),
             ClickHouseTypeDefinition::Array { element_type } => element_type.type_definitions(),
             ClickHouseTypeDefinition::Object {

@@ -247,6 +247,79 @@ scalar_types:
           element_type:
             type: named
             name: Int32
+  Int64:
+    representation:
+      type: int64
+    aggregate_functions:
+      avg:
+        result_type:
+          type: named
+          name: Float64
+      max:
+        result_type:
+          type: named
+          name: Int64
+      min:
+        result_type:
+          type: named
+          name: Int64
+      stddev_pop:
+        result_type:
+          type: named
+          name: Float64
+      stddev_samp:
+        result_type:
+          type: named
+          name: Float64
+      sum:
+        result_type:
+          type: named
+          name: Int64
+      var_pop:
+        result_type:
+          type: named
+          name: Float64
+      var_samp:
+        result_type:
+          type: named
+          name: Float64
+    comparison_operators:
+      _eq:
+        type: equal
+      _gt:
+        type: custom
+        argument_type:
+          type: named
+          name: Int64
+      _gte:
+        type: custom
+        argument_type:
+          type: named
+          name: Int64
+      _in:
+        type: in
+      _lt:
+        type: custom
+        argument_type:
+          type: named
+          name: Int64
+      _lte:
+        type: custom
+        argument_type:
+          type: named
+          name: Int64
+      _neq:
+        type: custom
+        argument_type:
+          type: named
+          name: Int64
+      _nin:
+        type: custom
+        argument_type:
+          type: array
+          element_type:
+            type: named
+            name: Int64
   String:
     representation:
       type: string

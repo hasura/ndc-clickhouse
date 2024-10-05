@@ -20,6 +20,7 @@ serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
 sqlformat = "0.2.3"
 strum = { version = "0.26.3", features = ["derive"] }
+thiserror = "1.0.64"
 tokio = "1.36.0"
 tracing = "0.1.40"
 

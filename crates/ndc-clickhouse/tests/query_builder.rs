@@ -1,6 +1,10 @@
-use common::{config::ServerConfig, config_file::ServerConfigFile, schema::schema_response};
+use common::{
+    config::{read_server_config, ConfigurationEnvironment, ServerConfig},
+    config_file::ServerConfigFile,
+    schema::schema_response,
+};
 use insta::{assert_snapshot, assert_yaml_snapshot, glob};
-use ndc_clickhouse::{connector::setup::ClickhouseConnectorSetup, sql::QueryBuilder};
+use ndc_clickhouse::sql::QueryBuilder;
 use ndc_sdk::models;
 use schemars::schema_for;
 use std::{collections::HashMap, error::Error, fs, path::PathBuf};
@@ -18,12 +22,13 @@ async fn read_mock_configuration(schema_dir: &str) -> ServerConfig {
         ("CLICKHOUSE_USERNAME".to_owned(), "".to_owned()),
         ("CLICKHOUSE_PASSWORD".to_owned(), "".to_owned()),
     ]);
-    let setup = ClickhouseConnectorSetup::new_from_env(env);
     let config_dir = base_path().join(schema_dir).join("_config");
-    setup
-        .read_server_config(config_dir)
-        .await
-        .expect("Should be able to read configuration")
+    read_server_config(
+        config_dir,
+        &ConfigurationEnvironment::from_simulated_environment(env),
+    )
+    .await
+    .expect("Should be able to read configuration")
 }
 
 fn pretty_print_sql(query: &str) -> String {

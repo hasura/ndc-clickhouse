@@ -1,6 +1,8 @@
 use super::{format::escape_string, Expr, Parameter, QueryBuilderError, Value};
-use crate::sql::ast::format::display_separated;
-use common::clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType};
+use common::{
+    clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType},
+    format::display_separated,
+};
 use std::fmt::Display;
 
 pub struct ParameterBuilder {

@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     env,
     error::Error,
     path::{Path, PathBuf},
@@ -8,19 +8,22 @@ use std::{
 
 use clap::{Parser, Subcommand, ValueEnum};
 use common::{
+    capabilities::capabilities_response,
     clickhouse_parser::{
         datatype::ClickHouseDataType,
         parameterized_query::{Parameter, ParameterizedQuery, ParameterizedQueryElement},
     },
-    config::ConnectionConfig,
+    config::{read_server_config, ConfigurationEnvironment, ConnectionConfig},
     config_file::{
         ParameterizedQueryConfigFile, PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile,
         CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
     },
+    schema::schema_response,
 };
 use database_introspection::{introspect_database, TableInfo};
-use ndc_models::{CollectionName, FieldName};
+use ndc_models::{CapabilitiesResponse, CollectionName, FieldName, SchemaResponse};
 use schemars::schema_for;
+use serde::Serialize;
 use tokio::fs;
 mod database_introspection;
 
@@ -82,6 +85,8 @@ enum Command {
     },
     Validate {},
     Watch {},
+    PrintSchemaAndCapabilities {},
+    UpgradeConfiguration {},
 }
 
 #[derive(Clone, ValueEnum)]
@@ -93,6 +98,12 @@ enum LogLevel {
     Info,
     Debug,
     Trace,
+}
+
+#[derive(Serialize)]
+struct SchemaAndCapabilities {
+    schema: SchemaResponse,
+    capabilities: CapabilitiesResponse,
 }
 
 #[tokio::main]
@@ -143,6 +154,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Command::Watch {} => {
             todo!("implement watch command")
+        }
+        Command::PrintSchemaAndCapabilities {} => {
+            // set mock values for required env vars, we won't be reading these anyways
+            let env = HashMap::from_iter(vec![
+                ("CLICKHOUSE_URL".to_owned(), "".to_owned()),
+                ("CLICKHOUSE_USERNAME".to_owned(), "".to_owned()),
+                ("CLICKHOUSE_PASSWORD".to_owned(), "".to_owned()),
+            ]);
+            let configuration = read_server_config(
+                context_path,
+                &ConfigurationEnvironment::from_simulated_environment(env),
+            )
+            .await?;
+
+            let schema_and_capabilities = SchemaAndCapabilities {
+                schema: schema_response(&configuration),
+                capabilities: capabilities_response(),
+            };
+            println!(
+                "{}",
+                serde_json::to_string(&schema_and_capabilities)
+                    .expect("Schema and capabilities should serialize to JSON")
+            )
+        }
+        Command::UpgradeConfiguration {} => {
+            println!("Upgrade Configuration command is currently a NOOP")
         }
     }
 
