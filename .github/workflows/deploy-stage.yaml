@@ -227,6 +227,11 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
+      - name: check out this repository
+        uses: actions/checkout@v4
+        with:
+          path: ndc-clickhouse
+
       - name: check out cli-plugin-index
         uses: actions/checkout@v4
         with:
@@ -244,6 +249,8 @@ jobs:
 
           # we assume GITHUB_REF_NAME is the version number prefixed with `v`. This is checked in previous steps
           BRANCH_NAME="clickhouse/release-$GITHUB_REF_NAME"
+
+          RELEASE_HASH="$(cd ndc-clickhouse && git rev-parse HEAD)"
           
           # Change working directory to the target folder
           cd cli-plugin-index
@@ -264,7 +271,7 @@ jobs:
 
           # create a pull-requests containing the updates.
           gh pr create \
-            --body "Commit in ndc-postgres: https://github.com/hasura/ndc-postgres/commit/$LATEST_SHA" \
+            --body "Commit in ndc-clickhouse: https://github.com/hasura/ndc-clickhouse/commit/$RELEASE_HASH" \
             --title "Release ClickHouse $GITHUB_REF_NAME" \
             --head "$BRANCH_NAME" \
             --base "master"
@@ -335,7 +342,7 @@ jobs:
           # modify metadata file to add new entry
           UPDATED_METADATA=cat "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json" |
             jq '.overview.latest_version = $GITHUB_REF_NAME' |
-            jq '.source_code.version |= [{tag: $GITHUB_REF_NAME, hash: $RELEASE_SHA, is_verified: true}] + .'
+            jq '.source_code.version |= [{tag: $GITHUB_REF_NAME, hash: $RELEASE_HASH, is_verified: true}] + .'
 
           # write out modified metadata file
           echo "$UPDATED_METADATA" > "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json"
@@ -346,7 +353,7 @@ jobs:
 
           # create a pull-requests containing the updates.
           gh pr create \
-            --body "Commit in ndc-postgres: https://github.com/hasura/ndc-postgres/commit/$LATEST_SHA" \
+            --body "Commit in ndc-clickhouse: https://github.com/hasura/ndc-clickhouse/commit/$RELEASE_HASH" \
             --title "Release ClickHouse $GITHUB_REF_NAME" \
             --head "$BRANCH_NAME" \
             --base "main"
