@@ -40,5 +40,6 @@ jobs:
 
       - uses: peter-evans/create-pull-request@v7
         with:
+          branch: release-v${{ github.event.inputs.new_version }}
           title: Bump version to ${{ github.event.inputs.new_version }}
           body: This bumps the version in `Cargo.toml` and updates `CHANGELOG.md`.
