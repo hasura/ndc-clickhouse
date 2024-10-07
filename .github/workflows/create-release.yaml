@@ -1,0 +1,44 @@
+on:
+  workflow_dispatch:
+    inputs:
+      new_version:
+        description: "What we want the new version to be. Version number, without the `v` prefix"
+        required: true
+
+name: Create New Release
+
+jobs:
+  bump_version_pr:
+    name: Create version bump PR
+    runs-on: ubuntu-latest
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - run: |
+          set -evo pipefail
+
+          DATE_TODAY=$(date +"%Y-%m-%d")
+          NEW_VERSION=${{ github.event.inputs.new_version }}
+
+          if [[ ! $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+  ]]; then
+              echo >&2 'Invalid version number "$NEW_VERSION". Expect a valid semver version. Aborting.'
+              exit 1
+          fi
+
+          # update version in Cargo.toml
+          sed -i 's/package.version = .*/package.version = "${NEW_VERSION}"/' Cargo.toml
+          # update version in Cargo.lock
+          cargo update --workspace
+
+          CHANGELOG_TEMPLATE="## [Unreleased]\n\n## [$NEW_VERSION] - $DATE_TODAY"
+
+          sed -i "s/## \[Unreleased\]/$CHANGELOG_TEMPLATE/" CHANGELOG.md
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          title: Bump version to ${{ github.event.inputs.new_version }}
+          body: This bumps the version in `Cargo.toml` and updates `CHANGELOG.md`.
