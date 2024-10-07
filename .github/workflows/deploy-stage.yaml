@@ -220,3 +220,145 @@ jobs:
           tag: v${{ steps.get-version.outputs.tagged_version }}
           body: ${{ steps.changelog-reader.outputs.changes }}
           artifacts: release/artifacts/*
+  create-cli-plugin-index-pr:
+    name: Create CLI Plugin Index PR
+    needs:
+      - release
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - name: check out cli-plugin-index
+        uses: actions/checkout@v4
+        with:
+          repository: hasura/cli-plugin-index
+          path: cli-plugin-index
+          token: ${{ secrets.HASURA_BOT_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release/artifacts
+          merge-multiple: true
+      - run: |
+          set -evo pipefail
+          ROOT="$(pwd)"
+
+          # we assume GITHUB_REF_NAME is the version number prefixed with `v`. This is checked in previous steps
+          BRANCH_NAME="clickhouse/release-$GITHUB_REF_NAME"
+          
+          # Change working directory to the target folder
+          cd cli-plugin-index
+
+          git config --global user.name "hasura-bot"
+          git config --global user.email "accounts@hasura.io"
+
+          # Create a new feature branch for the changes.
+          git checkout -b $BRANCH_NAME
+
+          mkdir "plugins/clickhouse/$GITHUB_REF_NAME"
+
+          cp "${ROOT}/release/manifest.yaml" "${ROOT}/cli-plugin-index/plugins/clickhouse/$GITHUB_REF_NAME/manifest.yaml"
+
+          git add .
+          git commit -m "Release ClickHouse $GITHUB_REF_NAME"
+          git push origin $BRANCH_NAME
+
+          # create a pull-requests containing the updates.
+          gh pr create \
+            --body "Commit in ndc-postgres: https://github.com/hasura/ndc-postgres/commit/$LATEST_SHA" \
+            --title "Release ClickHouse $GITHUB_REF_NAME" \
+            --head "$BRANCH_NAME" \
+            --base "master"
+          
+      # scream into Slack if something goes wrong
+      - name: Report Status
+        if: always()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: failure
+          notification_title: "😧 Error on <{repo_url}|{repo}>"
+          message_format: "🐴 *{workflow}* {status_message} for <{repo_url}|{repo}>"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_BUILD_SLACK_WEBHOOK_URL }}
+
+
+  create-ndc-hub-pr:
+    name: Create NDC-Hub PR
+    needs:
+      - release
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - name: check out this repository
+        uses: actions/checkout@v4
+        with:
+          path: ndc-clickhouse
+
+      - name: check out ndc-hub
+        uses: actions/checkout@v4
+        with:
+          repository: hasura/ndc-hub
+          path: ndc-hub
+          token: ${{ secrets.HASURA_BOT_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release/artifacts
+          merge-multiple: true
+
+      - run: |
+          set -evo pipefail
+          ROOT="$(pwd)"
+
+          # we assume GITHUB_REF_NAME is the version number prefixed with `v`. This is checked in previous steps
+          BRANCH_NAME="clickhouse/release-$GITHUB_REF_NAME"
+
+          # These exported env vars are used for templating
+          # Release version is the same as tag name, minus leading v.
+          export RELEASE_VERSION=${GITHUB_REF_NAME:1}"
+          export RELEASE_HASH="$(cd ndc-clickhouse && git rev-parse HEAD)"
+          export CONNECTOR_DEFINITION_HASH=$(sha256sum ${ROOT}/release/artifacts/connector-definition.tgz | cut -f1 -d' ')
+          
+          # Change working directory to the target folder
+          cd ndc-hub
+
+          git config --global user.name "hasura-bot"
+          git config --global user.email "accounts@hasura.io"
+
+          # Create a new feature branch for the changes.
+          git checkout -b $BRANCH_NAME
+
+          # create new connector definition
+          mkdir "${ROOT}/ndc-hub/registry/hasura/clickhouse/releases/$GITHUB_REF_NAME"
+          cat "${ROOT}/ci/templates/connector-packaging.json" | envsubst > "${ROOT}/ndc-hub/registry/hasura/clickhouse/releases/v$RELEASE_VERSION/connector-packaging.json"
+
+          # modify metadata file to add new entry
+          UPDATED_METADATA=cat "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json" |
+            jq '.overview.latest_version = $GITHUB_REF_NAME' |
+            jq '.source_code.version |= [{tag: $GITHUB_REF_NAME, hash: $RELEASE_SHA, is_verified: true}] + .'
+
+          # write out modified metadata file
+          echo "$UPDATED_METADATA" > "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json"
+
+          git add .
+          git commit -m "Release ClickHouse $GITHUB_REF_NAME"
+          git push origin $BRANCH_NAME
+
+          # create a pull-requests containing the updates.
+          gh pr create \
+            --body "Commit in ndc-postgres: https://github.com/hasura/ndc-postgres/commit/$LATEST_SHA" \
+            --title "Release ClickHouse $GITHUB_REF_NAME" \
+            --head "$BRANCH_NAME" \
+            --base "main"
+      
+      # scream into Slack if something goes wrong
+      - name: Report Status
+        if: always()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: failure
+          notification_title: "😧 Error on <{repo_url}|{repo}>"
+          message_format: "🐴 *{workflow}* {status_message} for <{repo_url}|{repo}>"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_BUILD_SLACK_WEBHOOK_URL }}
