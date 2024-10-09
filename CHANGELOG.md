@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix a bug where starting in clickhouse 24.7, users would get default values for the given data type instead of real results. #32
+
 ## [1.0.4] - 2024-10-05
 
 - Implement PrintSchemaAndCapabilities command. Enables the ddn CLI to perform introspection without needing to start an instance of the connector, which makes introspection faster. Note the DDN CLI does not yet implement this.
