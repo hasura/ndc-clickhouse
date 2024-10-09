@@ -225,6 +225,8 @@ jobs:
     needs:
       - release
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.HASURA_BOT_TOKEN }}
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - name: check out this repository
@@ -294,6 +296,8 @@ jobs:
     needs:
       - release
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.HASURA_BOT_TOKEN }}
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - name: check out this repository
