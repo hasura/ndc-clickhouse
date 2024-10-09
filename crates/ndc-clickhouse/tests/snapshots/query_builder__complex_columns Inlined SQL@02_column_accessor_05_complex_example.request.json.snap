@@ -17,8 +17,11 @@ FROM
     SELECT
       tuple(
         groupArray(
-          tuple("_row"."_field_field1", "_row"."_field_field2")
-        )
+          tuple(
+            "_row"."_field_field1" AS "field1",
+            "_row"."_field_field2" AS "field2"
+          )
+        ) AS "rows"
       ) AS "_rowset"
     FROM
       (
@@ -39,7 +42,9 @@ FROM
           "Schema1"."Table1" AS "_origin"
           LEFT JOIN (
             SELECT
-              tuple(groupArray(tuple("_row"."_field_name"))) AS "_rowset",
+              tuple(
+                groupArray(tuple("_row"."_field_name" AS "name")) AS "rows"
+              ) AS "_rowset",
               "_row"."_relkey_Id" AS "_relkey_Id"
             FROM
               (

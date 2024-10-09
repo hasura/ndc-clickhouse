@@ -18,11 +18,11 @@ FROM
       tuple(
         groupArray(
           tuple(
-            "_row"."_field_albumId",
-            "_row"."_field_artistId",
-            "_row"."_field_title"
+            "_row"."_field_albumId" AS "albumId",
+            "_row"."_field_artistId" AS "artistId",
+            "_row"."_field_title" AS "title"
           )
-        )
+        ) AS "rows"
       ) AS "_rowset"
     FROM
       (

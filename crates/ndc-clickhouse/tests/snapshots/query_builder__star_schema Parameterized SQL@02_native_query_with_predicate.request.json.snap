@@ -15,7 +15,9 @@ SELECT
 FROM
   (
     SELECT
-      tuple(groupArray(tuple("_row"."_field_revenue"))) AS "_rowset"
+      tuple(
+        groupArray(tuple("_row"."_field_revenue" AS "revenue")) AS "rows"
+      ) AS "_rowset"
     FROM
       (
         SELECT

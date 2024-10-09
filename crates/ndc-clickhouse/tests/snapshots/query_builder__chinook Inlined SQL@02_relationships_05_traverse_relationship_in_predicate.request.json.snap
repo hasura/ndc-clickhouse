@@ -18,12 +18,12 @@ FROM
       tuple(
         groupArray(
           tuple(
-            "_row"."_field_albumId",
-            "_row"."_field_artistId",
-            "_row"."_field_title",
-            "_row"."_field_Tracks"
+            "_row"."_field_albumId" AS "albumId",
+            "_row"."_field_artistId" AS "artistId",
+            "_row"."_field_title" AS "title",
+            "_row"."_field_Tracks" AS "Tracks"
           )
-        )
+        ) AS "rows"
       ) AS "_rowset"
     FROM
       (
@@ -39,11 +39,11 @@ FROM
               tuple(
                 groupArray(
                   tuple(
-                    "_row"."_field_trackId",
-                    "_row"."_field_name",
-                    "_row"."_field_unitPrice"
+                    "_row"."_field_trackId" AS "trackId",
+                    "_row"."_field_name" AS "name",
+                    "_row"."_field_unitPrice" AS "unitPrice"
                   )
-                )
+                ) AS "rows"
               ) AS "_rowset",
               "_row"."_relkey_AlbumId" AS "_relkey_AlbumId"
             FROM

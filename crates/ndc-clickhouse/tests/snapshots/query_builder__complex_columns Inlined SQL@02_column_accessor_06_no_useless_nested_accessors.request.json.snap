@@ -17,8 +17,11 @@ FROM
     SELECT
       tuple(
         groupArray(
-          tuple("_row"."_field_field1", "_row"."_field_field2")
-        )
+          tuple(
+            "_row"."_field_field1" AS "field1",
+            "_row"."_field_field2" AS "field2"
+          )
+        ) AS "rows"
       ) AS "_rowset"
     FROM
       (

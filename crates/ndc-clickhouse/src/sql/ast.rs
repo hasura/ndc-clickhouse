@@ -685,11 +685,16 @@ impl fmt::Display for WindowSpec {
 pub struct FunctionArg {
     name: Option<Ident>,
     value: FunctionArgExpr,
+    alias: Option<Ident>,
 }
 
 impl FunctionArg {
     pub fn new(value: FunctionArgExpr) -> Self {
-        Self { value, name: None }
+        Self {
+            value,
+            name: None,
+            alias: None,
+        }
     }
     pub fn name(self, name: Ident) -> Self {
         Self {
@@ -697,14 +702,24 @@ impl FunctionArg {
             ..self
         }
     }
+    pub fn with_alias(self, alias: Ident) -> Self {
+        Self {
+            alias: Some(alias),
+            ..self
+        }
+    }
 }
 
 impl fmt::Display for FunctionArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.name {
-            Some(name) => write!(f, "{name}={}", self.value),
-            None => write!(f, "{}", self.value),
+        if let Some(name) = &self.name {
+            write!(f, "{name}=")?;
         }
+        write!(f, "{}", self.value)?;
+        if let Some(alias) = &self.alias {
+            write!(f, " AS {alias}")?;
+        }
+        Ok(())
     }
 }
 
