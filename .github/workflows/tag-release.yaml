@@ -1,5 +1,5 @@
 # on merge to main from a branch named release-*, create a tag based on version in Cargo.toml
-name: Bump version
+name: Tag Release on merge to main
 on:
   pull_request:
     types:
@@ -27,7 +27,7 @@ jobs:
         CARGO_VERSION="$(cargo metadata --format-version=1 | jq -r '.packages | .[] | select(.name == "ndc-clickhouse-cli") | .version')"
         echo("::set-output name=RELEASE_VERSION::$CARGO_VERSION")
 
-    - name: Bump version and push tag
+    - name: Push Tag
       uses: anothrNick/github-tag-action@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
