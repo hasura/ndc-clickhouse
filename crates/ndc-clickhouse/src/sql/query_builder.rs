@@ -198,74 +198,81 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
                             Ident::new_quoted(format!("_field_{alias}")),
                         ])
                         .into_arg()
+                        .with_alias(Ident::new_quoted(alias.as_str()))
                     })
                     .collect();
                 Function::new_unquoted("tuple").args(args).into_expr()
             }
             .into_arg();
+
             Some(
                 Function::new_unquoted("groupArray")
                     .args(vec![row])
-                    .into_expr(),
+                    .into_expr()
+                    .into_arg()
+                    .with_alias(Ident::new_quoted("rows")),
             )
         } else {
             None
         };
 
         let aggregates = if let Some(aggregates) = &query.aggregates {
-            Some(if aggregates.is_empty() {
-                Function::new_unquoted("map").into_expr()
-            } else {
-                let args = aggregates
-                    .iter()
-                    .map(|(alias, aggregate)| {
-                        Ok(match aggregate {
-                            models::Aggregate::StarCount {} => Function::new_unquoted("COUNT")
-                                .args(vec![FunctionArgExpr::Wildcard.into_arg()])
-                                .into_expr(),
-                            models::Aggregate::ColumnCount {
-                                distinct,
-                                column: _,
-                                field_path: _,
-                            } => {
-                                let column = Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_row"),
-                                    Ident::new_quoted(format!("_agg_{alias}")),
-                                ]);
-                                Function::new_unquoted("COUNT")
-                                    .args(vec![column.into_arg()])
-                                    .distinct(*distinct)
-                                    .into_expr()
+            Some(
+                if aggregates.is_empty() {
+                    Function::new_unquoted("map").into_expr()
+                } else {
+                    let args = aggregates
+                        .iter()
+                        .map(|(alias, aggregate)| {
+                            Ok(match aggregate {
+                                models::Aggregate::StarCount {} => Function::new_unquoted("COUNT")
+                                    .args(vec![FunctionArgExpr::Wildcard.into_arg()])
+                                    .into_expr(),
+                                models::Aggregate::ColumnCount {
+                                    distinct,
+                                    column: _,
+                                    field_path: _,
+                                } => {
+                                    let column = Expr::CompoundIdentifier(vec![
+                                        Ident::new_quoted("_row"),
+                                        Ident::new_quoted(format!("_agg_{alias}")),
+                                    ]);
+                                    Function::new_unquoted("COUNT")
+                                        .args(vec![column.into_arg()])
+                                        .distinct(*distinct)
+                                        .into_expr()
+                                }
+                                models::Aggregate::SingleColumn {
+                                    function,
+                                    column: _,
+                                    field_path: _,
+                                } => {
+                                    let column = Expr::CompoundIdentifier(vec![
+                                        Ident::new_quoted("_row"),
+                                        Ident::new_quoted(format!("_agg_{alias}")),
+                                    ]);
+                                    apply_function(&aggregate_function(function)?, column)
+                                }
                             }
-                            models::Aggregate::SingleColumn {
-                                function,
-                                column: _,
-                                field_path: _,
-                            } => {
-                                let column = Expr::CompoundIdentifier(vec![
-                                    Ident::new_quoted("_row"),
-                                    Ident::new_quoted(format!("_agg_{alias}")),
-                                ]);
-                                apply_function(&aggregate_function(function)?, column)
-                            }
-                        }
-                        .into_arg())
-                    })
-                    .collect::<Result<Vec<_>, QueryBuilderError>>()?;
-                Function::new_unquoted("tuple").args(args).into_expr()
-            })
+                            .into_arg()
+                            .with_alias(Ident::new_quoted(alias.as_str())))
+                        })
+                        .collect::<Result<Vec<_>, QueryBuilderError>>()?;
+                    Function::new_unquoted("tuple").args(args).into_expr()
+                }
+                .into_arg()
+                .with_alias(Ident::new_quoted("aggregates")),
+            )
         } else {
             None
         };
 
         let rowset = match (fields, aggregates) {
             (None, None) => Function::new_unquoted("map"),
-            (None, Some(aggregates)) => {
-                Function::new_unquoted("tuple").args(vec![aggregates.into_arg()])
-            }
-            (Some(fields), None) => Function::new_unquoted("tuple").args(vec![fields.into_arg()]),
+            (None, Some(aggregates)) => Function::new_unquoted("tuple").args(vec![aggregates]),
+            (Some(fields), None) => Function::new_unquoted("tuple").args(vec![fields]),
             (Some(fields), Some(aggregates)) => {
-                Function::new_unquoted("tuple").args(vec![fields.into_arg(), aggregates.into_arg()])
+                Function::new_unquoted("tuple").args(vec![fields, aggregates])
             }
         }
         .into_expr()
