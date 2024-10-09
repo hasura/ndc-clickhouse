@@ -59,7 +59,7 @@ jobs:
           git checkout -b $BRANCH_NAME
 
           # update version in Cargo.toml
-          sed -i 's/package.version = .*/package.version = "$RELEASE_VERSION"/' Cargo.toml
+          sed -i "s/package.version = .*/package.version = \"${RELEASE_VERSION}\"/" Cargo.toml
           # update version in Cargo.lock
           cargo update --workspace
 
