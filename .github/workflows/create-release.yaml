@@ -1,0 +1,79 @@
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "The kind of version bump we want. One of patch, minor, major."
+        required: true
+
+name: Create New Release
+
+jobs:
+  bump_version_pr:
+    name: Create version bump PR
+    runs-on: ubuntu-latest
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - run: |
+          set -evo pipefail
+
+          DATE_TODAY=$(date +"%Y-%m-%d")
+
+          CARGO_VERSION="$(cargo metadata --format-version=1 | jq -r '.packages | .[] | select(.name == "ndc-clickhouse-cli") | .version')"
+
+          BUMP_TYPE=${{ github.event.inputs.bump_type }}
+
+          # Split the version into its components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CARGO_VERSION"
+
+          # Update the version based on the bump type
+          case $BUMP_TYPE in
+              major)
+                  ((MAJOR++))
+                  MINOR=0
+                  PATCH=0
+                  ;;
+              minor)
+                  ((MINOR++))
+                  PATCH=0
+                  ;;
+              patch)
+                  ((PATCH++))
+                  ;;
+              *)
+                  echo "Invalid bump type: $BUMP_TYPE"
+                  exit 1
+                  ;;
+          esac
+
+          # Construct the new version string
+          RELEASE_VERSION="$major.$minor.$patch"
+
+          BRANCH_NAME="release-$RELEASE_VERSION"
+
+          # Create a new feature branch for the changes.
+          git checkout -b $BRANCH_NAME
+
+          # update version in Cargo.toml
+          sed -i 's/package.version = .*/package.version = "$RELEASE_VERSION"/' Cargo.toml
+          # update version in Cargo.lock
+          cargo update --workspace
+
+          CHANGELOG_TEMPLATE="## [Unreleased]\n\n## [$RELEASE_VERSION] - $DATE_TODAY"
+
+          sed -i "s/## \[Unreleased\]/$CHANGELOG_TEMPLATE/" CHANGELOG.md
+
+          git add .
+          git commit -m "Release ClickHouse v$RELEASE_VERSION"
+          git push origin $BRANCH_NAME
+
+          # create a pull-requests containing the updates.
+          gh pr create \
+            --body "Release ClickHouse v$RELEASE_VERSION" \
+            --title "Bump Clickhouse to $RELEASE_VERSION" \
+            --head "$BRANCH_NAME" \
+            --base "main"

@@ -1,0 +1,35 @@
+# on merge to main from a branch named release-*, create a tag based on version in Cargo.toml
+name: Bump version
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  build:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.merge_commit_sha }}
+        fetch-depth: '0'
+
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Read version from Cargo.toml
+      id: read-version
+      run: |
+        CARGO_VERSION="$(cargo metadata --format-version=1 | jq -r '.packages | .[] | select(.name == "ndc-clickhouse-cli") | .version')"
+        echo("::set-output name=RELEASE_VERSION::$CARGO_VERSION")
+
+    - name: Bump version and push tag
+      uses: anothrNick/github-tag-action@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_BRANCHES: release-.*
+        CUSTOM_TAG: v${{ steps.read-version.outputs.RELEASE_VERSION }}
