@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && startsWith(github.head_ref, 'release-')
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -25,11 +25,11 @@ jobs:
       id: read-version
       run: |
         CARGO_VERSION="$(cargo metadata --format-version=1 | jq -r '.packages | .[] | select(.name == "ndc-clickhouse-cli") | .version')"
-        echo("::set-output name=RELEASE_VERSION::$CARGO_VERSION")
+        echo("RELEASE_VERSION=$CARGO_VERSION") >> $GITHUB_ENV
 
     - name: Push Tag
       uses: anothrNick/github-tag-action@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         RELEASE_BRANCHES: release-.*
-        CUSTOM_TAG: v${{ steps.read-version.outputs.RELEASE_VERSION }}
+        CUSTOM_TAG: v${{ env.RELEASE_VERSION }}
