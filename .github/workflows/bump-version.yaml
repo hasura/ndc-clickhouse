@@ -29,6 +29,11 @@ jobs:
               exit 1
           fi
 
+          BRANCH_NAME="release-$NEW_VERSION"
+
+          # Create a new feature branch for the changes.
+          git checkout -b $BRANCH_NAME
+
           # update version in Cargo.toml
           sed -i 's/package.version = .*/package.version = "${NEW_VERSION}"/' Cargo.toml
           # update version in Cargo.lock
@@ -37,6 +42,17 @@ jobs:
           CHANGELOG_TEMPLATE="## [Unreleased]\n\n## [$NEW_VERSION] - $DATE_TODAY"
 
           sed -i "s/## \[Unreleased\]/$CHANGELOG_TEMPLATE/" CHANGELOG.md
+
+          git add .
+          git commit -m "Release ClickHouse v$NEW_VERSION"
+          git push origin $BRANCH_NAME
+
+          # create a pull-requests containing the updates.
+          gh pr create \
+            --body "Commit in ndc-clickhouse: https://github.com/hasura/ndc-clickhouse/commit/$RELEASE_HASH" \
+            --title "Bump Clickhouse to $NEW_VERSION" \
+            --head "$BRANCH_NAME" \
+            --base "main"
 
       - uses: peter-evans/create-pull-request@v7
         with:
