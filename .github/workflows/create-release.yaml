@@ -55,6 +55,9 @@ jobs:
 
           BRANCH_NAME="release-$RELEASE_VERSION"
 
+          git config --global user.name "hasura-bot"
+          git config --global user.email "accounts@hasura.io"
+
           # Create a new feature branch for the changes.
           git checkout -b $BRANCH_NAME
 
