@@ -18,11 +18,11 @@ FROM
       tuple(
         groupArray(
           tuple(
-            "_row"."_field_trackId",
-            "_row"."_field_name",
-            "_row"."_field_Album"
+            "_row"."_field_trackId" AS "trackId",
+            "_row"."_field_name" AS "name",
+            "_row"."_field_Album" AS "Album"
           )
-        )
+        ) AS "rows"
       ) AS "_rowset"
     FROM
       (
@@ -34,7 +34,9 @@ FROM
           "Chinook"."Track" AS "_origin"
           LEFT JOIN (
             SELECT
-              tuple(groupArray(tuple("_row"."_field_Artist"))) AS "_rowset",
+              tuple(
+                groupArray(tuple("_row"."_field_Artist" AS "Artist")) AS "rows"
+              ) AS "_rowset",
               "_row"."_relkey_AlbumId" AS "_relkey_AlbumId"
             FROM
               (
@@ -45,7 +47,9 @@ FROM
                   "Chinook"."Album" AS "_origin"
                   LEFT JOIN (
                     SELECT
-                      tuple(groupArray(tuple("_row"."_field_name"))) AS "_rowset",
+                      tuple(
+                        groupArray(tuple("_row"."_field_name" AS "name")) AS "rows"
+                      ) AS "_rowset",
                       "_row"."_relkey_ArtistId" AS "_relkey_ArtistId"
                     FROM
                       (

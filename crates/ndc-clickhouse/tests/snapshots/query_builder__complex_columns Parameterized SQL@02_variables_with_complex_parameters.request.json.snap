@@ -22,7 +22,9 @@ FROM
   "_vars" AS "_vars"
   LEFT JOIN (
     SELECT
-      tuple(groupArray(tuple("_row"."_field_field1"))) AS "_rowset",
+      tuple(
+        groupArray(tuple("_row"."_field_field1" AS "field1")) AS "rows"
+      ) AS "_rowset",
       "_row"."_varset_id" AS "_varset_id"
     FROM
       (
