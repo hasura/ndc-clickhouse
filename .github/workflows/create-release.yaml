@@ -51,7 +51,7 @@ jobs:
           esac
 
           # Construct the new version string
-          RELEASE_VERSION="$major.$minor.$patch"
+          RELEASE_VERSION="$MAJOR.$MINOR.$PATCH"
 
           BRANCH_NAME="release-$RELEASE_VERSION"
 
