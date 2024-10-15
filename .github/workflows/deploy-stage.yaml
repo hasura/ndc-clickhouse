@@ -221,7 +221,7 @@ jobs:
           tag: v${{ steps.get-version.outputs.tagged_version }}
           body: ${{ steps.changelog-reader.outputs.changes }}
           artifacts: release/artifacts/*
-  create-cli-plugin-index-pr:
+  create-cli-plugins-index-pr:
     name: Create CLI Plugin Index PR
     needs:
       - release
@@ -235,18 +235,20 @@ jobs:
         with:
           path: ndc-clickhouse
 
-      - name: check out cli-plugin-index
+      - name: check out cli-plugins-index
         uses: actions/checkout@v4
         with:
-          repository: hasura/cli-plugin-index
-          path: cli-plugin-index
+          repository: hasura/cli-plugins-index
+          path: cli-plugins-index
           token: ${{ secrets.HASURA_BOT_TOKEN }}
 
       - uses: actions/download-artifact@v4
         with:
           path: release/artifacts
           merge-multiple: true
-      - run: |
+
+      - name: create cli-plugins-index PR
+        run: |
           set -evo pipefail
           ROOT="$(pwd)"
 
@@ -256,7 +258,7 @@ jobs:
           RELEASE_HASH="$(cd ndc-clickhouse && git rev-parse HEAD)"
           
           # Change working directory to the target folder
-          cd cli-plugin-index
+          cd cli-plugins-index
 
           git config --global user.name "hasura-bot"
           git config --global user.email "accounts@hasura.io"
@@ -266,7 +268,7 @@ jobs:
 
           mkdir "plugins/clickhouse/$GITHUB_REF_NAME"
 
-          cp "${ROOT}/release/manifest.yaml" "${ROOT}/cli-plugin-index/plugins/clickhouse/$GITHUB_REF_NAME/manifest.yaml"
+          cp "${ROOT}/release/manifest.yaml" "${ROOT}/cli-plugins-index/plugins/clickhouse/$GITHUB_REF_NAME/manifest.yaml"
 
           git add .
           git commit -m "Release ClickHouse $GITHUB_REF_NAME"
@@ -318,7 +320,8 @@ jobs:
           path: release/artifacts
           merge-multiple: true
 
-      - run: |
+      - name: create ndc-hub PR
+        run: |
           set -evo pipefail
           ROOT="$(pwd)"
 
@@ -327,7 +330,7 @@ jobs:
 
           # These exported env vars are used for templating
           # Release version is the same as tag name, minus leading v.
-          export RELEASE_VERSION=${GITHUB_REF_NAME:1}"
+          export RELEASE_VERSION="${GITHUB_REF_NAME:1}"
           export RELEASE_HASH="$(cd ndc-clickhouse && git rev-parse HEAD)"
           export CONNECTOR_DEFINITION_HASH=$(sha256sum ${ROOT}/release/artifacts/connector-definition.tgz | cut -f1 -d' ')
           
