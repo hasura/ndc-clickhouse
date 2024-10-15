@@ -336,8 +336,8 @@ jobs:
 
           # modify metadata file to add new entry
           UPDATED_METADATA=cat "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json" |
-            jq '.overview.latest_version = $GITHUB_REF_NAME' |
-            jq '.source_code.version |= [{tag: $GITHUB_REF_NAME, hash: $RELEASE_HASH, is_verified: true}] + .'
+            jq ".overview.latest_version = $GITHUB_REF_NAME" |
+            jq ".source_code.version |= [{tag: $GITHUB_REF_NAME, hash: $RELEASE_HASH, is_verified: true}] + ."
 
           # write out modified metadata file
           echo "$UPDATED_METADATA" > "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json"
