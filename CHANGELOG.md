@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2024-10-15
+
 - Fix a bug where starting in clickhouse 24.7, users would get default values for the given data type instead of real results. #32
 
 ## [1.0.4] - 2024-10-05
