@@ -6,7 +6,7 @@ members = [
 ]
 resolver = "2"
 
-package.version = "1.0.4"
+package.version = "1.0.5"
 package.edition = "2021"
 
 # insta performs better in release mode
