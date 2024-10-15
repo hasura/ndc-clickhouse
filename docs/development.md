@@ -2,6 +2,8 @@
 
 This document details steps to running this connector with hasura ddn for local testing during connector development
 
+**This document in now oudated**
+
 ## Prerequisites
 
 - [ClickHouse Database](https://clickhouse.com/)
