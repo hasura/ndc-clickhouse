@@ -272,7 +272,7 @@ jobs:
 
           git add .
           git commit -m "Release ClickHouse $GITHUB_REF_NAME"
-          git push origin $BRANCH_NAME
+          git push origin $BRANCH_NAME --force
 
           # create a pull-requests containing the updates.
           gh pr create \
@@ -344,7 +344,7 @@ jobs:
 
           git add .
           git commit -m "Release ClickHouse $GITHUB_REF_NAME"
-          git push origin $BRANCH_NAME
+          git push origin $BRANCH_NAME --force
 
           # create a pull-requests containing the updates.
           gh pr create \
