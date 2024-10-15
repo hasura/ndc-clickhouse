@@ -32,4 +32,4 @@ jobs:
         git tag $VERSION_TAG
         git push --tags
         # Explicitly run our release workflow for this new tag
-        gh workflow run deploy-stage.yml --ref $VERSION_TAG
+        gh workflow run deploy-stage.yaml --ref $VERSION_TAG
