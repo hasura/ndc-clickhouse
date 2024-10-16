@@ -6,6 +6,7 @@ on:
       - closed
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -28,6 +29,10 @@ jobs:
       run: |
         CARGO_VERSION="$(cargo metadata --format-version=1 | jq -r '.packages | .[] | select(.name == "ndc-clickhouse-cli") | .version')"
         VERSION_TAG="v$CARGO_VERSION"
+        if git rev-parse "$VERSION_TAG" >/dev/null 2>&1; then
+            echo >&2 "Error: Tag '$VERSION_TAG' already exists."
+            exit 1
+        fi
         echo "Tagging $VERSION_TAG"
         git tag $VERSION_TAG
         git push --tags
