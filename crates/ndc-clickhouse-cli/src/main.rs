@@ -1,29 +1,28 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    env,
-    error::Error,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
-
 use clap::{Parser, Subcommand, ValueEnum};
 use common::{
-    capabilities::capabilities_response,
     clickhouse_parser::{
         datatype::ClickHouseDataType,
         parameterized_query::{Parameter, ParameterizedQuery, ParameterizedQueryElement},
     },
-    config::{read_server_config, ConfigurationEnvironment, ConnectionConfig},
+    config::ConnectionConfig,
     config_file::{
         ParameterizedQueryConfigFile, PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile,
         CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
     },
-    schema::schema_response,
 };
 use database_introspection::{introspect_database, TableInfo};
-use ndc_models::{CapabilitiesResponse, CollectionName, FieldName, SchemaResponse};
+use ndc_clickhouse_core::connector::setup::ClickhouseConnectorSetup;
+use ndc_models::{CollectionName, FieldName};
+use ndc_sdk_core::schema::print_schema_and_capabilities;
 use schemars::schema_for;
-use serde::Serialize;
+use std::{
+    collections::{BTreeMap, HashMap},
+    env,
+    error::Error,
+    io,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use tokio::fs;
 mod database_introspection;
 
@@ -85,7 +84,18 @@ enum Command {
     },
     Validate {},
     Watch {},
-    PrintSchemaAndCapabilities {},
+    PrintSchemaAndCapabilities {
+        #[arg(long = "clickhouse-url", value_name = "URL", env = "CLICKHOUSE_URL")]
+        url: String,
+        #[arg(long = "clickhouse-username", value_name = "USERNAME", env = "CLICKHOUSE_USERNAME", default_value_t = String::from("default"))]
+        username: String,
+        #[arg(
+            long = "clickhouse-password",
+            value_name = "PASSWORD",
+            env = "CLICKHOUSE_PASSWORD"
+        )]
+        password: String,
+    },
     UpgradeConfiguration {},
 }
 
@@ -98,12 +108,6 @@ enum LogLevel {
     Info,
     Debug,
     Trace,
-}
-
-#[derive(Serialize)]
-struct SchemaAndCapabilities {
-    schema: SchemaResponse,
-    capabilities: CapabilitiesResponse,
 }
 
 #[tokio::main]
@@ -155,28 +159,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Command::Watch {} => {
             todo!("implement watch command")
         }
-        Command::PrintSchemaAndCapabilities {} => {
-            // set mock values for required env vars, we won't be reading these anyways
+        Command::PrintSchemaAndCapabilities {
+            url,
+            username,
+            password,
+        } => {
+            // use simulated environment so env vars can be read from command line arguments
             let env = HashMap::from_iter(vec![
-                ("CLICKHOUSE_URL".to_owned(), "".to_owned()),
-                ("CLICKHOUSE_USERNAME".to_owned(), "".to_owned()),
-                ("CLICKHOUSE_PASSWORD".to_owned(), "".to_owned()),
+                ("CLICKHOUSE_URL".to_owned(), url),
+                ("CLICKHOUSE_USERNAME".to_owned(), username),
+                ("CLICKHOUSE_PASSWORD".to_owned(), password),
             ]);
-            let configuration = read_server_config(
-                context_path,
-                &ConfigurationEnvironment::from_simulated_environment(env),
-            )
-            .await?;
+            let setup = ClickhouseConnectorSetup::new_from_env(env);
 
-            let schema_and_capabilities = SchemaAndCapabilities {
-                schema: schema_response(&configuration),
-                capabilities: capabilities_response(),
-            };
-            println!(
-                "{}",
-                serde_json::to_string(&schema_and_capabilities)
-                    .expect("Schema and capabilities should serialize to JSON")
-            )
+            let mut stdout = io::stdout().lock();
+            print_schema_and_capabilities(setup, &context_path, &mut stdout).await?;
         }
         Command::UpgradeConfiguration {} => {
             println!("Upgrade Configuration command is currently a NOOP")

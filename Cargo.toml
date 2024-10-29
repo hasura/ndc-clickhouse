@@ -2,12 +2,18 @@
 members = [
   "crates/ndc-clickhouse",
   "crates/ndc-clickhouse-cli",
+  "crates/ndc-clickhouse-core",
   "crates/common",
 ]
 resolver = "2"
 
 package.version = "1.0.5"
 package.edition = "2021"
+
+[workspace.dependencies]
+ndc-models = { git = "http://github.com/hasura/ndc-spec.git", tag = "v0.1.6" }
+ndc-sdk = { git = "https://github.com/hasura/ndc-sdk-rs", tag = "v0.5.0", package = "ndc-sdk" }
+ndc-sdk-core = { git = "https://github.com/hasura/ndc-sdk-rs", tag = "v0.5.0", package = "ndc-sdk-core" }
 
 # insta performs better in release mode
 [profile.dev.package]

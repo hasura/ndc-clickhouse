@@ -4,8 +4,8 @@ use common::{
     schema::schema_response,
 };
 use insta::{assert_snapshot, assert_yaml_snapshot, glob};
-use ndc_clickhouse::sql::QueryBuilder;
-use ndc_sdk::models;
+use ndc_clickhouse_core::sql::QueryBuilder;
+use ndc_models as models;
 use schemars::schema_for;
 use std::{collections::HashMap, error::Error, fs, path::PathBuf};
 
@@ -24,7 +24,7 @@ async fn read_mock_configuration(schema_dir: &str) -> ServerConfig {
     ]);
     let config_dir = base_path().join(schema_dir).join("_config");
     read_server_config(
-        config_dir,
+        config_dir.as_path(),
         &ConfigurationEnvironment::from_simulated_environment(env),
     )
     .await

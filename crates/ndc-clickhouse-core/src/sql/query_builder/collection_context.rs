@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use ndc_sdk::models::{Argument, ArgumentName, CollectionName, Relationship, RelationshipArgument};
+use ndc_models::{Argument, ArgumentName, CollectionName, Relationship, RelationshipArgument};
 
 #[derive(Debug, Clone)]
 pub enum CollectionContext<'a, 'b> {

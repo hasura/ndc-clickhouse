@@ -1146,23 +1146,9 @@ dependencies = [
 name = "ndc-clickhouse"
 version = "1.0.5"
 dependencies = [
- "async-trait",
- "bytes",
- "common",
- "http 0.2.12",
- "indexmap 2.5.0",
- "insta",
+ "ndc-clickhouse-core",
  "ndc-sdk",
- "prometheus",
- "reqwest 0.12.7",
- "schemars",
- "serde",
- "serde_json",
- "sqlformat",
- "strum",
- "thiserror",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1172,12 +1158,36 @@ dependencies = [
  "clap",
  "common",
  "insta",
+ "ndc-clickhouse-core",
  "ndc-models",
+ "ndc-sdk-core",
  "reqwest 0.12.7",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "ndc-clickhouse-core"
+version = "1.0.5"
+dependencies = [
+ "async-trait",
+ "common",
+ "http 0.2.12",
+ "indexmap 2.5.0",
+ "insta",
+ "ndc-models",
+ "ndc-sdk-core",
+ "prometheus",
+ "reqwest 0.12.7",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sqlformat",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1196,17 +1206,16 @@ dependencies = [
 
 [[package]]
 name = "ndc-sdk"
-version = "0.4.0"
-source = "git+https://github.com/hasura/ndc-sdk-rs?tag=v0.4.0#665509f7d3b47ce4f014fc23f817a3599ba13933"
+version = "0.5.0"
+source = "git+https://github.com/hasura/ndc-sdk-rs?tag=v0.5.0#15840777b3700112a508bb116f1131804e800c13"
 dependencies = [
  "async-trait",
  "axum",
  "axum-extra",
- "bytes",
  "clap",
  "http 0.2.12",
- "mime",
  "ndc-models",
+ "ndc-sdk-core",
  "ndc-test",
  "opentelemetry",
  "opentelemetry-http",
@@ -1216,7 +1225,6 @@ dependencies = [
  "opentelemetry_sdk",
  "prometheus",
  "reqwest 0.11.27",
- "serde",
  "serde_json",
  "thiserror",
  "tokio",
@@ -1225,6 +1233,26 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "url",
+]
+
+[[package]]
+name = "ndc-sdk-core"
+version = "0.5.0"
+source = "git+https://github.com/hasura/ndc-sdk-rs?tag=v0.5.0#15840777b3700112a508bb116f1131804e800c13"
+dependencies = [
+ "async-trait",
+ "axum",
+ "bytes",
+ "http 0.2.12",
+ "mime",
+ "ndc-models",
+ "ndc-test",
+ "prometheus",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

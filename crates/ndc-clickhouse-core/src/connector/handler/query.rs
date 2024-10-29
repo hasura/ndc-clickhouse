@@ -1,5 +1,6 @@
 use common::{client::execute_query, config::ServerConfig};
-use ndc_sdk::{connector::ErrorResponse, json_response::JsonResponse, models};
+use ndc_models as models;
+use ndc_sdk_core::{connector::ErrorResponse, json_response::JsonResponse};
 use tracing::{Instrument, Level};
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};
