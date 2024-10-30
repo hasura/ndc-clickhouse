@@ -1,7 +1,7 @@
 use common::{client::execute_query, config::ServerConfig};
 use ndc_models as models;
 use ndc_sdk_core::{connector::ErrorResponse, json_response::JsonResponse};
-use tracing::{Instrument, Level};
+use tracing::Instrument;
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};
 
@@ -12,6 +12,7 @@ pub async fn query(
 ) -> Result<JsonResponse<models::QueryResponse>, ErrorResponse> {
     #[cfg(debug_assertions)]
     {
+        use tracing::Level;
         // this block only present in debug builds, to avoid leaking sensitive information
         let request_string = serde_json::to_string(&request).map_err(ErrorResponse::from_error)?;
 
@@ -26,6 +27,7 @@ pub async fn query(
 
                 #[cfg(debug_assertions)]
                 {
+                    use tracing::Level;
                     // this block only present in debug builds, to avoid leaking sensitive information
                     let unsafe_statement_string = QueryBuilder::new(&request, configuration)
                         .build_inlined()?
@@ -65,6 +67,7 @@ pub async fn query(
 
     #[cfg(debug_assertions)]
     {
+        use tracing::Level;
         // this block only present in debug builds, to avoid leaking sensitive information
         let result_string = std::str::from_utf8(&rowsets).map_err(ErrorResponse::from_error)?;
 
