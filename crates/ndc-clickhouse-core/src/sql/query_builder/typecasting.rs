@@ -7,8 +7,8 @@ use common::{
     },
 };
 use indexmap::IndexMap;
-use ndc_sdk::models::{
-    self, AggregateFunctionName, CollectionName, FieldName, NestedField, ObjectTypeName,
+use ndc_models::{
+    self as models, AggregateFunctionName, CollectionName, FieldName, NestedField, ObjectTypeName,
     RelationshipName,
 };
 use std::{collections::BTreeMap, str::FromStr};

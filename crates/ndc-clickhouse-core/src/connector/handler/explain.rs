@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-
 use common::{client::execute_json_query, config::ServerConfig};
-use ndc_sdk::{connector::ErrorResponse, json_response::JsonResponse, models};
+use ndc_models as models;
+use ndc_sdk_core::{connector::ErrorResponse, json_response::JsonResponse};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::{connector::state::ServerState, sql::QueryBuilder};
 

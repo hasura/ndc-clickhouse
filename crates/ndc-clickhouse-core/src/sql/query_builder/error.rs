@@ -1,13 +1,11 @@
 use super::typecasting::TypeStringError;
 use common::clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterType};
 use http::StatusCode;
-use ndc_sdk::{
-    connector::ErrorResponse,
-    models::{
-        AggregateFunctionName, ArgumentName, CollectionName, ComparisonOperatorName, FieldName,
-        ObjectTypeName, RelationshipName,
-    },
+use ndc_models::{
+    AggregateFunctionName, ArgumentName, CollectionName, ComparisonOperatorName, FieldName,
+    ObjectTypeName, RelationshipName,
 };
+use ndc_sdk_core::connector::ErrorResponse;
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum QueryBuilderError {

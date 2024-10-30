@@ -1,4 +1,4 @@
-use ndc_clickhouse::connector::setup::ClickhouseConnectorSetup;
+use ndc_clickhouse_core::connector::setup::ClickhouseConnectorSetup;
 use ndc_sdk::{connector::ErrorResponse, default_main::default_main};
 
 #[tokio::main]

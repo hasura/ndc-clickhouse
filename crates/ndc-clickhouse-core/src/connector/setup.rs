@@ -1,7 +1,7 @@
 use super::{state::ServerState, ClickhouseConnector};
 use async_trait::async_trait;
 use common::config::{read_server_config, ConfigurationEnvironment};
-use ndc_sdk::connector::{self, Connector, ConnectorSetup, ErrorResponse};
+use ndc_sdk_core::connector::{self, Connector, ConnectorSetup, ErrorResponse};
 use std::{collections::HashMap, path::Path};
 #[derive(Debug, Clone)]
 pub struct ClickhouseConnectorSetup(ConfigurationEnvironment);
@@ -12,7 +12,7 @@ impl ConnectorSetup for ClickhouseConnectorSetup {
 
     async fn parse_configuration(
         &self,
-        configuration_dir: impl AsRef<Path> + Send,
+        configuration_dir: &Path,
     ) -> connector::Result<<Self::Connector as Connector>::Configuration> {
         // we wrap read_server_config so the ParseError is implicitly converted into an ErrorResponse
         read_server_config(configuration_dir, &self.0)

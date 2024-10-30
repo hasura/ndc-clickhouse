@@ -6,10 +6,10 @@ use self::state::ServerState;
 use async_trait::async_trait;
 use common::{capabilities::capabilities, config::ServerConfig, schema::schema_response};
 use http::StatusCode;
-use ndc_sdk::{
+use ndc_models as models;
+use ndc_sdk_core::{
     connector::{Connector, ErrorResponse, Result},
     json_response::JsonResponse,
-    models,
 };
 
 #[derive(Debug, Clone, Default)]

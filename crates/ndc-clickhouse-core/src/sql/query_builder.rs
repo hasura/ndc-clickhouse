@@ -23,8 +23,8 @@ use comparison_column::ComparisonColumn;
 pub use error::QueryBuilderError;
 use function_expression::apply_function;
 use indexmap::IndexMap;
-use ndc_sdk::models::{
-    self, AggregateFunctionName, ArgumentName, CollectionName, FieldName, ObjectTypeName,
+use ndc_models::{
+    self as models, AggregateFunctionName, ArgumentName, CollectionName, FieldName, ObjectTypeName,
     RelationshipName, VariableName,
 };
 use parameter::ParameterBuilder;

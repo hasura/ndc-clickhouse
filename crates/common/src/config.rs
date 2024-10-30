@@ -143,10 +143,10 @@ pub fn get_connection_configuration(
 }
 
 pub async fn read_server_config(
-    configuration_dir: impl AsRef<Path> + Send,
+    configuration_dir: &Path,
     environment: &ConfigurationEnvironment,
 ) -> Result<ServerConfig, ConfigurationError> {
-    let file_path = configuration_dir.as_ref().join(CONFIG_FILE_NAME);
+    let file_path = configuration_dir.join(CONFIG_FILE_NAME);
 
     let connection = get_connection_configuration(environment)?;
 
@@ -259,7 +259,7 @@ pub async fn read_server_config(
     let mut queries = BTreeMap::new();
 
     for (query_alias, query_config) in config.queries.clone() {
-        let query_file_path = configuration_dir.as_ref().join(&query_config.file);
+        let query_file_path = configuration_dir.join(&query_config.file);
         let file_content =
             fs::read_to_string(&query_file_path)
                 .await
