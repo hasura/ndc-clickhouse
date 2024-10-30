@@ -316,8 +316,8 @@ jobs:
           BRANCH_NAME="clickhouse/release-$GITHUB_REF_NAME"
 
           # These exported env vars are used for templating
-          # Release version is the same as tag name, minus leading v.
-          export RELEASE_VERSION="${GITHUB_REF_NAME:1}"
+          # Release version is the same as tag name.
+          export RELEASE_VERSION="${GITHUB_REF_NAME}"
           export RELEASE_HASH="$(cd ndc-clickhouse && git rev-parse HEAD)"
           export CONNECTOR_DEFINITION_HASH=$(sha256sum ${ROOT}/release/artifacts/connector-definition.tgz | cut -f1 -d' ')
           
@@ -332,21 +332,21 @@ jobs:
 
           # create new connector definition
           mkdir "${ROOT}/ndc-hub/registry/hasura/clickhouse/releases/v$RELEASE_VERSION"
-          cat "${ROOT}/ndc-clickhouse/ci/templates/connector-packaging.json" | envsubst > "${ROOT}/ndc-hub/registry/hasura/clickhouse/releases/v$RELEASE_VERSION/connector-packaging.json"
+          cat "${ROOT}/ndc-clickhouse/ci/templates/connector-packaging.json" | envsubst > "${ROOT}/ndc-hub/registry/hasura/clickhouse/releases/$RELEASE_VERSION/connector-packaging.json"
 
           # modify metadata file to add new entry
-          UPDATED_METADATA= jq --arg RELEASE_VERSION "$GITHUB_REF_NAME" '.overview.latest_version = $RELEASE_VERSION' "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json" |
-            jq --arg RELEASE_VERSION "$GITHUB_REF_NAME" --arg RELEASE_HASH "$RELEASE_HASH" '.source_code.version |= [{tag: $RELEASE_VERSION, hash: $RELEASE_HASH, is_verified: true}] + .' > metadata.tmp.json
+          UPDATED_METADATA= jq --arg RELEASE_VERSION "$RELEASE_VERSION" '.overview.latest_version = $RELEASE_VERSION' "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json" |
+            jq --arg RELEASE_VERSION "$RELEASE_VERSION" --arg RELEASE_HASH "$RELEASE_HASH" '.source_code.version |= [{tag: $RELEASE_VERSION, hash: $RELEASE_HASH, is_verified: true}] + .' > metadata.tmp.json
 
           mv metadata.tmp.json "${ROOT}/ndc-hub/registry/hasura/clickhouse/metadata.json"
 
           git add .
-          git commit -m "Release ClickHouse $GITHUB_REF_NAME"
+          git commit -m "Release ClickHouse $RELEASE_VERSION"
           git push origin $BRANCH_NAME --force
 
           # create a pull-requests containing the updates.
           gh pr create \
             --body "Commit in ndc-clickhouse: https://github.com/hasura/ndc-clickhouse/commit/$RELEASE_HASH" \
-            --title "Release ClickHouse $GITHUB_REF_NAME" \
+            --title "Release ClickHouse $RELEASE_VERSION" \
             --head "$BRANCH_NAME" \
             --base "main"
