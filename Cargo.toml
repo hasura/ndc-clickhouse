@@ -12,8 +12,10 @@ package.edition = "2021"
 
 [workspace.dependencies]
 ndc-models = { git = "http://github.com/hasura/ndc-spec.git", tag = "v0.1.6" }
-ndc-sdk = { git = "https://github.com/hasura/ndc-sdk-rs", tag = "v0.5.0", package = "ndc-sdk" }
-ndc-sdk-core = { git = "https://github.com/hasura/ndc-sdk-rs", tag = "v0.5.0", package = "ndc-sdk-core" }
+ndc-sdk = { git = "https://github.com/hasura/ndc-sdk-rs", tag = "v0.5.0", package = "ndc-sdk", features = [
+  "rustls",
+], default-features = false }
+ndc-sdk-core = { git = "https://github.com/hasura/ndc-sdk-rs", tag = "v0.5.0", package = "ndc-sdk-core", default-features = false }
 
 # insta performs better in release mode
 [profile.dev.package]
