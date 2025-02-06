@@ -1,10 +1,8 @@
-use std::error::Error;
-
-use bytes::Bytes;
-use serde::{de::DeserializeOwned, Deserialize};
-use tracing::Instrument;
-
 use crate::config::ConnectionConfig;
+use bytes::Bytes;
+use serde::de::DeserializeOwned;
+use std::error::Error;
+use tracing::Instrument;
 
 pub fn get_http_client(
     _connection_config: &ConnectionConfig,
@@ -14,13 +12,13 @@ pub fn get_http_client(
     Ok(client)
 }
 
-pub async fn execute_query(
+async fn execute_query(
     client: &reqwest::Client,
     connection_config: &ConnectionConfig,
     statement: &str,
     parameters: &Vec<(String, String)>,
-) -> Result<Bytes, reqwest::Error> {
-    let response = client
+) -> Result<reqwest::Response, reqwest::Error> {
+    client
         .post(&connection_config.url)
         .header("X-ClickHouse-User", &connection_config.username)
         .header("X-ClickHouse-Key", &connection_config.password)
@@ -31,7 +29,16 @@ pub async fn execute_query(
             "Execute HTTP request",
             internal.visibility = "user"
         ))
-        .await?;
+        .await
+}
+
+pub async fn execute_bytes_query(
+    client: &reqwest::Client,
+    connection_config: &ConnectionConfig,
+    statement: &str,
+    parameters: &Vec<(String, String)>,
+) -> Result<Bytes, reqwest::Error> {
+    let response = execute_query(client, connection_config, statement, parameters).await?;
 
     let response = response
         .error_for_status()?
@@ -45,29 +52,38 @@ pub async fn execute_query(
     Ok(response)
 }
 
+pub async fn execute_text_query<T: DeserializeOwned>(
+    client: &reqwest::Client,
+    connection_config: &ConnectionConfig,
+    statement: &str,
+    parameters: &Vec<(String, String)>,
+) -> Result<String, reqwest::Error> {
+    let response = execute_query(client, connection_config, statement, parameters).await?;
+
+    let response = response
+        .error_for_status()?
+        .text()
+        .instrument(tracing::info_span!("Parse HTTP response"))
+        .await?;
+
+    Ok(response)
+}
+
 pub async fn execute_json_query<T: DeserializeOwned>(
     client: &reqwest::Client,
     connection_config: &ConnectionConfig,
     statement: &str,
     parameters: &Vec<(String, String)>,
-) -> Result<Vec<T>, reqwest::Error> {
-    let response = client
-        .post(&connection_config.url)
-        .header("X-ClickHouse-User", &connection_config.username)
-        .header("X-ClickHouse-Key", &connection_config.password)
-        .query(parameters)
-        .body(statement.to_owned())
-        .send()
-        .instrument(tracing::info_span!("Execute HTTP request"))
-        .await?;
+) -> Result<T, reqwest::Error> {
+    let response = execute_query(client, connection_config, statement, parameters).await?;
 
-    let payload: ClickHouseResponse<T> = response
+    let response: T = response
         .error_for_status()?
         .json()
         .instrument(tracing::info_span!("Parse HTTP response"))
         .await?;
 
-    Ok(payload.data)
+    Ok(response)
 }
 
 pub async fn ping(
@@ -90,25 +106,4 @@ pub async fn ping(
         .await?;
 
     Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-struct ClickHouseResponse<T> {
-    #[allow(dead_code)]
-    meta: Vec<ClickHouseResponseMeta>,
-    data: Vec<T>,
-    #[allow(dead_code)]
-    rows: u32,
-    // unsure about the specification for this object, it's likely to be somewhat dynamic
-    // keeping as an unspecified json value for now
-    #[allow(dead_code)]
-    statistics: serde_json::Value,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct ClickHouseResponseMeta {
-    name: String,
-    #[serde(rename = "type")]
-    column_type: String,
 }

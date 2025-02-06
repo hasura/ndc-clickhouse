@@ -1,4 +1,4 @@
-use common::{client::execute_json_query, config::ServerConfig};
+use common::{client::execute_text_query, config::ServerConfig};
 use ndc_models as models;
 use ndc_sdk_core::{connector::ErrorResponse, json_response::JsonResponse};
 use serde::{Deserialize, Serialize};
@@ -29,19 +29,13 @@ pub async fn explain(
         .await
         .map_err(ErrorResponse::from_error)?;
 
-    let explain = execute_json_query::<ExplainRow>(
+    let explain = execute_text_query::<ExplainRow>(
         &client,
         &configuration.connection,
         &parameterized_statement,
         &parameters,
     )
     .await
-    .map(|rows| {
-        rows.into_iter()
-            .map(|row| row.explain)
-            .collect::<Vec<String>>()
-            .join("\n")
-    })
     .unwrap_or_else(|err| err.to_string());
 
     let details = BTreeMap::from_iter(vec![

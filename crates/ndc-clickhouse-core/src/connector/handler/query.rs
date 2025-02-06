@@ -1,4 +1,4 @@
-use common::{client::execute_query, config::ServerConfig};
+use common::{client::execute_bytes_query, config::ServerConfig};
 use ndc_models as models;
 use ndc_sdk_core::{connector::ErrorResponse, json_response::JsonResponse};
 use tracing::Instrument;
@@ -55,7 +55,7 @@ pub async fn query(
         internal.visibility = "user",
     );
 
-    let rowsets = execute_query(
+    let rowsets = execute_bytes_query(
         &client,
         &configuration.connection,
         &statement_string,
