@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-02-07
+
 - ClickHouse 25.1 serializes booleans as 1/0 when using `FORMAT JSON`. We only used that in introspection. Change it to use `toJSONString` instead.
 - Fix returning explain query plan
 
