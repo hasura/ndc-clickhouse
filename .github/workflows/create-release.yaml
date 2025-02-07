@@ -34,16 +34,16 @@ jobs:
           # Update the version based on the bump type
           case $BUMP_TYPE in
               major)
-                  ((MAJOR++))
+                  ((++MAJOR))
                   MINOR=0
                   PATCH=0
                   ;;
               minor)
-                  ((MINOR++))
+                  ((++MINOR))
                   PATCH=0
                   ;;
               patch)
-                  ((PATCH++))
+                  ((++PATCH))
                   ;;
               *)
                   echo "Invalid bump type: $BUMP_TYPE"
