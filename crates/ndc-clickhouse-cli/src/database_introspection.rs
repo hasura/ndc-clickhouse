@@ -44,5 +44,6 @@ pub async fn introspect_database(
 ) -> Result<Vec<TableInfo>, reqwest::Error> {
     let introspection_sql = include_str!("./database_introspection.sql");
     let client = get_http_client(connection_config)?;
-    execute_json_query::<TableInfo>(&client, connection_config, introspection_sql, &vec![]).await
+    execute_json_query::<Vec<TableInfo>>(&client, connection_config, introspection_sql, &vec![])
+        .await
 }

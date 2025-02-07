@@ -1,7 +1,7 @@
 use std::fmt;
 
 pub struct EscapedString<'a>(&'a str);
-impl<'a> fmt::Display for EscapedString<'a> {
+impl fmt::Display for EscapedString<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for c in self.0.chars() {
             match c {

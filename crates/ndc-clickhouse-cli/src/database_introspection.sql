@@ -1,14 +1,20 @@
-SELECT t.table_name AS "table_name",
-    t.table_schema AS "table_schema",
-    t.table_catalog AS "table_catalog",
-    t.table_comment AS "table_comment",
-    if(empty(st.primary_key), null, st.primary_key) AS "primary_key",
-    toString(t.table_type) AS "table_type",
-    v.view_definition AS "view_definition",
+SELECT toJSONString(
     cast(
-        c.columns,
-        'Array(Tuple(column_name String, data_type String, is_nullable Bool, is_in_primary_key Bool))'
-    ) AS "columns"
+        groupArray(
+            tuple(
+                t.table_name,
+                t.table_schema,
+                t.table_catalog,
+                t.table_comment,
+                if(empty(st.primary_key), null, st.primary_key),
+                toString(t.table_type),
+                v.view_definition,
+                c.columns
+            )
+        ),
+        'Array(Tuple(table_name String, table_schema String, table_catalog String, table_comment Nullable(String), primary_key Nullable(String), table_type String, view_definition String, columns Array(Tuple(column_name String, data_type String, is_nullable Bool, is_in_primary_key Bool))))'
+    )
+)
 FROM INFORMATION_SCHEMA.TABLES AS t
     LEFT JOIN INFORMATION_SCHEMA.VIEWS AS v ON v.table_schema = t.table_schema
             AND v.table_name = t.table_name
@@ -40,4 +46,5 @@ WHERE t.table_catalog NOT IN (
         'system',
         'INFORMATION_SCHEMA',
         'information_schema'
-    ) FORMAT JSON;
+    )
+FORMAT TabSeparatedRaw;
