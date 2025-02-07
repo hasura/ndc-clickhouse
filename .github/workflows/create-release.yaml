@@ -21,6 +21,7 @@ jobs:
 
       - run: |
           set -evo pipefail
+          trap 'echo "Error occurred at line $LINENO: $BASH_COMMAND";' ERR
 
           DATE_TODAY=$(date +"%Y-%m-%d")
 

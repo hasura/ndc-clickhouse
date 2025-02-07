@@ -26,6 +26,9 @@ jobs:
     - name: Read version from Cargo.toml and push appropriate tag
       id: read-version
       run: |
+        set -evo pipefail
+        trap 'echo "Error occurred at line $LINENO: $BASH_COMMAND";' ERR
+
         CARGO_VERSION="$(cargo metadata --format-version=1 | jq -r '.packages | .[] | select(.name == "ndc-clickhouse-cli") | .version')"
         VERSION_TAG="v$CARGO_VERSION"
         if git rev-parse "$VERSION_TAG" >/dev/null 2>&1; then

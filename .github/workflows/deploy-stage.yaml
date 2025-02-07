@@ -105,6 +105,9 @@ jobs:
 
       - name: build the CLI
         run: |
+          set -evo pipefail
+          trap 'echo "Error occurred at line $LINENO: $BASH_COMMAND";' ERR
+
           # If we're on a tag, use the tag name as the release version.
           if [[ "$GITHUB_REF_TYPE" == 'tag' ]]; then
             # Ensure that the version specified in Cargo.toml is the same as the tag (with a 'v' prefix).
