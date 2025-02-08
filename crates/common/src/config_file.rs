@@ -65,7 +65,7 @@ pub enum ReturnType {
     /// A custom return type definition
     /// The keys are column names, the values are parsable clichouse datatypes
     Definition {
-        columns: BTreeMap<FieldName, MaybeClickhouseDataType>,
+        columns: BTreeMap<FieldName, ColumnDefinition>,
     },
     /// the same as the return type for another table
     TableReference {
@@ -78,6 +78,19 @@ pub enum ReturnType {
         /// the table alias must match a key in `tables`, and the query must return the same type as that table
         /// alternatively, the alias may reference another parameterized query which has a return type definition,
         query_name: CollectionName,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged, rename_all = "snake_case")]
+/// Either a data type, or an object with data_type and optional comment
+pub enum ColumnDefinition {
+    // note we use a string, rather than ClickHouseDataType.
+    // this is for json schema reasons
+    ShortHand(MaybeClickhouseDataType),
+    LongForm {
+        data_type: MaybeClickhouseDataType,
+        comment: Option<String>,
     },
 }
 
