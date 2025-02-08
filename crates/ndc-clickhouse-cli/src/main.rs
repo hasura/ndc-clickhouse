@@ -5,8 +5,8 @@ use common::{
     },
     config::ConnectionConfig,
     config_file::{
-        MaybeClickhouseDataType, ParameterizedQueryConfigFile, PrimaryKey, ReturnType,
-        ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+        ColumnDefinition, MaybeClickhouseDataType, ParameterizedQueryConfigFile, PrimaryKey,
+        ReturnType, ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
     },
 };
 use database_introspection::{introspect_database, TableInfo};
@@ -337,7 +337,14 @@ async fn validate_table_config(
                 }
             }
             ReturnType::Definition { columns } => {
-                for (field_name, data_type) in columns {
+                for (field_name, column) in columns {
+                    let data_type = match &column {
+                        ColumnDefinition::ShortHand(data_type)
+                        | ColumnDefinition::LongForm {
+                            data_type,
+                            comment: _,
+                        } => data_type,
+                    };
                     match data_type {
                         MaybeClickhouseDataType::Valid(_data_type) => {
                             // data type string is valid
@@ -414,7 +421,14 @@ async fn validate_table_config(
                 }
             }
             ReturnType::Definition { columns } => {
-                for (field_name, data_type) in columns {
+                for (field_name, column) in columns {
+                    let data_type = match &column {
+                        ColumnDefinition::ShortHand(data_type)
+                        | ColumnDefinition::LongForm {
+                            data_type,
+                            comment: _,
+                        } => data_type,
+                    };
                     match data_type {
                         MaybeClickhouseDataType::Valid(_data_type) => {
                             // data type string is valid
