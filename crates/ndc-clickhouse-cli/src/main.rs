@@ -573,14 +573,21 @@ fn get_table_return_type(
 /// If that happens, we want to write out the new configuration including the invalid data type,
 /// and rely on the validation step to let the user know something is wrong
 /// This allows user to see exactly where the invalid type comes from
-fn get_return_type_columns(table: &TableInfo) -> BTreeMap<FieldName, MaybeClickhouseDataType> {
+fn get_return_type_columns(table: &TableInfo) -> BTreeMap<FieldName, ColumnDefinition> {
     table
         .columns
         .iter()
         .map(|column| {
             (
                 column.column_name.to_string().into(),
-                column.data_type.to_owned(),
+                if column.column_comment.is_empty() {
+                    ColumnDefinition::ShortHand(column.data_type.to_owned())
+                } else {
+                    ColumnDefinition::LongForm {
+                        data_type: column.data_type.to_owned(),
+                        comment: Some(column.column_comment.to_owned()),
+                    }
+                },
             )
         })
         .collect()
