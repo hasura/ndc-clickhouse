@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Improve error reporting of malformed column data types in configuration and introspection
 
+- Support comments on columns. This involves a backwards compatible configuration change. New cli and connector versions will be able to read the configuration that includes comments, but older connectors and cli versions will error out.
+- Improve error reporting of malformed column data types in configuration and introspection
+
 ## [1.1.0] - 2025-02-07
 
 - ClickHouse 25.1 serializes booleans as 1/0 when using `FORMAT JSON`. We only used that in introspection. Change it to use `toJSONString` instead.
