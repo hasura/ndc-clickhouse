@@ -23,7 +23,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
         let mut fields = vec![];
         for (column_alias, column_type) in &table_type.columns {
             let type_definition = ClickHouseTypeDefinition::from_table_column(
-                column_type,
+                &column_type.data_type,
                 column_alias,
                 type_name,
                 &configuration.namespace_separator,
@@ -44,7 +44,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
             fields.push((
                 column_alias.to_owned(),
                 models::ObjectField {
-                    description: None,
+                    description: column_type.comment.to_owned(),
                     r#type: type_definition.type_identifier(),
                     arguments: BTreeMap::new(),
                 },
