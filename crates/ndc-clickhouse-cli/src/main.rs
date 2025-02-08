@@ -145,14 +145,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
             };
 
             let introspection = introspect_database(&connection).await?;
+            println!("Database introspected successfully!");
             let config = update_tables_config(&context_path, &introspection).await?;
+            println!("Configuration updated successfully!");
             validate_table_config(&context_path, &config).await?;
+            println!("Configuration validated successfully!");
         }
         Command::Validate {} => {
             let file_path = context_path.join(CONFIG_FILE_NAME);
             let config = read_config_file(&file_path).await?;
             if let Some(config) = config {
                 validate_table_config(&context_path, &config).await?;
+                println!("Configuration validated successfully!");
+            } else {
+                println!("Configuration file not found")
             }
         }
         Command::Watch {} => {
