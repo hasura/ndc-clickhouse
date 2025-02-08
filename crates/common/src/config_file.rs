@@ -85,8 +85,6 @@ pub enum ReturnType {
 #[serde(untagged, rename_all = "snake_case")]
 /// Either a data type, or an object with data_type and optional comment
 pub enum ColumnDefinition {
-    // note we use a string, rather than ClickHouseDataType.
-    // this is for json schema reasons
     ShortHand(MaybeClickhouseDataType),
     LongForm {
         data_type: MaybeClickhouseDataType,
