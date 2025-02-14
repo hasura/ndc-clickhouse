@@ -1,9 +1,8 @@
 use crate::{
     clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery},
     config_file::{
-        MaybeClickhouseDataType, ParameterizedQueryConfigFile,
-        ParameterizedQueryExposedAs, PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile,
-        CONFIG_FILE_NAME,
+        MaybeClickhouseDataType, ParameterizedQueryConfigFile, ParameterizedQueryExposedAs,
+        PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME,
     },
     format::display_period_separated,
 };
@@ -315,7 +314,7 @@ fn validate_and_parse_return_type(
     config: &ServerConfigFile,
     file_path: &Path,
     node_path: &[&str],
-) -> Result<Option<BTreeMap<FieldName, ClickHouseDataType                                                               >>, ConfigurationError> {
+) -> Result<Option<BTreeMap<FieldName, ClickHouseDataType>>, ConfigurationError> {
     let get_node_path = |extra_segments: &[&str]| {
         node_path
             .iter()

@@ -5,8 +5,8 @@ use common::{
     },
     config::ConnectionConfig,
     config_file::{
-         MaybeClickhouseDataType, ParameterizedQueryConfigFile, PrimaryKey,
-        ReturnType, ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+        MaybeClickhouseDataType, ParameterizedQueryConfigFile, PrimaryKey, ReturnType,
+        ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
     },
 };
 use database_introspection::{introspect_database, TableInfo};
