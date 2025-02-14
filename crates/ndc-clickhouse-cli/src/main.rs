@@ -1,13 +1,12 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use common::{
-    clickhouse_parser::{
-        datatype::ClickHouseDataType,
-        parameterized_query::{Parameter, ParameterizedQuery, ParameterizedQueryElement},
+    clickhouse_parser::parameterized_query::{
+        Parameter, ParameterizedQuery, ParameterizedQueryElement,
     },
     config::ConnectionConfig,
     config_file::{
-        ParameterizedQueryConfigFile, PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile,
-        CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+         MaybeClickhouseDataType, ParameterizedQueryConfigFile, PrimaryKey,
+        ReturnType, ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
     },
 };
 use database_introspection::{introspect_database, TableInfo};
@@ -332,14 +331,18 @@ async fn validate_table_config(
                 }
             }
             ReturnType::Definition { columns } => {
-                for (column_alias, column_data_type) in columns {
-                    let _data_type =
-                        ClickHouseDataType::from_str(column_data_type).map_err(|err| {
-                            format!(
-                                "Unable to parse data type \"{}\" for column {} in table {}: {}",
-                                column_data_type, column_alias, table_alias, err
+                for (field_name, data_type) in columns {
+                    match data_type {
+                        MaybeClickhouseDataType::Valid(_data_type) => {
+                            // data type string is valid
+                        }
+                        MaybeClickhouseDataType::Invalid(malformed_string) => {
+                            return Err(format!(
+                                "Invalid data type \"{malformed_string}\" for field \"{field_name}\" of table \"{table_alias}\""
                             )
-                        })?;
+                            .into());
+                        }
+                    }
                 }
             }
         }
@@ -405,14 +408,18 @@ async fn validate_table_config(
                 }
             }
             ReturnType::Definition { columns } => {
-                for (column_name, column_data_type) in columns {
-                    let _data_type =
-                        ClickHouseDataType::from_str(column_data_type).map_err(|err| {
-                            format!(
-                                "Unable to parse data type \"{}\" for field {} in query {}: {}",
-                                column_data_type, column_name, query_alias, err
+                for (field_name, data_type) in columns {
+                    match data_type {
+                        MaybeClickhouseDataType::Valid(_data_type) => {
+                            // data type string is valid
+                        }
+                        MaybeClickhouseDataType::Invalid(malformed_string) => {
+                            return Err(format!(
+                                "Invalid data type \"{malformed_string}\" for field \"{field_name}\" of native query \"{query_alias}\""
                             )
-                        })?;
+                            .into());
+                        }
+                    }
                 }
             }
         }
@@ -554,7 +561,13 @@ fn get_table_return_type(
     })
 }
 
-fn get_return_type_columns(table: &TableInfo) -> BTreeMap<FieldName, String> {
+/// Convert an introspected table info into return type columns
+/// Note we intentionally do _not_ validate the column data type
+/// New data types not yet supported in the connector could be considered invalid
+/// If that happens, we want to write out the new configuration including the invalid data type,
+/// and rely on the validation step to let the user know something is wrong
+/// This allows user to see exactly where the invalid type comes from
+fn get_return_type_columns(table: &TableInfo) -> BTreeMap<FieldName, MaybeClickhouseDataType> {
     table
         .columns
         .iter()
