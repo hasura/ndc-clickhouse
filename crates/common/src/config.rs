@@ -1,8 +1,8 @@
 use crate::{
     clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery},
     config_file::{
-        ParameterizedQueryConfigFile, ParameterizedQueryExposedAs, PrimaryKey, ReturnType,
-        ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME,
+        MaybeClickhouseDataType, ParameterizedQueryConfigFile, ParameterizedQueryExposedAs,
+        PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME,
     },
     format::display_period_separated,
 };
@@ -369,19 +369,12 @@ fn validate_and_parse_return_type(
         ReturnType::Definition { columns } => Ok(Some(
             columns
                 .iter()
-                .map(|(field_alias, field_type)| {
-                    let data_type =
-                        ClickHouseDataType::from_str(field_type).map_err(|err| {
-                            ConfigurationError::ValidateError {
-                                            file_path: file_path.to_path_buf(),
-                                node_path: get_node_path(&["columns", field_alias.inner()]),
-                                message: format!(
-                                    "Unable to parse data type \"{}\": {}",
-                                    field_type, err
-                                ),
-                            }
-                        })?;
-                    Ok((field_alias.to_owned(), data_type))
+                .map(|(field_alias, data_type)| {
+                    let node_path =  get_node_path(&["columns", field_alias.inner()]);
+                    match data_type {
+                        MaybeClickhouseDataType::Valid(data_type) => Ok((field_alias.to_owned(), data_type.to_owned() )),
+                        MaybeClickhouseDataType::Invalid(malformed_string) => Err(ConfigurationError::ValidateError { file_path: file_path.into(), node_path, message: format!("Invalid data type \"{malformed_string}\"") }),
+                    }
                 })
                 .collect::<Result<BTreeMap<FieldName, ClickHouseDataType>, ConfigurationError>>()?,
         )),

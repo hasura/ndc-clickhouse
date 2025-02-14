@@ -1,6 +1,7 @@
 use common::{
     client::{execute_json_query, get_http_client},
     config::ConnectionConfig,
+    config_file::MaybeClickhouseDataType,
 };
 use serde::Deserialize;
 
@@ -21,7 +22,7 @@ pub struct TableInfo {
 #[derive(Debug, Deserialize)]
 pub struct ColumnInfo {
     pub column_name: String,
-    pub data_type: String,
+    pub data_type: MaybeClickhouseDataType,
     #[allow(dead_code)]
     pub is_nullable: bool,
     pub is_in_primary_key: bool,

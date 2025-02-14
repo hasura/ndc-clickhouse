@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
-
+use crate::clickhouse_parser::datatype::ClickHouseDataType;
 use ndc_models::{ArgumentName, CollectionName, FieldName};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 /// the main configuration file
 pub struct ServerConfigFile {
     #[serde(rename = "$schema")]
@@ -33,7 +33,7 @@ impl Default for ServerConfigFile {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct TableConfigFile {
     /// The table name
     pub name: String,
@@ -59,13 +59,13 @@ pub struct PrimaryKey {
     pub columns: Vec<FieldName>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ReturnType {
     /// A custom return type definition
     /// The keys are column names, the values are parsable clichouse datatypes
     Definition {
-        columns: BTreeMap<FieldName, String>,
+        columns: BTreeMap<FieldName, MaybeClickhouseDataType>,
     },
     /// the same as the return type for another table
     TableReference {
@@ -81,6 +81,32 @@ pub enum ReturnType {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged, rename_all = "snake_case")]
+pub enum MaybeClickhouseDataType {
+    Valid(ClickHouseDataType),
+    Invalid(String),
+}
+
+// JSONSchema for MaybeClickhouseDataType is String
+impl JsonSchema for MaybeClickhouseDataType {
+    fn schema_name() -> String {
+        String::schema_name()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        String::json_schema(gen)
+    }
+
+    fn is_referenceable() -> bool {
+        String::is_referenceable()
+    }
+
+    fn schema_id() -> std::borrow::Cow<'static, str> {
+        String::schema_id()
+    }
+}
+
 impl Default for ReturnType {
     fn default() -> Self {
         Self::Definition {
@@ -89,7 +115,7 @@ impl Default for ReturnType {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ParameterizedQueryConfigFile {
     /// Whether this query should be exposed as a procedure (mutating) or collection (non-mutating)
     pub exposed_as: ParameterizedQueryExposedAs,
