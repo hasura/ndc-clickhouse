@@ -5,8 +5,8 @@ use common::{
     },
     config::ConnectionConfig,
     config_file::{
-        MaybeClickhouseDataType, ParameterizedQueryConfigFile, PrimaryKey, ReturnType,
-        ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
+        ColumnDefinition, MaybeClickhouseDataType, ParameterizedQueryConfigFile, PrimaryKey,
+        ReturnType, ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME, CONFIG_SCHEMA_FILE_NAME,
     },
 };
 use database_introspection::{introspect_database, TableInfo};
@@ -145,14 +145,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
             };
 
             let introspection = introspect_database(&connection).await?;
+            println!("Database introspected successfully!");
             let config = update_tables_config(&context_path, &introspection).await?;
+            println!("Configuration updated successfully!");
             validate_table_config(&context_path, &config).await?;
+            println!("Configuration validated successfully!");
         }
         Command::Validate {} => {
             let file_path = context_path.join(CONFIG_FILE_NAME);
             let config = read_config_file(&file_path).await?;
             if let Some(config) = config {
                 validate_table_config(&context_path, &config).await?;
+                println!("Configuration validated successfully!");
+            } else {
+                println!("Configuration file not found")
             }
         }
         Command::Watch {} => {
@@ -331,7 +337,14 @@ async fn validate_table_config(
                 }
             }
             ReturnType::Definition { columns } => {
-                for (field_name, data_type) in columns {
+                for (field_name, column) in columns {
+                    let data_type = match &column {
+                        ColumnDefinition::ShortHand(data_type)
+                        | ColumnDefinition::LongForm {
+                            data_type,
+                            comment: _,
+                        } => data_type,
+                    };
                     match data_type {
                         MaybeClickhouseDataType::Valid(_data_type) => {
                             // data type string is valid
@@ -408,7 +421,14 @@ async fn validate_table_config(
                 }
             }
             ReturnType::Definition { columns } => {
-                for (field_name, data_type) in columns {
+                for (field_name, column) in columns {
+                    let data_type = match &column {
+                        ColumnDefinition::ShortHand(data_type)
+                        | ColumnDefinition::LongForm {
+                            data_type,
+                            comment: _,
+                        } => data_type,
+                    };
                     match data_type {
                         MaybeClickhouseDataType::Valid(_data_type) => {
                             // data type string is valid
@@ -567,14 +587,21 @@ fn get_table_return_type(
 /// If that happens, we want to write out the new configuration including the invalid data type,
 /// and rely on the validation step to let the user know something is wrong
 /// This allows user to see exactly where the invalid type comes from
-fn get_return_type_columns(table: &TableInfo) -> BTreeMap<FieldName, MaybeClickhouseDataType> {
+fn get_return_type_columns(table: &TableInfo) -> BTreeMap<FieldName, ColumnDefinition> {
     table
         .columns
         .iter()
         .map(|column| {
             (
                 column.column_name.to_string().into(),
-                column.data_type.to_owned(),
+                if column.column_comment.is_empty() {
+                    ColumnDefinition::ShortHand(column.data_type.to_owned())
+                } else {
+                    ColumnDefinition::LongForm {
+                        data_type: column.data_type.to_owned(),
+                        comment: Some(column.column_comment.to_owned()),
+                    }
+                },
             )
         })
         .collect()

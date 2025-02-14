@@ -1967,11 +1967,16 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             .get(return_type)
             .ok_or_else(|| QueryBuilderError::UnknownTableType(return_type.to_owned()))?;
 
-        let column_type = table_type.columns.get(column_alias).ok_or_else(|| {
-            QueryBuilderError::UnknownColumn(column_alias.to_owned(), return_type.to_owned())
-        })?;
+        let column_type = table_type
+            .columns
+            .get(column_alias)
+            .ok_or_else(|| {
+                QueryBuilderError::UnknownColumn(column_alias.to_owned(), return_type.to_owned())
+            })?
+            .data_type
+            .to_owned();
 
-        Ok(column_type.to_owned())
+        Ok(column_type)
     }
     fn column_accessor(
         &self,

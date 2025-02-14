@@ -1,8 +1,9 @@
 use crate::{
     clickhouse_parser::{datatype::ClickHouseDataType, parameterized_query::ParameterizedQuery},
     config_file::{
-        MaybeClickhouseDataType, ParameterizedQueryConfigFile, ParameterizedQueryExposedAs,
-        PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile, CONFIG_FILE_NAME,
+        ColumnDefinition, MaybeClickhouseDataType, ParameterizedQueryConfigFile,
+        ParameterizedQueryExposedAs, PrimaryKey, ReturnType, ServerConfigFile, TableConfigFile,
+        CONFIG_FILE_NAME,
     },
     format::display_period_separated,
 };
@@ -29,7 +30,13 @@ pub struct ServerConfig {
 #[derive(Debug, Clone)]
 pub struct TableType {
     pub comment: Option<String>,
-    pub columns: BTreeMap<FieldName, ClickHouseDataType>,
+    pub columns: BTreeMap<FieldName, ColumnType>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ColumnType {
+    pub comment: Option<String>,
+    pub data_type: ClickHouseDataType,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -314,7 +321,7 @@ fn validate_and_parse_return_type(
     config: &ServerConfigFile,
     file_path: &Path,
     node_path: &[&str],
-) -> Result<Option<BTreeMap<FieldName, ClickHouseDataType>>, ConfigurationError> {
+) -> Result<Option<BTreeMap<FieldName, ColumnType>>, ConfigurationError> {
     let get_node_path = |extra_segments: &[&str]| {
         node_path
             .iter()
@@ -369,14 +376,19 @@ fn validate_and_parse_return_type(
         ReturnType::Definition { columns } => Ok(Some(
             columns
                 .iter()
-                .map(|(field_alias, data_type)| {
-                    let node_path =  get_node_path(&["columns", field_alias.inner()]);
+                .map(|(field_alias, field_info)| {
+                    let (data_type, comment, node_path) = match field_info {
+                        ColumnDefinition::ShortHand(data_type) => (data_type, &None, get_node_path(&["columns", field_alias.inner()])),
+                        ColumnDefinition::LongForm { data_type, comment } => (data_type, comment, get_node_path(&["columns", field_alias.inner(), "data_type"])),
+                    };
+                    // set empty comment to None
+                    let comment = comment.as_ref().filter(|comment| !comment.is_empty());
                     match data_type {
-                        MaybeClickhouseDataType::Valid(data_type) => Ok((field_alias.to_owned(), data_type.to_owned() )),
+                        MaybeClickhouseDataType::Valid(data_type) => Ok((field_alias.to_owned(), ColumnType { data_type: data_type.to_owned(), comment: comment.cloned() })),
                         MaybeClickhouseDataType::Invalid(malformed_string) => Err(ConfigurationError::ValidateError { file_path: file_path.into(), node_path, message: format!("Invalid data type \"{malformed_string}\"") }),
                     }
                 })
-                .collect::<Result<BTreeMap<FieldName, ClickHouseDataType>, ConfigurationError>>()?,
+                .collect::<Result<BTreeMap<FieldName, ColumnType>, ConfigurationError>>()?,
         )),
     }
 }
