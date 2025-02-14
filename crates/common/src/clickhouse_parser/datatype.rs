@@ -1,6 +1,6 @@
-use std::{fmt::Display, str::FromStr};
-
 use serde::{Deserialize, Serialize};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
+use std::{fmt::Display, str::FromStr};
 
 use super::clickhouse_parser;
 
@@ -13,7 +13,7 @@ impl Display for SingleQuotedString {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Identifier {
     DoubleQuoted(String),
     BacktickQuoted(String),
@@ -88,7 +88,7 @@ impl Display for AggregateFunctionParameter {
 /// A parsed representation of a clickhouse datatype string
 /// This should support the full scope of clickhouse types
 /// To create one from a string slice, use from_str()
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, DeserializeFromStr, SerializeDisplay)]
 pub enum ClickHouseDataType {
     Nullable(Box<ClickHouseDataType>),
     Bool,
