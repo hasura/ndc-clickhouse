@@ -1,21 +1,29 @@
 use ndc_models::{
-    Capabilities, CapabilitiesResponse, ExistsCapabilities, LeafCapability, MutationCapabilities,
-    NestedFieldCapabilities, QueryCapabilities, RelationshipCapabilities, VERSION,
+    AggregateCapabilities, Capabilities, CapabilitiesResponse, ExistsCapabilities, LeafCapability,
+    MutationCapabilities, NestedFieldCapabilities, QueryCapabilities, RelationshipCapabilities,
+    VERSION,
 };
 
 pub fn capabilities() -> Capabilities {
     Capabilities {
         query: QueryCapabilities {
-            aggregates: Some(LeafCapability {}),
+            aggregates: Some(AggregateCapabilities {
+                filter_by: None,
+                group_by: None,
+            }),
             variables: Some(LeafCapability {}),
             explain: Some(LeafCapability {}),
             nested_fields: NestedFieldCapabilities {
                 filter_by: None,
                 order_by: None,
                 aggregates: None,
+                nested_collections: None,
             },
             exists: ExistsCapabilities {
                 nested_collections: None,
+                unrelated: None,
+                named_scopes: None,
+                nested_scalar_collections: None,
             },
         },
         mutation: MutationCapabilities {
@@ -25,7 +33,10 @@ pub fn capabilities() -> Capabilities {
         relationships: Some(RelationshipCapabilities {
             relation_comparisons: Some(LeafCapability {}),
             order_by_aggregate: Some(LeafCapability {}),
+            nested: None,
         }),
+        relational_query: None,
+        relational_mutation: None,
     }
 }
 

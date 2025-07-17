@@ -7,7 +7,7 @@ edition.workspace = true
 bytes = "1.6.0"
 peg = "0.8.2"
 indexmap = "2.1.0"
-ndc-models = { git = "http://github.com/hasura/ndc-spec.git", tag = "v0.1.6" }
+ndc-models = { workspace = true } 
 reqwest = { version = "0.12.3", features = [
     "json",
     "rustls-tls",

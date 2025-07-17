@@ -2,3 +2,6 @@
 /.idea
 .env
 /config
+
+# direnv
+.envrc.local

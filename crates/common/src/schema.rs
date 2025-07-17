@@ -56,6 +56,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
             models::ObjectType {
                 description: table_type.comment.to_owned(),
                 fields: fields.into_iter().collect(),
+                foreign_keys: BTreeMap::new(),
             },
         );
     }
@@ -117,6 +118,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
         .map(|(table_alias, table_config)| models::CollectionInfo {
             name: table_alias.to_owned(),
             description: table_config.comment.to_owned(),
+            relational_mutations: None,
             arguments: table_config
                 .arguments
                 .iter()
@@ -148,7 +150,6 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
                     )])
                 },
             ),
-            foreign_keys: BTreeMap::new(),
         });
 
     let query_collections = configuration
@@ -195,7 +196,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
                 arguments,
                 collection_type: query_config.return_type.to_owned(),
                 uniqueness_constraints: BTreeMap::new(),
-                foreign_keys: BTreeMap::new(),
+                relational_mutations: None,
             }
         });
 
@@ -209,5 +210,7 @@ pub fn schema_response(configuration: &ServerConfig) -> models::SchemaResponse {
         collections,
         functions: vec![],
         procedures: vec![],
+        capabilities: None,
+        request_arguments: None,
     }
 }

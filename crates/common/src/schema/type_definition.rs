@@ -48,13 +48,14 @@ impl ClickHouseScalar {
     fn type_definition(&self) -> models::ScalarType {
         models::ScalarType {
             representation: self.json_representation(),
+            extraction_functions: BTreeMap::new(),
             aggregate_functions: self
                 .aggregate_functions()
                 .into_iter()
                 .map(|(function, result_type)| {
                     (
                         function.to_string().into(),
-                        models::AggregateFunctionDefinition {
+                        models::AggregateFunctionDefinition::Custom {
                             result_type: models::Type::Named {
                                 name: result_type.to_string().into(),
                             },
@@ -104,46 +105,46 @@ impl ClickHouseScalar {
                 .collect(),
         }
     }
-    fn json_representation(&self) -> Option<models::TypeRepresentation> {
+    fn json_representation(&self) -> models::TypeRepresentation {
         use models::TypeRepresentation as Rep;
         match &self.0 {
-            ClickHouseDataType::Bool => Some(Rep::Boolean),
-            ClickHouseDataType::String => Some(Rep::String),
-            ClickHouseDataType::UInt8 => Some(Rep::Int16), // Unsigned int8 fits into signed int16
-            ClickHouseDataType::UInt16 => Some(Rep::Int32), // Unsigned int16 fits into signed int32
-            ClickHouseDataType::UInt32 => Some(Rep::Int64), // Unsigned int32 fits into signed int64
-            ClickHouseDataType::UInt64 => Some(Rep::BigInteger), // Unsigned int64 will have to go into BigInteger
-            ClickHouseDataType::UInt128 => Some(Rep::BigInteger), // Unsigned int128 will have to go into BigInteger
-            ClickHouseDataType::UInt256 => Some(Rep::BigInteger), // Unsigned int256 will have to go into BigInteger
-            ClickHouseDataType::Int8 => Some(Rep::Int8),
-            ClickHouseDataType::Int16 => Some(Rep::Int16),
-            ClickHouseDataType::Int32 => Some(Rep::Int32),
-            ClickHouseDataType::Int64 => Some(Rep::Int64),
-            ClickHouseDataType::Int128 => Some(Rep::BigInteger),
-            ClickHouseDataType::Int256 => Some(Rep::BigInteger),
-            ClickHouseDataType::Float32 => Some(Rep::Float32),
-            ClickHouseDataType::Float64 => Some(Rep::Float64),
-            ClickHouseDataType::Decimal { .. } => Some(Rep::BigDecimal),
-            ClickHouseDataType::Decimal32 { .. } => Some(Rep::String),
-            ClickHouseDataType::Decimal64 { .. } => Some(Rep::String),
-            ClickHouseDataType::Decimal128 { .. } => Some(Rep::String),
-            ClickHouseDataType::Decimal256 { .. } => Some(Rep::String),
-            ClickHouseDataType::Date => Some(Rep::String),
-            ClickHouseDataType::Date32 => Some(Rep::String),
-            ClickHouseDataType::DateTime { .. } => Some(Rep::String),
-            ClickHouseDataType::DateTime64 { .. } => Some(Rep::String),
-            ClickHouseDataType::Uuid => Some(Rep::String),
-            ClickHouseDataType::IPv4 => Some(Rep::String),
-            ClickHouseDataType::IPv6 => Some(Rep::String),
+            ClickHouseDataType::Bool => Rep::Boolean,
+            ClickHouseDataType::String => Rep::String,
+            ClickHouseDataType::UInt8 => Rep::Int16, // Unsigned int8 fits into signed int16
+            ClickHouseDataType::UInt16 => Rep::Int32, // Unsigned int16 fits into signed int32
+            ClickHouseDataType::UInt32 => Rep::Int64, // Unsigned int32 fits into signed int64
+            ClickHouseDataType::UInt64 => Rep::BigInteger, // Unsigned int64 will have to go into BigInteger
+            ClickHouseDataType::UInt128 => Rep::BigInteger, // Unsigned int128 will have to go into BigInteger
+            ClickHouseDataType::UInt256 => Rep::BigInteger, // Unsigned int256 will have to go into BigInteger
+            ClickHouseDataType::Int8 => Rep::Int8,
+            ClickHouseDataType::Int16 => Rep::Int16,
+            ClickHouseDataType::Int32 => Rep::Int32,
+            ClickHouseDataType::Int64 => Rep::Int64,
+            ClickHouseDataType::Int128 => Rep::BigInteger,
+            ClickHouseDataType::Int256 => Rep::BigInteger,
+            ClickHouseDataType::Float32 => Rep::Float32,
+            ClickHouseDataType::Float64 => Rep::Float64,
+            ClickHouseDataType::Decimal { .. } => Rep::BigDecimal,
+            ClickHouseDataType::Decimal32 { .. } => Rep::String,
+            ClickHouseDataType::Decimal64 { .. } => Rep::String,
+            ClickHouseDataType::Decimal128 { .. } => Rep::String,
+            ClickHouseDataType::Decimal256 { .. } => Rep::String,
+            ClickHouseDataType::Date => Rep::String,
+            ClickHouseDataType::Date32 => Rep::String,
+            ClickHouseDataType::DateTime { .. } => Rep::String,
+            ClickHouseDataType::DateTime64 { .. } => Rep::String,
+            ClickHouseDataType::Uuid => Rep::String,
+            ClickHouseDataType::IPv4 => Rep::String,
+            ClickHouseDataType::IPv6 => Rep::String,
             ClickHouseDataType::Enum(variants) => {
                 let variants = variants
                     .iter()
                     .map(|(SingleQuotedString(variant), _)| variant.to_owned())
                     .collect();
 
-                Some(Rep::Enum { one_of: variants })
+                Rep::Enum { one_of: variants }
             }
-            _ => None,
+            _ => Rep::JSON,
         }
     }
     fn aggregate_functions(
@@ -662,6 +663,7 @@ impl ClickHouseTypeDefinition {
                     models::ObjectType {
                         description: None,
                         fields: object_type_fields.into_iter().collect(),
+                        foreign_keys: BTreeMap::new(),
                     },
                 ));
 
