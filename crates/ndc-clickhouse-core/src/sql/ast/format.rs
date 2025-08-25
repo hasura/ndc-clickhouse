@@ -18,7 +18,7 @@ impl fmt::Display for EscapedString<'_> {
 }
 /// clickhouse docs state that backslash and single quotes must be escaped
 /// docs: https://clickhouse.com/docs/en/sql-reference/syntax#syntax-string-literal
-pub fn escape_string(s: &'_ str) -> EscapedString {
+pub fn escape_string(s: &'_ str) -> EscapedString<'_> {
     EscapedString(s)
 }
 
