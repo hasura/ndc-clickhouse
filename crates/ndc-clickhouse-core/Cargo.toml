@@ -10,7 +10,7 @@ http = "0.2"
 indexmap = "2.1.0"
 ndc-models = { workspace = true }
 ndc-sdk-core = { workspace = true }
-prometheus = "0.13.3"
+prometheus = "0.14"
 reqwest = { version = "0.12.3", features = [
   "json",
   "rustls-tls",
