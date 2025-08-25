@@ -1,5 +1,5 @@
 # https://github.com/LukeMathWalker/cargo-chef
-FROM rust:1.80.1 as chef
+FROM rust:1.88.0 as chef
 RUN cargo install cargo-chef
 WORKDIR /app
 
