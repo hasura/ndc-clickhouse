@@ -23,8 +23,14 @@
             "return_type": {
                 "kind": "definition",
                 "columns": {
-                    "Id": "UInt32",
-                    "Name": "String"
+                    "Id": {
+                        "data_type": "UInt32",
+                        "comment": null
+                    },
+                    "Name": {
+                        "data_type": "String",
+                        "comment": "This is a string comment. Comments can be null"
+                    }
                 }
             }
         }
