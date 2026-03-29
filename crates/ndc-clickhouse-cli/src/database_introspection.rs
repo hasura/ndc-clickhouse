@@ -26,6 +26,7 @@ pub struct ColumnInfo {
     #[allow(dead_code)]
     pub is_nullable: bool,
     pub is_in_primary_key: bool,
+    pub column_comment: String,
 }
 
 #[derive(Debug, Deserialize)]
