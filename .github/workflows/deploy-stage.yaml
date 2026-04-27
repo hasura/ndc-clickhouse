@@ -49,15 +49,15 @@ jobs:
           push: ${{ startsWith(github.ref, 'refs/tags/v') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-#       - name: Run Trivy vulnerability scanner
-#         uses: aquasecurity/trivy-action@v0.35.0
-#         with:
-#           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
-#           format: json
-#           output: trivy-results.json
-#           severity: CRITICAL,HIGH
-#           scanners: vuln
-# 
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@854c61d34a550a9fcbab3bc59e55b868c15d1962
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          format: json
+          output: trivy-results.json
+          severity: CRITICAL,HIGH
+          scanners: vuln
+
   build-cli-binaries:
     name: build the CLI binaries
     strategy:
