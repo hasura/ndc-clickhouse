@@ -1,6 +1,6 @@
 # https://github.com/LukeMathWalker/cargo-chef
 FROM rust:1.88.0 as chef
-RUN cargo install --locked cargo-chef
+RUN cargo install cargo-chef
 WORKDIR /app
 
 FROM chef AS planner
