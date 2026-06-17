@@ -18,7 +18,7 @@ COPY Cargo.lock ./
 COPY crates crates
 RUN cargo build --locked --profile release --package ndc-clickhouse
 
-FROM ubuntu:24.04 AS runtime
+FROM us-docker.pkg.dev/hasura-container-images/external-images/docker.io/library/ubuntu:24.04-stable AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/ndc-clickhouse /usr/local/bin
