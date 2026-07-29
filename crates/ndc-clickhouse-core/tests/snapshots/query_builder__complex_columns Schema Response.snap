@@ -1,5 +1,5 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: schema
 ---
 scalar_types:
@@ -464,6 +464,7 @@ object_types:
           type: named
           name: UInt32
       Name:
+        description: This is a string comment. Comments can be null
         type:
           type: named
           name: String

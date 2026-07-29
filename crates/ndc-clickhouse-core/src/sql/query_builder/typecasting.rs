@@ -1,6 +1,6 @@
 use common::{
     clickhouse_parser::datatype::{ClickHouseDataType, Identifier},
-    config::ServerConfig,
+    config::{ColumnType, ServerConfig},
     schema::{
         single_column_aggregate_function::ClickHouseSingleColumnAggregateFunction,
         type_definition::ClickHouseTypeDefinition,
@@ -107,7 +107,7 @@ impl AggregatesTypeString {
                         field_path: _,
                     } => {
                         let return_type = get_return_type(table_alias, config)?;
-                        let column_type = get_column(column_alias, return_type, config)?;
+                        let column_type = &get_column(column_alias, return_type, config)?.data_type;
                         let type_definition = ClickHouseTypeDefinition::from_table_column(
                             column_type,
                             column_alias,
@@ -180,7 +180,8 @@ impl RowTypeString {
                                 arguments: _,
                             } => {
                                 let return_type = get_return_type(table_alias, config)?;
-                                let column_type = get_column(column_alias, return_type, config)?;
+                                let column_type =
+                                    &get_column(column_alias, return_type, config)?.data_type;
                                 let type_definition = ClickHouseTypeDefinition::from_table_column(
                                     column_type,
                                     column_alias,
@@ -394,7 +395,7 @@ fn get_column<'a>(
     column_alias: &FieldName,
     return_type: &ObjectTypeName,
     config: &'a ServerConfig,
-) -> Result<&'a ClickHouseDataType, TypeStringError> {
+) -> Result<&'a ColumnType, TypeStringError> {
     let table_type =
         config
             .table_types

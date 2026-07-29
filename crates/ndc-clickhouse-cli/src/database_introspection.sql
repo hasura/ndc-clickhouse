@@ -12,7 +12,7 @@ SELECT toJSONString(
                 c.columns
             )
         ),
-        'Array(Tuple(table_name String, table_schema String, table_catalog String, table_comment Nullable(String), primary_key Nullable(String), table_type String, view_definition String, columns Array(Tuple(column_name String, data_type String, is_nullable Bool, is_in_primary_key Bool))))'
+        'Array(Tuple(table_name String, table_schema String, table_catalog String, table_comment Nullable(String), primary_key Nullable(String), table_type String, view_definition String, columns Array(Tuple(column_name String, data_type String, is_nullable Bool, is_in_primary_key Bool, column_comment String))))'
     )
 )
 FROM INFORMATION_SCHEMA.TABLES AS t
@@ -29,7 +29,8 @@ FROM INFORMATION_SCHEMA.TABLES AS t
                     c.column_name,
                     c.data_type,
                     toBool(c.is_nullable),
-                    toBool(sc.is_in_primary_key)
+                    toBool(sc.is_in_primary_key),
+                    c.column_comment
                 )
             ) AS "columns"
         FROM INFORMATION_SCHEMA.COLUMNS AS c

@@ -113,7 +113,7 @@
             "columns": {
               "type": "object",
               "additionalProperties": {
-                "type": "string"
+                "$ref": "#/definitions/ColumnDefinition"
               }
             }
           }
@@ -155,6 +155,31 @@
             "query_name": {
               "description": "the table alias must match a key in `tables`, and the query must return the same type as that table alternatively, the alias may reference another parameterized query which has a return type definition,",
               "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "ColumnDefinition": {
+      "description": "Either a data type, or an object with data_type and optional comment",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "required": [
+            "data_type"
+          ],
+          "properties": {
+            "data_type": {
+              "type": "string"
+            },
+            "comment": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         }
