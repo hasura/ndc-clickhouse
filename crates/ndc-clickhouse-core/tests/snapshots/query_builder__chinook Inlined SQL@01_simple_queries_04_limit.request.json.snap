@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: inlined_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/chinook/01_simple_queries_04_limit.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/chinook/01_simple_queries_04_limit.request.json
 ---
 SELECT
   toJSONString(
@@ -35,4 +35,4 @@ FROM
         LIMIT
           10
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;

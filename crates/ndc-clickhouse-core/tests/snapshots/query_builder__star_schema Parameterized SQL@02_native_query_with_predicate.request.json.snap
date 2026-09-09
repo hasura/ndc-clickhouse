@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: parameterized_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/star_schema/02_native_query_with_predicate.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/star_schema/02_native_query_with_predicate.request.json
 ---
 SELECT
   toJSONString(
@@ -36,4 +36,4 @@ FROM
         WHERE
           "_origin"."revenue" >= { p0 :UInt64 }
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;
