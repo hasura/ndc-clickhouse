@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: inlined_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/chinook/01_simple_queries_03_larger_predicate.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/chinook/01_simple_queries_03_larger_predicate.request.json
 ---
 SELECT
   toJSONString(
@@ -38,4 +38,4 @@ FROM
             AND NOT ("_origin"."ArtistId" = '2')
           )
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;
