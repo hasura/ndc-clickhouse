@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-07-27
+- Migrate OS base image to private Artifact Registry with `-stable` alias
+
 ## [1.1.2] - 2026-01-22
 - Pin Docker base image to ubuntu:24.04 to address CVE-2025-68973
 

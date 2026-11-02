@@ -18,7 +18,7 @@ COPY Cargo.lock ./
 COPY crates crates
 RUN cargo build --locked --profile release --package ndc-clickhouse
 
-FROM ubuntu:24.04 AS runtime
+FROM us-docker.pkg.dev/hasura-container-images/external-images/docker.io/library/ubuntu:24.04-stable AS runtime
 # Require the Ubuntu eMudhra/emSign distrust bundle; Rustls embedded roots are
 # updated separately in Cargo.lock. Fail closed on a stale package mirror.
 RUN apt-get update \
