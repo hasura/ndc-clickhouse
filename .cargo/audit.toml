@@ -1,5 +1,30 @@
 [advisories]
-ignore = ["RUSTSEC-2025-0134"]
+ignore = [
+    "RUSTSEC-2025-0134",
+
+    # The advisories below come from the HTTP/TLS stack pulled in by
+    # ndc-sdk v0.5.2 (axum 0.6 / hyper 0.14 / reqwest 0.11 / tonic 0.11 via
+    # opentelemetry-otlp 0.15). Every fix needs a semver-major bump of those
+    # crates, so they cannot be cleared from Cargo.lock. The ClickHouse client
+    # itself already uses reqwest 0.12 / rustls 0.23.46 / rustls-webpki 0.103.16.
+    # Remove these entries with the ndc-sdk upgrade (v0.9.x drops all three stacks).
+
+    # h2 0.3.27 (hyper 0.14 <- axum 0.6 <- ndc-sdk): unbounded empty DATA frames.
+    # Likely reachable on the connector's inbound HTTP/2 server.
+    "RUSTSEC-2026-0258",
+
+    # rustls 0.21.12 (reqwest 0.11 <- ndc-sdk, OpenTelemetry exporters) and
+    # rustls 0.22.4 (tokio-rustls 0.25 <- tonic 0.11 <- opentelemetry-otlp 0.15).
+    "RUSTSEC-2026-0346",
+    "RUSTSEC-2026-0349",
+
+    # rustls-webpki 0.101.7 (rustls 0.21) and 0.102.8 (rustls 0.22).
+    "RUSTSEC-2026-0049",
+    "RUSTSEC-2026-0098",
+    "RUSTSEC-2026-0099",
+    "RUSTSEC-2026-0104",
+    "RUSTSEC-2026-0382",
+]
 
 [output]
 quiet = true
