@@ -4,10 +4,10 @@ use schemars::schema_for;
 
 #[test]
 fn test_capabilities() {
-    assert_yaml_snapshot!("Capabilities", capabilities_response())
+    assert_yaml_snapshot!("Capabilities", capabilities_response());
 }
 
 #[test]
 fn test_configuration_schema() {
-    assert_yaml_snapshot!("Server Configuration File", schema_for!(ServerConfigFile))
+    assert_yaml_snapshot!("Server Configuration File", schema_for!(ServerConfigFile));
 }

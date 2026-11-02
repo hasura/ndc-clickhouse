@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security — planned for 1.1.4
 
 - Update the ClickHouse HTTPS client's embedded `webpki-roots` to 1.0.10 and `rustls-webpki` to 0.103.16 for eMudhra/emSign distrust and verifier fixes.
-- Update `quinn-proto` to 0.11.16 to address RUSTSEC-2026-0185.
+- Update `quinn-proto` to 0.11.19 to address RUSTSEC-2026-0185, RUSTSEC-2026-0339, RUSTSEC-2026-0340, RUSTSEC-2026-0341 and RUSTSEC-2026-0342.
+- Update `rustls` 0.23 to 0.23.46 to address RUSTSEC-2026-0285, RUSTSEC-2026-0346, RUSTSEC-2026-0348 and RUSTSEC-2026-0349.
+- Update `tokio` to 1.54.1 (RUSTSEC-2026-0386), `anyhow` to 1.0.104 (RUSTSEC-2026-0190), `rand` 0.8 to 0.8.8 (RUSTSEC-2026-0097), and replace yanked `chacha20` 0.10.1 with 0.10.2.
 - Require the eMudhra distrust CA bundle (`ca-certificates >= 20260816ubuntu0.24.04.1`) in the runtime image, retaining the Hasura Ubuntu 24.04-stable mirror.
 
 ## [1.1.3] - 2026-07-27
