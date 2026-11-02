@@ -19,7 +19,12 @@ COPY crates crates
 RUN cargo build --locked --profile release --package ndc-clickhouse
 
 FROM ubuntu:24.04 AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+# Require the Ubuntu eMudhra/emSign distrust bundle; Rustls embedded roots are
+# updated separately in Cargo.lock. Fail closed on a stale package mirror.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge 20260816ubuntu0.24.04.1 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/ndc-clickhouse /usr/local/bin
 
