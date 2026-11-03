@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-11-03
+
 ### Security — planned for 1.1.4
 
 - Update the ClickHouse HTTPS client's embedded `webpki-roots` to 1.0.10 and `rustls-webpki` to 0.103.16 for eMudhra/emSign distrust and verifier fixes.
