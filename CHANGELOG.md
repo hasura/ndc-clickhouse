@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Security — planned for 1.1.4
+## [1.1.4] - 2026-11-03
+
+### Security
 
 - Update the ClickHouse HTTPS client's embedded `webpki-roots` to 1.0.10 and `rustls-webpki` to 0.103.16 for eMudhra/emSign distrust and verifier fixes.
 - Update `quinn-proto` to 0.11.19 to address RUSTSEC-2026-0185, RUSTSEC-2026-0339, RUSTSEC-2026-0340, RUSTSEC-2026-0341 and RUSTSEC-2026-0342.
