@@ -177,7 +177,7 @@ impl<'r, 'c> QueryBuilder<'r, 'c> {
             .select(select)
             .from(from)
             .into_statement()
-            .format("TabSeparatedRaw"))
+            .format("JSONCompactEachRow"))
     }
     fn rowset_subquery(
         &self,

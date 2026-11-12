@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: inlined_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/chinook/02_relationships_05_traverse_relationship_in_predicate.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/chinook/02_relationships_05_traverse_relationship_in_predicate.request.json
 ---
 SELECT
   toJSONString(
@@ -73,4 +73,4 @@ FROM
         WHERE
           "_exists_0"."_exists_0" = TRUE
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;

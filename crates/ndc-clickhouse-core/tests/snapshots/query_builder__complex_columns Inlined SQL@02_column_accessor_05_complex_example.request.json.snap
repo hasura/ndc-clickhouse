@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: inlined_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/complex_columns/02_column_accessor_05_complex_example.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/complex_columns/02_column_accessor_05_complex_example.request.json
 ---
 SELECT
   toJSONString(
@@ -58,4 +58,4 @@ FROM
               "_row"."_relkey_Id"
           ) AS "_rel_0_child" ON "_origin"."ColumnF"."child"."id" = "_rel_0_child"."_relkey_Id"
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;

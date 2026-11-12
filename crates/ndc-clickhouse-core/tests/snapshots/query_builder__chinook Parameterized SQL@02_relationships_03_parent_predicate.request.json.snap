@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: parameterized_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/chinook/02_relationships_03_parent_predicate.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/chinook/02_relationships_03_parent_predicate.request.json
 ---
 SELECT
   toJSONString(
@@ -62,4 +62,4 @@ FROM
         WHERE
           "_origin"."ArtistId" > { p0 :Int32 }
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;

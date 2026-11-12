@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: inlined_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/chinook/02_relationships_07_order_by_aggregate_across_relationships.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/chinook/02_relationships_07_order_by_aggregate_across_relationships.request.json
 ---
 SELECT
   toJSONString(
@@ -81,4 +81,4 @@ FROM
           "_order_by_1"."_order_by_value" ASC,
           "_order_by_2"."_order_by_value" ASC
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;

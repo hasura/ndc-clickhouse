@@ -1,7 +1,7 @@
 ---
-source: crates/ndc-clickhouse/tests/query_builder.rs
+source: crates/ndc-clickhouse-core/tests/query_builder.rs
 expression: inlined_sql
-input_file: crates/ndc-clickhouse/tests/query_builder/chinook/02_relationships_02_array_relationship.request.json
+input_file: crates/ndc-clickhouse-core/tests/query_builder/chinook/02_relationships_02_array_relationship.request.json
 ---
 SELECT
   toJSONString(
@@ -60,4 +60,4 @@ FROM
               "_row"."_relkey_AlbumId"
           ) AS "_rel_0_Tracks" ON "_origin"."AlbumId" = "_rel_0_Tracks"."_relkey_AlbumId"
       ) AS "_row"
-  ) AS "_rowset" FORMAT TabSeparatedRaw;
+  ) AS "_rowset" FORMAT JSONCompactEachRow;

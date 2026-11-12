@@ -74,6 +74,54 @@ pub async fn query(
         tracing::event!(Level::DEBUG, "Response" = result_string);
     }
 
-    // we assume the response is a valid JSON string, and send those bytes back without parsing
-    Ok(JsonResponse::Serialized(rowsets))
+    let rowsets = unwrap_json_compact_row(&rowsets).map_err(ErrorResponse::from_error)?;
+
+    // the unwrapped value is the JSON document built by toJSONString; forward it without parsing
+    Ok(JsonResponse::Serialized(rowsets.into()))
+}
+
+/// The query statement ends with `FORMAT JSONCompactEachRow`, so the response is a single line
+/// `["<json>"]` holding the rowsets document that `toJSONString` produced. Unwrap that line to
+/// the raw document bytes.
+///
+/// `TabSeparatedRaw` would hand back the document verbatim, but not every ClickHouse-compatible
+/// HTTP endpoint accepts it (Tinybird's ClickHouse interface rejects it, for example), whereas
+/// `JSONCompactEachRow` is universally available.
+fn unwrap_json_compact_row(response: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+    let line = response
+        .split(|b| *b == b'\n')
+        .find(|line| !line.is_empty())
+        .ok_or_else(|| std::io::Error::other("empty response from ClickHouse"))?;
+
+    let mut row: Vec<String> = serde_json::from_slice(line).map_err(std::io::Error::other)?;
+
+    match (row.pop(), row.is_empty()) {
+        (Some(rowsets), true) => Ok(rowsets.into_bytes()),
+        _ => Err(std::io::Error::other(
+            "expected exactly one column in the ClickHouse response row",
+        )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unwrap_json_compact_row;
+
+    #[test]
+    fn unwraps_the_rowsets_document() {
+        let response = b"[\"[{\\\"rows\\\":[{\\\"a\\\":\\\"x\\\\ny\\\"}]}]\"]\n";
+        let unwrapped = unwrap_json_compact_row(response).unwrap();
+        assert_eq!(unwrapped, br#"[{"rows":[{"a":"x\ny"}]}]"#);
+    }
+
+    #[test]
+    fn rejects_an_empty_response() {
+        assert!(unwrap_json_compact_row(b"\n").is_err());
+    }
+
+    #[test]
+    fn rejects_unexpected_column_counts() {
+        assert!(unwrap_json_compact_row(b"[\"a\",\"b\"]\n").is_err());
+        assert!(unwrap_json_compact_row(b"[]\n").is_err());
+    }
 }
