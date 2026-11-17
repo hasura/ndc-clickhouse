@@ -22,6 +22,7 @@ FROM us-docker.pkg.dev/hasura-container-images/external-images/docker.io/library
 # Require the Ubuntu eMudhra/emSign distrust bundle; Rustls embedded roots are
 # updated separately in Cargo.lock. Fail closed on a stale package mirror.
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends ca-certificates \
     && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge 20260816ubuntu0.24.04.1 \
     && rm -rf /var/lib/apt/lists/*
